@@ -1,0 +1,46 @@
+@clr-namespace AvaloniaWebView.Interop
+@clr-access internal
+@clr-map bool int
+@clr-map u_int64_t ulong
+@cpp-preamble @@
+#pragma once
+#include "com.h"
+#include "stddef.h"
+@@
+
+[uuid(809c652e-7396-11d2-9771-00a0cfb4d50c)]
+interface IWebViewFactory : IUnknown
+{
+    INativeWebView* CreateWebView(INativeWebViewHandlers* handlers);
+}
+
+[uuid(e5aca67b-02b7-4129-aa79-d6e417210bda)]
+interface INativeWebView : IUnknown
+{
+    void* AsNsView();
+    bool GetCanGoBack();
+    bool GoBack();
+    bool GetCanGoForward();
+    bool GoForward();
+    HRESULT GetSource(IAvnString**ppv);
+    HRESULT Navigate(IAvnString* url);
+    HRESULT NavigateToString(IAvnString* text);
+    bool Refresh();
+    bool Stop();
+    HRESULT InvokeScript(IAvnString* script, int id);
+}
+
+[uuid(e5aca67b-02b7-4129-aa79-d6e417210bba)]
+interface INativeWebViewHandlers : IUnknown
+{
+    HRESULT OnScriptResult(int id, bool isError, IAvnString*result);
+    HRESULT OnNavigationCompleted(IAvnString* url, bool success);
+    HRESULT OnNavigationStarted(IAvnString* url, bool* cancel);
+}
+
+[uuid(233e094f-9b9f-44a3-9a6e-6948bbdd9fbb)]
+interface IAvnString : IUnknown
+{
+    HRESULT Pointer(void**retOut);
+    HRESULT Length(int*ret);
+}

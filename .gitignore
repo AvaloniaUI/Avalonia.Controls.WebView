@@ -349,3 +349,9 @@ MigrationBackup/
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
 .idea
+.DS_Store
+native/AvaloniaWebView.Native/src/OSX/WebView.Native.OSX.xcodeproj/project.xcworkspace/xcuserdata
+native/AvaloniaWebView.Native/src/OSX/WebView.Native.OSX.xcodeproj/xcuserdata
+
+native/AvaloniaWebView.Native/src/OSX/build
+

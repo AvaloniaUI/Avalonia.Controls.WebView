@@ -76,9 +76,11 @@ public class NativeWebView : NativeControlHost, IWebView
         {
             return base.CreateNativeControlCore(parent);
         }
-#elif MACOS
-        _webViewAdapter = new Mac.MacWebViewAdapter();
 #else
+        if (OperatingSystem.IsMacOS())
+        {
+            _webViewAdapter = new NativeWebViewAdapter();
+        }
         // if (OperatingSystem.IsLinux())
         // {
         //     new Gtk.GtkWebView2Adapter();
@@ -91,6 +93,7 @@ public class NativeWebView : NativeControlHost, IWebView
         //     _webViewAdapter = new BrowserIFrameAdapter();
         // }
         // else
+        else
         {
             return base.CreateNativeControlCore(parent);
         }

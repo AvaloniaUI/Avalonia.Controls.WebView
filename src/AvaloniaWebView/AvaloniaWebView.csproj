@@ -1,30 +1,35 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net7.0;net7.0-windows10.0.22621;net7.0-macos</TargetFrameworks>
+    <PackAvaloniaNative Condition="'$(PackAvaloniaNative)' == ''">$([MSBuild]::IsOSPlatform(OSX))</PackAvaloniaNative>
+    <TargetFrameworks>net7.0;net7.0-windows10.0.22621</TargetFrameworks>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
   <!-- Common group -->
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.0" />
+
+    <PackageReference Include="MicroCom.CodeGenerator.MSBuild" Version="0.11.0" PrivateAssets="all" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(PackAvaloniaNative)' == 'true'">
+    <Content Include="../../build/Products/Release/libWebView.Native.OSX.dylib">
+      <Link>libWebView.dylib</Link>
+      <PackagePath>runtimes/osx/native/libWebView.dylib</PackagePath>
+      <Pack>true</Pack>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <MicroComIdl Include="Native/webview.idl" CSharpInteropPath="Native/WebView.Generated.cs" />
+  </ItemGroup>
+  
   <!-- Windows only group -->
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.902.49" />
     <PackageReference Include="Dongle.WindowsSDK.NET" Version="10.0.22621.756" />
   </ItemGroup>
-
-  <!-- macOS only group -->
-  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'macos'">
-<!--    <PackageReference Include="MonoMac.NetStandard" Version="0.0.4" />-->
-  </ItemGroup>
-
-  <!-- Unknown platform group (linux + browser) -->
-<!--  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == ''">-->
-<!--    <PackageReference Include="WebkitGtkSharp" Version="3.24.24.95" />-->
-<!--    <PackageReference Include="Avalonia.X11" Version="11.0" />-->
-<!--    <PackageReference Include="Avalonia.Browser" Version="11.0" />-->
-<!--  </ItemGroup>-->
 </Project>

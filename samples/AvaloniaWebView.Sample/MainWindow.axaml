@@ -10,7 +10,9 @@
         mc:Ignorable="d">
   <TabControl>
     <TabItem Header="Google">
-      <webview:NativeWebView Source="https://google.com" />
+      <webview:NativeWebView Source="https://google.com"
+                             NavigationCompleted="NativeWebView_OnNavigationCompleted"
+                             NavigationStarted="NativeWebView_OnNavigationStarted"/>
     </TabItem>
     <TabItem Header="Reddit">
       <webview:NativeWebView Source="https://reddit.com" />
