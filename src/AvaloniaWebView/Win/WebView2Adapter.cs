@@ -28,7 +28,10 @@ internal class WebView2Adapter : IWebViewAdapter
     {
         var env = await CoreWebView2Environment.CreateAsync();
         var controller = await env.CreateCoreWebView2ControllerAsync(Handle);
+        await controller.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync("function invokeCSharpAction(data){window.chrome.webview.postMessage(data);}");
+
         controller.IsVisible = true;
+
         _controller = controller;
 
         SizeChanged();
@@ -89,7 +92,7 @@ internal class WebView2Adapter : IWebViewAdapter
 
     public void Navigate(Uri url)
     {
-        _controller?.CoreWebView2?.Navigate(url.AbsolutePath);
+        _controller?.CoreWebView2?.Navigate(url.AbsoluteUri);
     }
 
     public void NavigateToString(string text)
@@ -123,15 +126,16 @@ internal class WebView2Adapter : IWebViewAdapter
     private Action AddHandlers(CoreWebView2 webView)
     {
         webView.NavigationStarting += WebViewOnNavigationStarting;
-        async void WebViewOnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
+        void WebViewOnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
         {
-            await InvokeScript("function invokeCSharpAction(data){window.chrome.webview.postMessage(data);}");
-
-            var args = new WebViewNavigationStartingEventArgs { Request = new Uri(e.Uri) };
-            NavigationStarted?.Invoke(this, args);
-            if (args.Cancel)
+            if (Uri.TryCreate(e.Uri, UriKind.Absolute, out var uri))
             {
-                e.Cancel = true;
+                var args = new WebViewNavigationStartingEventArgs { Request = uri };
+                NavigationStarted?.Invoke(this, args);
+                if (args.Cancel)
+                {
+                    e.Cancel = true;
+                }
             }
         }
 
@@ -148,7 +152,7 @@ internal class WebView2Adapter : IWebViewAdapter
         webView.WebMessageReceived += WebViewOnWebMessageReceived;
         void WebViewOnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
-            WebMessageReceived?.Invoke(this, new WebMessageReceivedEventArgs { Body = e.WebMessageAsJson });
+            WebMessageReceived?.Invoke(this, new WebMessageReceivedEventArgs { Body = e.TryGetWebMessageAsString() ?? e.WebMessageAsJson });
         }
 
         return () =>

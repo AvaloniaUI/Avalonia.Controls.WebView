@@ -38,6 +38,8 @@ internal sealed class WebView1Adapter : IWebViewAdapter
 
         var control = await process.CreateWebViewControlAsync((long)Handle,
             new Windows.Foundation.Rect(0, 0, 100, 100));
+        control.Settings.IsScriptNotifyAllowed = true;
+        control.Settings.IsJavaScriptEnabled = true;
 
         _webViewControl = control;
         _webViewControl.IsVisible = true;

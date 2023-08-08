@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net7.0;net7.0-windows10.0.22621</TargetFrameworks>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <RuntimeIdentifiers Condition="'$(TargetFramework)' == 'net7.0'">linux-x64</RuntimeIdentifiers>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
   <ItemGroup>

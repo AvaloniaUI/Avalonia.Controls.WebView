@@ -144,13 +144,13 @@ public class TinyMceView : ThemeVariantScope
         _ignoreChanges = false;
     }
 
-    private void SendCurrentText()
+    private async void SendCurrentText()
     {
         if (_ignoreChanges) return;
 
         _ignoreChanges = true;
         var payload = JsonSerializer.Serialize(new JsPayload("textChanging", HtmlText ?? ""));
-        _nativeWebView.InvokeScript($"sendPayload('{JsonEncodedText.Encode(payload)}')");
+        await _nativeWebView.InvokeScript($"sendPayload('{JsonEncodedText.Encode(payload)}')");
         _ignoreChanges = false;
     }
 }
