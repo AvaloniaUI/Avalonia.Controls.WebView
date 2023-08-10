@@ -1,17 +1,13 @@
-﻿#if WINDOWS || NETFRAMEWORK
+﻿#if !NETSTANDARD2_0
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
-using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using Avalonia.Platform;
 using Microsoft.Web.WebView2.Core;
 
 namespace AvaloniaUI.WebView.Core.Win;
 
-#if !NETFRAMEWORK
-[SupportedOSPlatform("Windows10.0.17134")]
-#endif
 internal class WebView2Adapter : IWebViewAdapter
 {
     private CoreWebView2Controller? _controller;

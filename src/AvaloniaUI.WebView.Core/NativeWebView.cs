@@ -109,7 +109,7 @@ public class NativeWebView : NativeControlHost, IWebView
         // {
         //     adapter = new BrowserIFrameAdapter();
         // }
-#if WINDOWS || NETFRAMEWORK
+#if !NETSTANDARD2_0
         else if (OperatingSystemEx.IsWindows())
         {
             if (WebViewCapabilities.IsMsWebView2Available)

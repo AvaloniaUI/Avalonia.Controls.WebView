@@ -16,7 +16,12 @@ internal class WebViewCapabilities
 
     private static bool IsMsWebView2AvailableInternal()
     {
-#if WINDOWS || NETFRAMEWORK
+        if (!OperatingSystemEx.IsWindows())
+        {
+            return false;
+        }
+        
+#if !NETSTANDARD2_0
         try
         {
             var versionString = Microsoft.Web.WebView2.Core.CoreWebView2Environment.GetAvailableBrowserVersionString();

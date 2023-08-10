@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <!-- Windows only group -->
-  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' OR '$(TargetFramework)' == 'net462'">
+  <ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.1901.177" />
     <!--    <PackageReference Include="Dongle.WindowsSDK.NET" Version="10.0.22621.756"/>-->
   </ItemGroup>
