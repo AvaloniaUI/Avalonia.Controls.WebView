@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:wpf="clr-namespace:AvaloniaUI.WebView.Wpf;assembly=AvaloniaUI.WebView.Wpf"
+        xmlns:wpf="clr-namespace:AvaloniaUI.WebView;assembly=AvaloniaUI.WebView.Wpf"
+        xmlns:tinyMce="clr-namespace:AvaloniaUI.WebView.TinyMCE;assembly=AvaloniaUI.WebView.TinyMCE.Wpf"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
   <TabControl>
@@ -20,11 +21,15 @@
         <TextBox IsReadOnly="True" Grid.Row="1" x:Name="LogList" />
       </Grid>
     </TabItem>
-    <!-- <TabItem Header="TinyMCE"> -->
-    <!--   <Grid ColumnDefinitions="2*,*"> -->
-    <!--     <tinyMce:TinyMceView Grid.Column="0" x:Name="MceView" /> -->
-    <!--     <TextBox Grid.Column="1" Text="{Binding #MceView.HtmlText}" /> -->
-    <!--   </Grid> -->
-    <!-- </TabItem> -->
+    <TabItem Header="TinyMCE">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="2*"/>
+          <ColumnDefinition Width="1*"/>
+        </Grid.ColumnDefinitions>
+        <tinyMce:TinyMceView Grid.Column="0" x:Name="MceView" />
+        <TextBox Grid.Column="1" Text="{Binding HtmlText, ElementName=MceView}" />
+      </Grid>
+    </TabItem>
   </TabControl>
 </Window>

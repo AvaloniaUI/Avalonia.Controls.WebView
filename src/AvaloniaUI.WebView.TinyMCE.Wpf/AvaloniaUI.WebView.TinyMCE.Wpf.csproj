@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net48;net6.0-windows</TargetFrameworks>
+        <UseWpf>true</UseWpf>
+        <DefineConstants>#(DefineConstants);WPF</DefineConstants>
+        <IsPackable>true</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Include="..\AvaloniaUI.WebView.TinyMCE.Core\TinyMceView.cs">
+        <Link>TinyMceView.cs</Link>
+      </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\AvaloniaUI.WebView.Wpf\AvaloniaUI.WebView.Wpf.csproj"/>
+        <ProjectReference Include="..\AvaloniaUI.WebView.TinyMCE.Core\AvaloniaUI.WebView.TinyMCE.Core.csproj" />
+    </ItemGroup>
+</Project>

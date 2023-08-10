@@ -1,14 +1,20 @@
+#if AVALONIA || WPF
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using System.Windows;
-using Avalonia.Platform;
 using AvaloniaUI.WebView.Core;
 using AvaloniaUI.WebView.Core.Native;
 using AvaloniaUI.WebView.Core.Win;
+using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
+#if WPF
+using System.Windows;
 using NativeControlHost = AvaloniaUI.Xpf.WpfAbstractions.NativeControlHost;
+#elif AVALONIA
+using Avalonia;
+using Avalonia.Controls;
+#endif
 
-namespace AvaloniaUI.WebView.Wpf;
+namespace AvaloniaUI.WebView;
 
 public class NativeWebView : NativeControlHost, IWebView
 {
@@ -20,8 +26,13 @@ public class NativeWebView : NativeControlHost, IWebView
     public event EventHandler<WebViewNavigationStartingEventArgs>? NavigationStarted;
     public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
 
+#if WPF
     public static readonly DependencyProperty SourceProperty = DependencyProperty.Register(
         nameof(Source), typeof(Uri), typeof(NativeWebView), new PropertyMetadata(new Uri("about:blank"), SourcePropertyChangedCallback));
+#elif AVALONIA
+    public static readonly StyledProperty<Uri> SourceProperty = AvaloniaProperty.Register<NativeWebView, Uri>(
+        nameof(Source), new Uri("about:blank"));
+#endif
 
     public Uri Source
     {
@@ -169,14 +180,19 @@ public class NativeWebView : NativeControlHost, IWebView
 
         _webViewReadyCompletion.TrySetResult(adapter);
 
+#if WPF
         if (ReadLocalValue(SourceProperty) != DependencyProperty.UnsetValue
+#elif AVALONIA
+        if (IsSet(SourceProperty)
+#endif
             && Source is { } source
             && adapter.Source != source)
         {
             adapter.Navigate(source);
         }
     }
-    
+
+#if WPF
     private static void SourcePropertyChangedCallback(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var @this = (NativeWebView)d;
@@ -186,6 +202,25 @@ public class NativeWebView : NativeControlHost, IWebView
             @this.Navigate(source);
         }
     }
+#elif AVALONIA
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property == SourceProperty)
+        {
+            if (!_ignoreNavigation
+                && change.GetNewValue<Uri?>() is { } source)
+            {
+                Navigate(source);
+            }
+        }
+        else if (change.Property == BoundsProperty)
+        {
+            TryGetAdapter()?.SizeChanged();
+        }
+    }
+#endif
 
     protected override void DestroyNativeControlCore(IPlatformHandle control)
     {
@@ -203,3 +238,4 @@ public class NativeWebView : NativeControlHost, IWebView
         }
     }
 }
+#endif

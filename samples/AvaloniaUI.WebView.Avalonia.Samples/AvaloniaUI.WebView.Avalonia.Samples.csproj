@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net7.0;net7.0-windows</TargetFrameworks>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
@@ -12,7 +11,7 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
    </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\AvaloniaUI.WebView.TinyMCE\AvaloniaUI.WebView.TinyMCE.csproj" />
+    <ProjectReference Include="..\..\src\AvaloniaUI.WebView.TinyMCE.Avalonia\AvaloniaUI.WebView.TinyMCE.Avalonia.csproj" />
     <ProjectReference Include="..\..\src\AvaloniaUI.WebView.Avalonia\AvaloniaUI.WebView.Avalonia.csproj" />
   </ItemGroup>
   

@@ -1,7 +1,4 @@
-using System;
-using Avalonia;
 using Avalonia.Controls;
-using AvaloniaUI.WebView.Core;
 
 namespace AvaloniaUI.WebView.Avalonia.Samples;
 

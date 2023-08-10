@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Avalonia.Platform;
 
-namespace AvaloniaUI.WebView.Core;
+namespace AvaloniaUI.WebView;
 
 public class WebMessageReceivedEventArgs : EventArgs
 {

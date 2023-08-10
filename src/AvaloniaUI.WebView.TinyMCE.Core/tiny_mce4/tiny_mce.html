@@ -9,16 +9,16 @@
     <style>/*${tinyMceStyle}*/</style>
 </head>
 <body style="/*${rootStyles}*/">
-    <textarea id="mytextarea"></textarea>
+    <textarea id="maintextarea"></textarea>
     <script type="text/javascript">
         function sendPayload(json) {
             var obj = JSON.parse(json);
             console.log("received payload", obj);
             if (obj.type === 'textChanging')
-                tinymce.get("mytextarea").setContent(obj.body);
+                tinymce.get("maintextarea").setContent(obj.body);
         }
         tinymce.init({
-            selector: '#mytextarea',
+            selector: '#maintextarea',
             paste_data_images: true,
             skin: false,
             menubar: false,

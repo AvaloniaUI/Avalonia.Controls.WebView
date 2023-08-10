@@ -1,10 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net6.0;net6.0-windows10.0.22621</TargetFrameworks>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <TargetFrameworks>netstandard2.0;net6.0;net6.0-windows</TargetFrameworks>
+    <DefineConstants>#(DefineConstants);AVALONIA</DefineConstants>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AvaloniaUI.WebView.Core\AvaloniaUI.WebView.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\AvaloniaUI.WebView.Core\NativeWebView.cs">
+      <Link>NativeWebView.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>

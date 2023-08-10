@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:webview="using:AvaloniaUI.WebView.Avalonia"
-        xmlns:tinyMce="clr-namespace:AvaloniaUI.WebView.TinyMCE;assembly=AvaloniaUI.WebView.TinyMCE"
+        xmlns:webview="using:AvaloniaUI.WebView"
+        xmlns:tinyMce="using:AvaloniaUI.WebView.TinyMCE"
         Title="AvaloniaUI.WebView.Avalonia.Samples"
         d:DesignHeight="450"
         d:DesignWidth="800"
@@ -19,11 +19,11 @@
                 <TextBox IsReadOnly="True" Grid.Row="1" x:Name="LogList" />
             </Grid>
         </TabItem>
-        <!-- <TabItem Header="TinyMCE"> -->
-        <!--     <Grid ColumnDefinitions="2*,*"> -->
-        <!--         <tinyMce:TinyMceView Grid.Column="0" x:Name="MceView" /> -->
-        <!--         <TextBox Grid.Column="1" Text="{Binding #MceView.HtmlText}" /> -->
-        <!--     </Grid> -->
-        <!-- </TabItem> -->
+        <TabItem Header="TinyMCE">
+            <Grid ColumnDefinitions="2*,*">
+                <tinyMce:TinyMceView Grid.Column="0" x:Name="MceView" />
+                <TextBox Grid.Column="1" Text="{Binding #MceView.HtmlText}" />
+            </Grid>
+        </TabItem>
     </TabControl>
 </Window>

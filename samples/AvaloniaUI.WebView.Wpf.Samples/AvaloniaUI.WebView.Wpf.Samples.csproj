@@ -4,10 +4,10 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net6.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\AvaloniaUI.WebView.TinyMCE.Wpf\AvaloniaUI.WebView.TinyMCE.Wpf.csproj" />
     <ProjectReference Include="..\..\src\AvaloniaUI.WebView.Wpf\AvaloniaUI.WebView.Wpf.csproj" />
   </ItemGroup>
 

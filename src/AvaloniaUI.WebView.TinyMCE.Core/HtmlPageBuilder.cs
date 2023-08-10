@@ -1,46 +1,41 @@
-using Avalonia.Media;
-using Avalonia.Platform;
+using System.IO;
 
-namespace AvaloniaUI.WebView.TinyMCE;
+namespace AvaloniaUI.WebView.TinyMCE.Core;
 
 internal static class HtmlPageBuilder
 {
     static HtmlPageBuilder()
     {
-        using (var htmlStream = AssetLoader.Open(new Uri($"avares://{nameof(AvaloniaUI.WebView.Avalonia)}.{nameof(TinyMCE)}/tiny_mce4/tiny_mce.html")))
+        var assembly = typeof(HtmlPageBuilder).Assembly;
+
+        using (var htmlStream = assembly.GetManifestResourceStream("AvaloniaUI.WebView.TinyMCE.Core.tiny_mce4.tiny_mce.html")!)
         using (var htmlStreamReader = new StreamReader(htmlStream))
-        using (var scriptStream = AssetLoader.Open(new Uri($"avares://{nameof(AvaloniaUI.WebView.Avalonia)}.{nameof(TinyMCE)}/tiny_mce4/tiny_mce.min.js")))
+        using (var scriptStream = assembly.GetManifestResourceStream("AvaloniaUI.WebView.TinyMCE.Core.tiny_mce4.tiny_mce.min.js")!)
         using (var scriptStreamReader = new StreamReader(scriptStream))
         {
             HtmlBaseContent = htmlStreamReader.ReadToEnd()
                 .Replace("/*${tinyMceScript}*/", scriptStreamReader.ReadToEnd());
         }
 
-        using (var stream = AssetLoader.Open(new Uri($"avares://{nameof(AvaloniaUI.WebView.Avalonia)}.{nameof(TinyMCE)}/tiny_mce4/tiny_mce.lightgray.css")))
+        using (var stream = assembly.GetManifestResourceStream("AvaloniaUI.WebView.TinyMCE.Core.tiny_mce4.tiny_mce.lightgray.css")!)
         using (var reader = new StreamReader(stream))
         {
             LightGrayStyle = reader.ReadToEnd();
         }
         
-        using (var stream = AssetLoader.Open(new Uri($"avares://{nameof(AvaloniaUI.WebView.Avalonia)}.{nameof(TinyMCE)}/tiny_mce4/tiny_mce.charcoal.css")))
+        using (var stream = assembly.GetManifestResourceStream("AvaloniaUI.WebView.TinyMCE.Core.tiny_mce4.tiny_mce.charcoal.css")!)
         using (var reader = new StreamReader(stream))
         {
             CharcoalStyle = reader.ReadToEnd();
         }
         
-        using (var stream = AssetLoader.Open(new Uri($"avares://{nameof(AvaloniaUI.WebView.Avalonia)}.{nameof(TinyMCE)}/tiny_mce4/tiny_mce.charcoal.css")))
-        using (var reader = new StreamReader(stream))
-        {
-            CharcoalStyle = reader.ReadToEnd();
-        }
-        
-        using (var stream = AssetLoader.Open(new Uri($"avares://{nameof(AvaloniaUI.WebView.Avalonia)}.{nameof(TinyMCE)}/tiny_mce4/tiny_mce.content.dark.css")))
+        using (var stream = assembly.GetManifestResourceStream("AvaloniaUI.WebView.TinyMCE.Core.tiny_mce4.tiny_mce.content.dark.css")!)
         using (var reader = new StreamReader(stream))
         {
             ContentDarkStyle = reader.ReadToEnd();
         }
         
-        using (var stream = AssetLoader.Open(new Uri($"avares://{nameof(AvaloniaUI.WebView.Avalonia)}.{nameof(TinyMCE)}/tiny_mce4/tiny_mce.content.light.css")))
+        using (var stream = assembly.GetManifestResourceStream("AvaloniaUI.WebView.TinyMCE.Core.tiny_mce4.tiny_mce.content.light.css")!)
         using (var reader = new StreamReader(stream))
         {
             ContentLightStyle = reader.ReadToEnd();
@@ -58,8 +53,8 @@ internal static class HtmlPageBuilder
         string contentStyle,
         string? fontName,
         int fontSize,
-        Color? background,
-        Color? foreground,
+        string? background,
+        string? foreground,
         string toolbarOptions,
         string plugins)
     {

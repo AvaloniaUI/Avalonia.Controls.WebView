@@ -3,14 +3,21 @@
   <PropertyGroup>
     <TargetFrameworks>net462;net6.0-windows</TargetFrameworks>
     <UseWpf>true</UseWpf>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <DefineConstants>#(DefineConstants);WPF</DefineConstants>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AvaloniaUI.WebView.Core\AvaloniaUI.WebView.Core.csproj" />
+    <ProjectReference Include="..\AvaloniaUI.WebView.Core\AvaloniaUI.WebView.Core.csproj" Publish="true" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AvaloniaUI.Xpf.WpfAbstractions" Version="0.0.1-cibuild000019" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\AvaloniaUI.WebView.Core\NativeWebView.cs">
+      <Link>NativeWebView.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>

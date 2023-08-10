@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace AvaloniaUI.WebView.Core;
+namespace AvaloniaUI.WebView;
 
-public class WebViewCapabilities
+internal class WebViewCapabilities
 {
     private static bool? _isMsWebView2Available;
     public static bool IsMsWebView2Available => _isMsWebView2Available ??= IsMsWebView2AvailableInternal();
@@ -16,7 +16,7 @@ public class WebViewCapabilities
 
     private static bool IsMsWebView2AvailableInternal()
     {
-#if WINDOWS
+#if WINDOWS || NETFRAMEWORK
         try
         {
             var versionString = Microsoft.Web.WebView2.Core.CoreWebView2Environment.GetAvailableBrowserVersionString();
