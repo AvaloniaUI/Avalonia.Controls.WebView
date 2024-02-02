@@ -72,11 +72,10 @@
           "items": {
             "type": "string",
             "enum": [
-              "Clean",
               "Compile",
               "CompileNative",
-              "GenerateCppHeaders",
-              "Restore"
+              "CreateNugetPackages",
+              "GenerateCppHeaders"
             ]
           }
         },
@@ -86,11 +85,10 @@
           "items": {
             "type": "string",
             "enum": [
-              "Clean",
               "Compile",
               "CompileNative",
-              "GenerateCppHeaders",
-              "Restore"
+              "CreateNugetPackages",
+              "GenerateCppHeaders"
             ]
           }
         },
