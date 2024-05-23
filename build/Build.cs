@@ -50,16 +50,20 @@ class Build : NukeBuild
             DotNetBuild(c => c
                 .SetConfiguration(Configuration)
                 .AddProperty("PackageVersion", GetVersion())
+                .SetVerbosity(DotNetVerbosity.minimal)
+                .SetBinaryLog(Output / "build.binlog")
                 .SetProjectFile(ProjectFile)
             );
         });
 
     Target CreateNugetPackages => _ => _
+        .DependsOn(OutputParameters)
         .DependsOn(Compile)
         .Executes(() =>
         {
             DotNetPack(c => c
                 .SetConfiguration(Configuration)
+                .AddProperty("PackageVersion", GetVersion())
                 .SetOutputDirectory(Output)
                 .SetProject(ProjectFile));
         });

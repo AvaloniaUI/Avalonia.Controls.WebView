@@ -6,9 +6,6 @@
     "build": {
       "type": "object",
       "properties": {
-        "cirunnumber": {
-          "type": "string"
-        },
         "Configuration": {
           "type": "string",
           "description": "Configuration to build - Default is 'Debug' (local) or 'Release' (server)",
@@ -84,7 +81,8 @@
               "Compile",
               "CompileNative",
               "CreateNugetPackages",
-              "GenerateCppHeaders"
+              "GenerateCppHeaders",
+              "OutputParameters"
             ]
           }
         },
@@ -97,7 +95,8 @@
               "Compile",
               "CompileNative",
               "CreateNugetPackages",
-              "GenerateCppHeaders"
+              "GenerateCppHeaders",
+              "OutputParameters"
             ]
           }
         },
