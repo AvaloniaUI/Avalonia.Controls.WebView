@@ -98,4 +98,14 @@ internal unsafe class WebBrowserAdapter : IWebViewAdapter
     public void SizeChanged()
     {
     }
+
+    public void SetParent(IPlatformHandle parent)
+    {
+        if (parent.HandleDescriptor != "HWND")
+        {
+            throw new InvalidOperationException("IPlatformHandle.HandleDescriptor must be HWND");
+        }
+
+        _ = PInvoke.SetParent(new HWND(Handle), new HWND(parent.Handle));
+    }
 }

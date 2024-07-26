@@ -106,6 +106,11 @@ internal sealed class NativeWebViewAdapter : IWebViewAdapter
     public event EventHandler? Initialized;
     public bool IsInitialized => true;
     public void SizeChanged() { }
+    public void SetParent(IPlatformHandle parent)
+    {
+        // no-op
+        // macOS control don't need to be explicitly parented
+    }
 
     [DllImport("libWebView")]
     private static extern IntPtr CreateWebViewNativeFactory();

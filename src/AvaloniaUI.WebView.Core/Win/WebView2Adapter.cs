@@ -101,6 +101,14 @@ internal class WebView2Adapter : IWebViewAdapter
         }
     }
 
+    public void SetParent(IPlatformHandle parent)
+    {
+        if (parent.HandleDescriptor != "HWND")
+            throw new InvalidOperationException("IPlatformHandle.HandleDescriptor must be HWND");
+
+        _ = PInvoke.SetParent(new HWND(Handle), new HWND(parent.Handle));
+    }
+
     private async void Initialize()
     {
         var env = await CoreWebView2Environment.CreateAsync();

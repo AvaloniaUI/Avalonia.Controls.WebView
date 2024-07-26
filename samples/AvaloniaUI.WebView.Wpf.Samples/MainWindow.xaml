@@ -5,15 +5,17 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:wpf="clr-namespace:AvaloniaUI.WebView;assembly=AvaloniaUI.WebView.Wpf"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-  <TabControl>
+        Title="MainWindow" Height="450" Width="800"
+        KeyDown="MainWindow_OnKeyDown">
+  <TabControl x:Name="TabControl">
     <TabItem Header="XPF">
-      <Grid>
+      <Grid x:Name="GridContainer">
         <Grid.RowDefinitions>
           <RowDefinition Height="3*" />
           <RowDefinition Height="1*" />
         </Grid.RowDefinitions>
-        <wpf:NativeWebView Source="https://avaloniaui.net/"
+        <wpf:NativeWebView x:Name="WebView"
+                           Source="https://avaloniaui.net/"
                            NavigationCompleted="NativeWebView_OnNavigationCompleted"
                            NavigationStarted="NativeWebView_OnNavigationStarted"
                            WebMessageReceived="NativeWebView_OnWebMessageReceived" />

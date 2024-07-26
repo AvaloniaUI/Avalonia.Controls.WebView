@@ -124,4 +124,6 @@ internal interface IWebViewAdapter : IWebView, IDisposable, IPlatformHandle
     event EventHandler? Initialized;
 
     void SizeChanged();
+
+    void SetParent(IPlatformHandle parent);
 }

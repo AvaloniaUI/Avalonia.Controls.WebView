@@ -100,6 +100,11 @@ public class NativeWebView : NativeControlHost, IWebView
 
     protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
     {
+        if (_reparentingScope is not null)
+        {
+            return _reparentingScope.ReparentRequested(parent);
+        }
+
         IWebViewAdapter? adapter = null;
 
 #if !NETFRAMEWORK
@@ -260,6 +265,12 @@ public class NativeWebView : NativeControlHost, IWebView
     {
         if (control is IWebViewAdapter adapter)
         {
+            if (_reparentingScope is not null)
+            {
+                _reparentingScope.SetDestroyingAdapter(adapter);
+                return;
+            }
+
             Debug.Assert(!(TryGetAdapter() is { } oldAdapter && oldAdapter != adapter));
 
             _webViewReadyCompletion.TrySetCanceled();
@@ -269,6 +280,103 @@ public class NativeWebView : NativeControlHost, IWebView
             adapter.WebMessageReceived -= WebViewAdapterOnWebMessageReceived;
             adapter.Initialized -= WebViewAdapterOnInitialized;
             adapter.Dispose();
+        }
+    }
+
+    private ReparentingScope? _reparentingScope;
+
+    /// <inheritdoc cref="BeginReparentingAsync" />
+    public IDisposable BeginReparenting(bool yieldOnLayoutBeforeExiting = true)
+    {
+        if (_reparentingScope is not null)
+            throw new InvalidOperationException("Nested BeginReparenting is not allowed.");
+
+        return _reparentingScope = new ReparentingScope(this, yieldOnLayoutBeforeExiting);
+    }
+
+    /// <summary>
+    /// This method delays destruction of the native control, ignoring any Loaded/Unloaded events and keeping control alive.
+    /// When <see cref="BeginReparenting"/> scope is ended (return value is disposed),
+    /// <see cref="NativeWebView"/> will reparent existing native control to a new parent, if it exist.
+    /// Or destroys native control, if <see cref="NativeWebView"/> is not attached to any parent.
+    /// Without <see cref="BeginReparenting"/> executed, native control will always be destroyed, when it's detached from parent before attaching to a new one.
+    /// </summary>
+    /// <returns>Reparenting scope. Disposing returned value will re-evaluate <see cref="NativeWebView"/> native control parenting.</returns>
+    public IAsyncDisposable BeginReparentingAsync()
+    {
+        if (_reparentingScope is not null)
+            throw new InvalidOperationException("Nested BeginReparenting is not allowed.");
+
+        return _reparentingScope = new ReparentingScope(this, true);
+    }
+
+    private sealed class ReparentingScope(NativeWebView webView, bool yieldOnLayoutBeforeExiting) : IDisposable, IAsyncDisposable
+    {
+        private IWebViewAdapter? _pendingAdapter;
+        public void Dispose()
+        {
+            var task = DisposeAsync().AsTask();
+            if (!task.IsCompleted)
+            {
+                var frame = new DispatcherFrame();
+                _ = task.ContinueWith(static (_, s) => ((DispatcherFrame)s).Continue = false, frame);
+#if WPF
+                Dispatcher.PushFrame(frame);
+#elif AVALONIA
+                Dispatcher.UIThread.PushFrame(frame);
+#endif
+            }
+
+            task.GetAwaiter().GetResult();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_pendingAdapter is not null && yieldOnLayoutBeforeExiting)
+            {
+#if WPF
+                await Dispatcher.Yield(DispatcherPriority.Render);
+#elif AVALONIA
+                var tcs = new TaskCompletionSource<bool>();
+                Dispatcher.UIThread.Post(_ => tcs.TrySetResult(true), DispatcherPriority.Render);
+                await tcs.Task.ConfigureAwait(false);
+#endif
+            }
+
+            webView._reparentingScope = null;
+            if (_pendingAdapter is not null
+#if WPF
+                && PresentationSource.FromVisual(webView) is null)
+#elif AVALONIA
+                && TopLevel.GetTopLevel(webView) is null)
+#endif
+            {
+                webView.DestroyNativeControlCore(_pendingAdapter);
+            }
+        }
+
+        public void SetDestroyingAdapter(IWebViewAdapter adapter)
+        {
+            if (_pendingAdapter is not null)
+            {
+                throw new InvalidOperationException("NativeWebView was detached second time without being attached.");
+            }
+
+            _pendingAdapter = adapter;
+        }
+
+        public IPlatformHandle ReparentRequested(IPlatformHandle parent)
+        {
+            if (_pendingAdapter is null)
+            {
+                throw new InvalidOperationException("NativeWebView wasn't detached from previous parent.");
+            }
+
+            var currentAdapter = _pendingAdapter;
+            _pendingAdapter = null;
+
+            currentAdapter.SetParent(parent);
+            return currentAdapter;
         }
     }
 }
