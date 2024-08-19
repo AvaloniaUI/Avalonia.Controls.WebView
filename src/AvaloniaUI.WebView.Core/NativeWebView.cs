@@ -283,6 +283,17 @@ public class NativeWebView : NativeControlHost, IWebView
         }
     }
 
+    /// <summary>
+    /// Returns a platform handle of the native control.
+    /// </summary>
+    /// <remarks>
+    /// Return handle can be used to access additional native APIs by using it with PInvokes. 
+    /// </remarks>
+    public IPlatformHandle? TryGetPlatformHandle()
+    {
+        return TryGetAdapter();
+    }
+
     private ReparentingScope? _reparentingScope;
 
     /// <inheritdoc cref="BeginReparentingAsync" />
