@@ -5,7 +5,6 @@
 // https://github.com/chromium/chromium/blob/main/ui/events/keycodes/dom/dom_code_data.inc
 // This list has the same order as the PhysicalKey enum.
 AvnPhysicalKey getAvnPhysicalKeyForCode(int keyCode) {
-    int avnPhysicalKey;
     switch (keyCode) {
         case 0x32: return AvnPhysicalKeyBackquote;
         case 0x2A: return AvnPhysicalKeyBackslash;

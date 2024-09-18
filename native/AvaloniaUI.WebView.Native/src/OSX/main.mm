@@ -226,11 +226,10 @@ public:
             if (window)
             {
                 auto firstResponder = [window firstResponder];
-                if (firstResponder == _webView)
+                auto avaloniaView = [[_webView superview] superview];
+                if (avaloniaView && firstResponder == _webView)
                 {
-                    [window selectNextKeyView:nil];
-                    auto newFirstResponder = [window firstResponder];
-                    return newFirstResponder != firstResponder;
+                    return [window makeFirstResponder: avaloniaView];
                 }
             }
             return false;
