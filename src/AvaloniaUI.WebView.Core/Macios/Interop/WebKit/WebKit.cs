@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace AppleInterop;
+namespace AppleInterop.WebKit;
 
 internal partial class WebKit
 {

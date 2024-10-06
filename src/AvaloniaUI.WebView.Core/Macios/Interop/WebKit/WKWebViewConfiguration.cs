@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
-using AppleInterop;
 
-namespace AvaloniaUI.WebView.Macios.Interop;
+namespace AppleInterop.WebKit;
 
 internal class WKWebViewConfiguration : NSObject
 {

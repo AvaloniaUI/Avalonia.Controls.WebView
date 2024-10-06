@@ -47,14 +47,14 @@
     <AdditionalFiles Include="**/*.mcidl" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(PackAvaloniaNative)' == 'true'">
-    <Content Include="..\..\build\Products\Release\libWebView.Native.OSX.dylib">
-      <Link>libWebView.dylib</Link>
-      <PackagePath>runtimes/osx/native/libWebView.dylib</PackagePath>
-      <Pack>true</Pack>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+<!--  <ItemGroup Condition="'$(PackAvaloniaNative)' == 'true'">-->
+<!--    <Content Include="..\..\build\Products\Release\libWebView.Native.OSX.dylib">-->
+<!--      <Link>libWebView.dylib</Link>-->
+<!--      <PackagePath>runtimes/osx/native/libWebView.dylib</PackagePath>-->
+<!--      <Pack>true</Pack>-->
+<!--      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>-->
+<!--    </Content>-->
+<!--  </ItemGroup>-->
 
   <ItemGroup>
     <InternalsVisibleTo Include="AvaloniaUI.WebView.Avalonia" />

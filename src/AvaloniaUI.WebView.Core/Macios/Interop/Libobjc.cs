@@ -77,6 +77,9 @@ internal static unsafe partial class Libobjc
 #endif
 
     [DllImport(libobjc)]
+    public static extern IntPtr class_getSuperclass(IntPtr thisClass);
+
+    [DllImport(libobjc)]
     public static extern void objc_registerClassPair(IntPtr superclass);
 
     [DllImport(libobjc)]
@@ -121,4 +124,9 @@ internal static unsafe partial class Libobjc
     public static extern void void_objc_msgSend(IntPtr basePtr, IntPtr selector, int param1);
     [DllImport(libobjc, EntryPoint = "objc_msgSend")]
     public static extern void void_objc_msgSend(IntPtr basePtr, IntPtr selector, int param1, IntPtr param2);
+
+    [DllImport(libobjc, EntryPoint = "objc_msgSendSuper")]
+    public static extern int int_objc_msgSendSuper(IntPtr superRef, IntPtr selector);
+    [DllImport(libobjc, EntryPoint = "objc_msgSendSuper")]
+    public static extern int int_objc_msgSendSuper(IntPtr superRef, IntPtr selector, IntPtr param1);
 }

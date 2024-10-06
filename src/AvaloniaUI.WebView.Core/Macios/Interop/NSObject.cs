@@ -1,11 +1,11 @@
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace AppleInterop;
 
 internal abstract class NSObject : IDisposable, IEquatable<NSObject>
 {
-    private readonly bool _owns;
     private static readonly IntPtr s_class = Libobjc.objc_getClass("NSObject");
     private static readonly IntPtr s_allocSel = Libobjc.sel_getUid("alloc");
     private static readonly IntPtr s_initSel = Libobjc.sel_getUid("init");
@@ -16,9 +16,14 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
     private static readonly IntPtr s_retainCountSel = Libobjc.sel_getUid("retainCount");
     private static readonly IntPtr s_conformsToProtocol = Libobjc.sel_getUid("conformsToProtocol:");
 
+    private readonly bool _owns;
+    private readonly IntPtr _class;
+    private unsafe ObjcSuper* _superRef;
+
     protected NSObject(IntPtr handle, bool owns)
     {
         Handle = handle;
+        _class = Libobjc.object_getClass(handle);
         _owns = owns;
         if (!owns)
         {
@@ -28,6 +33,7 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
 
     protected NSObject(IntPtr classHandle) : this(Libobjc.intptr_objc_msgSend(classHandle, s_allocSel), true)
     {
+        _class = classHandle;
     }
 
     public IntPtr Handle { get; }
@@ -77,12 +83,16 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
         return new IntPtr((long)baseHandle + (long)Libobjc.ivar_getOffset(ivar));
     }
 
-    private void ReleaseUnmanagedResources(bool disposing)
+    private unsafe void ReleaseUnmanagedResources(bool disposing)
     {
 #if DEBUG
         Console.WriteLine($"Disposing ({disposing}): {GetType()}");
 #endif
         Libobjc.void_objc_msgSend(Handle, s_releaseSel);
+        if (_superRef != default)
+        {
+            Marshal.Release(new IntPtr(_superRef));
+        }
     }
 
     protected virtual void Dispose(bool disposing)
@@ -130,5 +140,22 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
     public static bool operator !=(NSObject? left, NSObject? right)
     {
         return !Equals(left, right);
+    }
+
+    protected unsafe IntPtr GetSuperRef()
+    {
+        if (_superRef == default)
+        {
+            _superRef = (ObjcSuper*)Marshal.AllocHGlobal(sizeof(ObjcSuper));
+            _superRef->ClassHandle = Libobjc.class_getSuperclass(_class);
+            _superRef->Handle = Handle;
+        }
+        return new IntPtr(_superRef);
+    }
+
+    [StructLayout (LayoutKind.Sequential)]
+    private struct ObjcSuper {
+        public IntPtr Handle;
+        public IntPtr ClassHandle;
     }
 }

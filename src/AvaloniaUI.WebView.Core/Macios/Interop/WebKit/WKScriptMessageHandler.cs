@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using AppleInterop;
 
-namespace AvaloniaUI.WebView.Macios.Interop;
+namespace AppleInterop.WebKit;
 
 internal unsafe class WKScriptMessageHandler : NSManagedObjectBase<WKScriptMessageHandler>
 {

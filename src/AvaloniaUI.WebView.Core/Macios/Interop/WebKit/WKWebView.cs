@@ -3,11 +3,10 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using AppleInterop;
 
-namespace AvaloniaUI.WebView.Macios.Interop;
+namespace AppleInterop.WebKit;
 
-internal class WKWebView : NSManagedObjectBase<WKWebView>
+internal class WKWebView : AppleView
 {
     private static readonly IntPtr s_webViewClass;
     private static readonly IntPtr s_initWithFrame = Libobjc.sel_getUid("initWithFrame:configuration:");
@@ -26,11 +25,6 @@ internal class WKWebView : NSManagedObjectBase<WKWebView>
 
     private static readonly IntPtr s_evaluateJavaScript = Libobjc.sel_getUid("evaluateJavaScript:completionHandler:");
 
-    private static readonly unsafe void* s_performKeyEquivalent = (delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, int>)&PerformKeyEquivalent;
-    private static readonly unsafe void* s_acceptsFirstResponder = (delegate* unmanaged[Cdecl]<IntPtr, IntPtr, int>)&AcceptsFirstResponder;
-    private static readonly unsafe void* s_becomeFirstResponder = (delegate* unmanaged[Cdecl]<IntPtr, IntPtr, int>)&BecomeFirstResponder;
-    private static readonly unsafe void* s_resignFirstResponder = (delegate* unmanaged[Cdecl]<IntPtr, IntPtr, int>)&ResignFirstResponder;
-
     private static readonly unsafe IntPtr s_evaluateScriptCallback = new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void>)&EvaluateScriptCallback);
 
     static unsafe WKWebView()
@@ -38,24 +32,10 @@ internal class WKWebView : NSManagedObjectBase<WKWebView>
         var superclass = WebKit.objc_getClass("WKWebView");
         var webViewClass = AllocateClassPair(superclass, "ManagedWKWebView");
 
-        var performKeyEquivalentSel = Libobjc.sel_getUid("performKeyEquivalent:");
-        var result = Libobjc.class_addMethod(webViewClass, performKeyEquivalentSel, s_performKeyEquivalent, "B@:@");
-        Debug.Assert(result == 1);
+        RegisterMethods(webViewClass);
 
-        var acceptsFirstResponderSel = Libobjc.sel_getUid("acceptsFirstResponder:");
-        result = Libobjc.class_addMethod(webViewClass, acceptsFirstResponderSel, s_acceptsFirstResponder, "B@:");
-        Debug.Assert(result == 1);
-
-        var becomeFirstResponderSel = Libobjc.sel_getUid("becomeFirstResponder:");
-        result = Libobjc.class_addMethod(webViewClass, becomeFirstResponderSel, s_becomeFirstResponder, "B@:");
-        Debug.Assert(result == 1);
-
-        var resignFirstResponderSel = Libobjc.sel_getUid("resignFirstResponder:");
-        result = Libobjc.class_addMethod(webViewClass, resignFirstResponderSel, s_resignFirstResponder, "B@:");
-        Debug.Assert(result == 1);
-
-        result = RegisterManagedSelfIVar(webViewClass) ? 1 : 0;
-        Debug.Assert(result == 1);
+        var result = RegisterManagedSelfIVar(webViewClass);
+        Debug.Assert(result);
 
         Libobjc.objc_registerClassPair(webViewClass);
         s_webViewClass = webViewClass;
@@ -109,34 +89,6 @@ internal class WKWebView : NSManagedObjectBase<WKWebView>
         {
             tcsHandle.Free();
         }
-    }
-
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static int PerformKeyEquivalent(IntPtr self, IntPtr sel, IntPtr nsEvent)
-    {
-        var managedSelf = ReadManagedSelf(self);
-        return 0;
-    }
-
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static int AcceptsFirstResponder(IntPtr self, IntPtr sel)
-    {
-        var managedSelf = ReadManagedSelf(self);
-        return 1;
-    }
-
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static int BecomeFirstResponder(IntPtr self, IntPtr sel)
-    {
-        var managedSelf = ReadManagedSelf(self);
-        return 1;
-    }
-
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static int ResignFirstResponder(IntPtr self, IntPtr sel)
-    {
-        var managedSelf = ReadManagedSelf(self);
-        return 1;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
