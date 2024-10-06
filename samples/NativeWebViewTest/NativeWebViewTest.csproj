@@ -1,0 +1,19 @@
+﻿<Project Sdk="Xpf.Sdk/1.3.0">
+
+  <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0-windows</TargetFramework>
+        <ImplicitUsings>disable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <UseWpf>true</UseWpf>
+        <DisableAutomaticXpfInit>true</DisableAutomaticXpfInit>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <RuntimeHostConfigurationOption Include="AvaloniaUI.Xpf.LicenseKey" Value="****" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\src\AvaloniaUI.WebView.Wpf\AvaloniaUI.WebView.Wpf.csproj" />
+    </ItemGroup>
+</Project>
