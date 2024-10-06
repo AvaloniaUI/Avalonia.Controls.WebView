@@ -79,9 +79,7 @@
             "type": "string",
             "enum": [
               "Compile",
-              "CompileNative",
               "CreateNugetPackages",
-              "GenerateCppHeaders",
               "OutputParameters"
             ]
           }
@@ -93,9 +91,7 @@
             "type": "string",
             "enum": [
               "Compile",
-              "CompileNative",
               "CreateNugetPackages",
-              "GenerateCppHeaders",
               "OutputParameters"
             ]
           }

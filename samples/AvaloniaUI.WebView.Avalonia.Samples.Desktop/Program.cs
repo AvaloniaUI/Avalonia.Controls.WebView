@@ -18,7 +18,7 @@ internal class Program
             .UsePlatformDetect()
             .With(new WebViewOptions
             {
-                WebViewNativePath = "/Users/maxkatz6/Library/Developer/Xcode/DerivedData/WebView.Native.OSX-amzqjgdcoidgerejdiesgnkzkpfj/Build/Products/Debug/libWebView.Native.OSX.dylib"
+                EnableDevTools = true
             })
             .LogToTrace();
 }

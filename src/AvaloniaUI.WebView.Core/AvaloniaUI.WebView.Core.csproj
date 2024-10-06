@@ -21,7 +21,10 @@
 
   <!-- Common group -->
   <ItemGroup>
-    <PackageReference Include="MicroCom.CodeGenerator.Roslyn" Version="0.11.0" />
+    <PackageReference Include="MicroCom.CodeGenerator.Roslyn" Version="0.11.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.106">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -39,22 +42,17 @@
   </ItemGroup>
 
   <!-- Windows only group -->
+  <ItemGroup>
+    <Compile Remove="Win/**/*.cs" />
+  </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.1901.177" />
+    <Compile Include="Win/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <AdditionalFiles Include="**/*.mcidl" />
   </ItemGroup>
-
-<!--  <ItemGroup Condition="'$(PackAvaloniaNative)' == 'true'">-->
-<!--    <Content Include="..\..\build\Products\Release\libWebView.Native.OSX.dylib">-->
-<!--      <Link>libWebView.dylib</Link>-->
-<!--      <PackagePath>runtimes/osx/native/libWebView.dylib</PackagePath>-->
-<!--      <Pack>true</Pack>-->
-<!--      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>-->
-<!--    </Content>-->
-<!--  </ItemGroup>-->
 
   <ItemGroup>
     <InternalsVisibleTo Include="AvaloniaUI.WebView.Avalonia" />

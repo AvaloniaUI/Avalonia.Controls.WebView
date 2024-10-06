@@ -44,7 +44,6 @@ class Build : NukeBuild
 
     Target Compile => _ => _
         .DependsOn(OutputParameters)
-        .DependsOn(CompileNative)
         .Executes(() =>
         {
             DotNetBuild(c => c
@@ -66,25 +65,6 @@ class Build : NukeBuild
                 .AddProperty("PackageVersion", GetVersion())
                 .SetOutputDirectory(Output)
                 .SetProject(ProjectFile));
-        });
-    
-    Target GenerateCppHeaders => _ => _.Executes(() =>
-    {
-        var file = MicroComCodeGenerator.Parse(
-            File.ReadAllText(RootDirectory / "src" / "AvaloniaUI.WebView.Core" / "NativeMac" / "webview.mcidl"));
-        File.WriteAllText(RootDirectory / "native" / "AvaloniaUI.WebView.Native" / "inc" / "webview-native.h",
-            file.GenerateCppHeader());
-    });
-
-    Target CompileNative => _ => _
-        .DependsOn(GenerateCppHeaders)
-        .OnlyWhenStatic(() => IsOsx)
-        .Executes(() =>
-        {
-            var project = $"{RootDirectory}/native/AvaloniaUI.WebView.Native/src/OSX/WebView.Native.OSX.xcodeproj/";
-            var args =
-                $"-project {project} -configuration {Configuration} CONFIGURATION_BUILD_DIR={RootDirectory}/Build/Products/Release";
-            ProcessTasks.StartProcess("xcodebuild", args).AssertZeroExitCode();
         });
 
     string GetVersion()
