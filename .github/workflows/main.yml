@@ -9,7 +9,7 @@ on:
 jobs:
 
   build:
-    runs-on: [self-hosted, macOS]
+    runs-on: [self-hosted, Linux]
     steps:
     - uses: actions/checkout@v3
 
@@ -19,23 +19,6 @@ jobs:
     - name: CreateNugetPackages
       run: dotnet run --project ${{github.workspace}}/build/_build.csproj --target CreateNugetPackages --configuration Release --output ${{github.workspace}}/artifacts/packages/
 
-    - uses: actions/upload-artifact@v4
-      with:
-        name: packages
-        path: ${{github.workspace}}/artifacts/packages
-        if-no-files-found: error
-        retention-days: 1 # we consume this artifact right away, no need to keep it longer
-
-  upload:
-    runs-on: [self-hosted, Linux]
-    needs: build
-    steps:
-      - name: Clean packages
-        run: rm -rf ${{github.workspace}}/artifacts
-      - uses: actions/download-artifact@v4
-        with:
-          name: packages
-          path: ${{github.workspace}}/artifacts
-      - name: Publish
-        if: github.ref == 'refs/heads/main'
-        run: dotnet nuget push ${{github.workspace}}/artifacts/**/*.nupkg  --api-key ${{secrets.baget_api_key}} --source ${{ vars.BAGET_API_URL }}
+    - name: Publish
+      if: github.ref == 'refs/heads/main'
+      run: dotnet nuget push ${{github.workspace}}/artifacts/**/*.nupkg  --api-key ${{secrets.baget_api_key}} --source ${{ vars.BAGET_API_URL }}
