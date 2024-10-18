@@ -89,7 +89,11 @@ public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWit
     public bool GoBack() => _webView.GoBack() != default;
     public bool GoForward() => _webView.GoForward() != default;
 
-    public Task<string?> InvokeScript(string script) => _webView.EvaluateJavaScriptAsync(script);
+    public async Task<string?> InvokeScript(string script)
+    {
+        var ptr = await _webView.EvaluateJavaScriptAsync(script);
+        return await PtrResultToString(ptr);
+    }
 
     public void Navigate(Uri url)
     {
@@ -151,11 +155,31 @@ public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWit
 
     public bool ResignFocus() => OperatingSystemEx.IsMacOS() && _webView.RemoveFirstResponder();
 
-    private void OnScriptHandlerOnDidReceiveScriptMessage(object? sender, WKScriptMessageHandler.ScriptMessageEventArgs args)
+    private async Task<string?> PtrResultToString(IntPtr result)
+    {
+        if (result == default)
+            return null;
+
+        using var argNameStr = NSString.Create("arg");
+        using var args = NSDictionary.WithObjects(
+            [result],
+            [argNameStr.Handle],
+            1);
+        var toStringFunc =
+            """
+            return JSON.stringify(arg);
+            """;
+
+        var stringPtr = await _webView.CallAsyncJavaScriptAsync(toStringFunc, args, default, WKContentWorld.DefaultClientWorld);
+        return NSString.GetString(stringPtr);
+    }
+
+    private async void OnScriptHandlerOnDidReceiveScriptMessage(object? sender, WKScriptMessageHandler.ScriptMessageEventArgs args)
     {
         if (args.Name == PostAvWebViewMessageName)
         {
-            WebMessageReceived?.Invoke(this, new WebMessageReceivedEventArgs { Body = args.Body });
+            var str = await PtrResultToString(args.Body);
+            WebMessageReceived?.Invoke(this, new WebMessageReceivedEventArgs { Body = str });
         }
     }
 
@@ -168,7 +192,7 @@ public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWit
 
     private async void OnDelegateOnDidFinishNavigation(object? sender, EventArgs args)
     {
-        _ = await InvokeScript($"function invokeCSharpAction(data){{window.webkit.messageHandlers.{PostAvWebViewMessageName}.postMessage(JSON.stringify(data));}}");
+        _ = await InvokeScript($"function invokeCSharpAction(data){{window.webkit.messageHandlers.{PostAvWebViewMessageName}.postMessage(data);}}");
 
         using var url = _webView.Url;
         NavigationCompleted?.Invoke(this, new WebViewNavigationCompletedEventArgs { Request = Uri.TryCreate(url.AbsoluteString, UriKind.Absolute, out var uri) ? uri : null, IsSuccess = true });

@@ -47,17 +47,16 @@ internal unsafe class WKScriptMessageHandler : NSManagedObjectBase
     {
         var managed = ReadManagedSelf<WKScriptMessageHandler>(self);
         var messageName = NSString.GetString(Libobjc.intptr_objc_msgSend(messagePtr, s_messageName));
-        var messageBody = NSString.GetString(Libobjc.intptr_objc_msgSend(messagePtr, s_messageBody));
         managed?.DidReceiveScriptMessage?.Invoke(managed, new ScriptMessageEventArgs
         {
             Name = messageName,
-            Body = messageBody
+            Body = Libobjc.intptr_objc_msgSend(messagePtr, s_messageBody)
         });
     }
 
     public class ScriptMessageEventArgs : CancelEventArgs
     {
         public string? Name { get; init; }
-        public string? Body { get; init; }
+        public IntPtr Body { get; init; }
     }
 }

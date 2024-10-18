@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -24,6 +25,7 @@ internal class WKWebView : AppleView
     private static readonly IntPtr s_stopLoading = Libobjc.sel_getUid("stopLoading");
 
     private static readonly IntPtr s_evaluateJavaScript = Libobjc.sel_getUid("evaluateJavaScript:completionHandler:");
+    private static readonly IntPtr s_callAsyncJavaScript = Libobjc.sel_getUid("callAsyncJavaScript:arguments:inFrame:inContentWorld:completionHandler:");
 
     private static readonly unsafe IntPtr s_evaluateScriptCallback = new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void>)&EvaluateScriptCallback);
 
@@ -78,9 +80,9 @@ internal class WKWebView : AppleView
         return result;
     }
 
-    public async Task<string?> EvaluateJavaScriptAsync(string script)
+    public async Task<IntPtr> EvaluateJavaScriptAsync(string script)
     {
-        var tcs = new TaskCompletionSource<string?>();
+        var tcs = new TaskCompletionSource<IntPtr>();
         var tcsHandle = GCHandle.Alloc(tcs);
         try
         {
@@ -96,11 +98,34 @@ internal class WKWebView : AppleView
         }
     }
 
+    public async Task<IntPtr> CallAsyncJavaScriptAsync(
+        string functionBody,
+        NSDictionary arguments,
+        IntPtr frame,
+        IntPtr contentWorld)
+    {
+        var tcs = new TaskCompletionSource<IntPtr>();
+        var tcsHandle = GCHandle.Alloc(tcs);
+        try
+        {
+            var functionBodyStr = NSString.Create(functionBody);
+            GC.SuppressFinalize(functionBodyStr);
+            var block = BlockLiteral.GetBlockForFunctionPointer(s_evaluateScriptCallback, GCHandle.ToIntPtr(tcsHandle));
+            Libobjc.void_objc_msgSend(Handle, s_callAsyncJavaScript,
+                functionBodyStr.Handle, arguments.Handle, frame, contentWorld, block);
+            return await tcs.Task;
+        }
+        finally
+        {
+            tcsHandle.Free();
+        }
+    }
+
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void EvaluateScriptCallback(IntPtr block, IntPtr value, IntPtr nsError)
     {
         var state = BlockLiteral.TryGetBlockState(block);
-        var tcs = GCHandle.FromIntPtr(state).Target as TaskCompletionSource<string?>;
+        var tcs = GCHandle.FromIntPtr(state).Target as TaskCompletionSource<IntPtr>;
 
         if (nsError != default)
         {
@@ -108,8 +133,7 @@ internal class WKWebView : AppleView
         }
         else
         {
-            var result = NSString.GetString(value);
-            _ = tcs?.TrySetResult(result);
+            _ = tcs?.TrySetResult(value);
         }
     }
 }
