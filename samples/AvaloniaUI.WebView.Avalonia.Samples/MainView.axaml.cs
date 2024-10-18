@@ -20,7 +20,7 @@ public partial class MainView : UserControl
     {
         LogList.Text += "\r\nNativeWebView_OnNavigationCompleted " + e.Request;
 
-        await ((NativeWebView)sender!).InvokeScript(""" invokeCSharpAction("{'key': 10}") """);
+        await ((NativeWebView)sender!).InvokeScript(""" invokeCSharpAction({'key': 10}) """);
     }
 
     private void NativeWebView_OnNavigationStarted(object? sender, WebViewNavigationStartingEventArgs e)

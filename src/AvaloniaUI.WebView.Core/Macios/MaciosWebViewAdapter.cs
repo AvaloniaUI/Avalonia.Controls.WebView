@@ -168,7 +168,7 @@ public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWit
 
     private async void OnDelegateOnDidFinishNavigation(object? sender, EventArgs args)
     {
-        _ = await InvokeScript($"function invokeCSharpAction(data){{window.webkit.messageHandlers.{PostAvWebViewMessageName}.postMessage(data);}}");
+        _ = await InvokeScript($"function invokeCSharpAction(data){{window.webkit.messageHandlers.{PostAvWebViewMessageName}.postMessage(JSON.stringify(data));}}");
 
         using var url = _webView.Url;
         NavigationCompleted?.Invoke(this, new WebViewNavigationCompletedEventArgs { Request = Uri.TryCreate(url.AbsoluteString, UriKind.Absolute, out var uri) ? uri : null, IsSuccess = true });
