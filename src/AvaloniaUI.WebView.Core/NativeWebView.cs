@@ -64,6 +64,9 @@ public class NativeWebView : NativeControlHost, IWebView
         set => SetValue(SourceProperty, value);
     }
 
+    public NativeWebViewCookieManager? TryGetCookieManager() =>
+        TryGetAdapter() is IWebViewAdapterWithCookieManager adapter ? new NativeWebViewCookieManager(adapter) : null;
+
     public bool CanGoBack => TryGetAdapter()?.CanGoBack ?? false;
 
     public bool CanGoForward => TryGetAdapter()?.CanGoForward ?? false;

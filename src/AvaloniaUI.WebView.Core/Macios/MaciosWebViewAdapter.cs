@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
@@ -14,7 +17,7 @@ namespace AvaloniaUI.WebView.Macios;
 
 [SupportedOSPlatform("macos")]
 [SupportedOSPlatform("ios")]
-public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect
+public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect, IWebViewAdapterWithCookieManager
 {
     private const string PostAvWebViewMessageName = "postAvWebViewMessage";
 
@@ -314,6 +317,24 @@ public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWit
         };
         Dispatcher.UIThread.Invoke(() => Input?.Invoke(args), DispatcherPriority.Input);
         return args.Handled;
+    }
+
+    public void AddOrUpdateCookie(Cookie cookie)
+    {
+        using var cookieStore = _config.WebsiteDataStore.HttpCookieStore;
+        cookieStore.SetCookie(cookie);
+    }
+
+    public void DeleteCookie(string name, string domain, string path)
+    {
+        using var cookieStore = _config.WebsiteDataStore.HttpCookieStore;
+        cookieStore.DeleteCookie(new Cookie(name, ".", path, domain));
+    }
+
+    public async Task<IReadOnlyList<Cookie>> GetCookiesAsync()
+    {
+        using var cookieStore = _config.WebsiteDataStore.HttpCookieStore;
+        return await cookieStore.GetAllCookies();
     }
 }
 

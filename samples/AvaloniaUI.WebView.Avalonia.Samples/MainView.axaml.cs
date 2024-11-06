@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -39,6 +40,25 @@ public partial class MainView : UserControl
         catch (Exception ex)
         {
             LogList.Text += "\r\nTest Script Exception " + ex.Message;
+        }
+
+        if (webView.TryGetCookieManager() is { } manager)
+        {
+            manager.AddOrUpdateCookie(new Cookie("Hello", "There", "/", ".google.com")
+            {
+                HttpOnly = false
+            });
+            var cookies = await manager.GetCookiesAsync();
+            foreach (var c in cookies)
+            {
+                LogList.Text += "\r\nCookie retrieved " + c;
+                manager.DeleteCookie(c.Name, c.Domain, c.Path);
+            }
+            cookies = await manager.GetCookiesAsync();
+            foreach (var c in cookies)
+            {
+                LogList.Text += "\r\nCookie retrieved after delete " + c;
+            }
         }
     }
 

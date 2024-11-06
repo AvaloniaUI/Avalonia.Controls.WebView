@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Avalonia.Input;
@@ -142,4 +143,11 @@ internal interface IWebViewAdapterWithFocus : IWebViewAdapter
 internal interface IWebViewAdapterWithInputRedirect : IWebViewAdapter
 {
     event Action<RoutedEventArgs> Input;
+}
+
+internal interface IWebViewAdapterWithCookieManager : IWebViewAdapter
+{
+    void AddOrUpdateCookie(System.Net.Cookie cookie);
+    void DeleteCookie(string name, string domain, string path);
+    Task<IReadOnlyList<System.Net.Cookie>> GetCookiesAsync();
 }
