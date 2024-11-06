@@ -47,9 +47,9 @@ internal class NSDictionary : NSObject
         }
     }
 
-    public static unsafe Dictionary<string, string?> AsStringDictionary(IntPtr handle)
+    public static unsafe Dictionary<string, object?> AsStringDictionary(IntPtr handle)
     {
-        var dictionary = new Dictionary<string, string?>();
+        var dictionary = new Dictionary<string, object?>();
 
         if (handle != default
             && CFDictionaryGetCount(handle) is var count and > 0)
@@ -64,11 +64,15 @@ internal class NSDictionary : NSObject
 
             for (var i = 0; i < count; i++)
             {
-                var str = NSString.GetString(keys[i])!;
-                var value = NSString.TryGetString(values[i])
-                            ?? NSNumber.TryAsStringValue(values[i])
-                            ?? GetDescription(values[i]);
-                dictionary.Add(str, value);
+                var key = NSString.GetString(keys[i])!;
+                if (NSString.TryGetString(values[i]) is { } strVal)
+                    dictionary.Add(key, strVal);
+                else if (NSDate.TryAsDateTimeOffset(values[i]) is { } dateVal)
+                    dictionary.Add(key, dateVal);
+                else if (NSNumber.TryAsStringValue(values[i]) is { } numberVal)
+                    dictionary.Add(key, numberVal);
+                else 
+                    dictionary.Add(key, GetDescription(values[i]));
             }
         }
 

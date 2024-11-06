@@ -20,7 +20,7 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
     private static readonly IntPtr s_description = Libobjc.sel_getUid("description");
 
     private bool _owns;
-    private readonly IntPtr _class;
+    private IntPtr? _class;
     private unsafe ObjcSuper* _superRef;
 
     private const bool RetainIfNotOwned = false;
@@ -31,7 +31,6 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
             throw new ArgumentNullException(nameof(handle));
 
         Handle = handle;
-        _class = Libobjc.object_getClass(handle);
         if (!owns && RetainIfNotOwned)
         {
             owns = true;
@@ -45,6 +44,7 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
         _class = classHandle;
     }
 
+    public IntPtr Class => _class ??= Libobjc.object_getClass(Handle);
     public IntPtr Handle { get; }
 
     public static IntPtr AllocateClassPair(string className)
@@ -185,7 +185,7 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
         if (_superRef == default)
         {
             _superRef = (ObjcSuper*)Marshal.AllocHGlobal(sizeof(ObjcSuper));
-            _superRef->ClassHandle = Libobjc.class_getSuperclass(_class);
+            _superRef->ClassHandle = Libobjc.class_getSuperclass(Class);
             _superRef->Handle = Handle;
         }
         return new IntPtr(_superRef);

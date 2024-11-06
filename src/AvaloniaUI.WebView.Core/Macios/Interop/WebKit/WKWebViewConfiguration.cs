@@ -8,6 +8,7 @@ internal class WKWebViewConfiguration : NSObject
     private static readonly IntPtr s_defaultWebpagePreferences = Libobjc.sel_getUid("defaultWebpagePreferences");
     private static readonly IntPtr s_setAllowsContentJavaScript = Libobjc.sel_getUid("setAllowsContentJavaScript:");
 
+    private static readonly IntPtr s_websiteDataStore = Libobjc.sel_getUid("websiteDataStore");
     private static readonly IntPtr s_userContentController = Libobjc.sel_getUid("userContentController");
     private static readonly IntPtr s_contentAddScriptMessageHandler = Libobjc.sel_getUid("addScriptMessageHandler:name:");
     private static readonly IntPtr s_contentRemoveScriptMessageHandlerForName = Libobjc.sel_getUid("removeScriptMessageHandlerForName:");
@@ -16,6 +17,8 @@ internal class WKWebViewConfiguration : NSObject
     {
         Init();
     }
+
+    public WKWebsiteDataStore WebsiteDataStore => new(Libobjc.intptr_objc_msgSend(Handle, s_websiteDataStore), false);
 
     public bool JavaScriptEnabled
     {
