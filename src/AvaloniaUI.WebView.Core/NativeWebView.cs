@@ -64,6 +64,9 @@ public class NativeWebView : NativeControlHost, IWebView
         set => SetValue(SourceProperty, value);
     }
 
+    public NativeWebViewCommandManager? TryGetCommandManager() =>
+        TryGetAdapter() is IWebViewAdapterWithCommands commands ? new NativeWebViewCommandManager(commands) : null;
+
     public NativeWebViewCookieManager? TryGetCookieManager() =>
         TryGetAdapter() is IWebViewAdapterWithCookieManager adapter ? new NativeWebViewCookieManager(adapter) : null;
 

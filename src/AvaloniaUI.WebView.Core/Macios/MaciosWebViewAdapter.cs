@@ -17,7 +17,7 @@ namespace AvaloniaUI.WebView.Macios;
 
 [SupportedOSPlatform("macos")]
 [SupportedOSPlatform("ios")]
-public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect, IWebViewAdapterWithCookieManager
+public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect, IWebViewAdapterWithCookieManager, IWebViewAdapterWithCommands
 {
     private const string PostAvWebViewMessageName = "postAvWebViewMessage";
 
@@ -336,5 +336,12 @@ public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWit
         using var cookieStore = _config.WebsiteDataStore.HttpCookieStore;
         return await cookieStore.GetAllCookies();
     }
+
+    public void Copy() => _webView.Copy();
+    public void Cut() => _webView.Cut();
+    public void Paste() => _webView.Paste();
+    public void SelectAll() => _webView.SelectAll();
+    public void Undo() => _webView.Undo();
+    public void Redo() => _webView.Redo();
 }
 

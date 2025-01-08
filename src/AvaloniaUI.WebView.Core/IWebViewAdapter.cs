@@ -145,6 +145,15 @@ internal interface IWebViewAdapterWithInputRedirect : IWebViewAdapter
     event Action<RoutedEventArgs> Input;
 }
 
+internal interface IWebViewAdapterWithCommands
+{
+    void Copy();
+    void Cut();
+    void Paste();
+    void SelectAll();
+    void Undo();
+    void Redo();
+}
 internal interface IWebViewAdapterWithCookieManager : IWebViewAdapter
 {
     void AddOrUpdateCookie(System.Net.Cookie cookie);
