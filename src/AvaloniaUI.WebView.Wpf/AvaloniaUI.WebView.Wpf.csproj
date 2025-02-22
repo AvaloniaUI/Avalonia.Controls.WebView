@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AvaloniaUI.Xpf.WpfAbstractions" Version="1.0.2-cibuild000023"/>
+    <PackageReference Include="AvaloniaUI.Xpf.WpfAbstractions" Version="1.0.2-cibuild000026"/>
   </ItemGroup>
 
   <ItemGroup>
@@ -21,6 +21,15 @@
     </Compile>
     <Compile Include="..\AvaloniaUI.WebView.Avalonia\NativeWebViewControlHost.cs">
       <Link>NativeWebViewControlHost.cs</Link>
+    </Compile>
+    <Compile Include="..\AvaloniaUI.WebView.Avalonia\NativeWebViewDialog.cs">
+      <Link>NativeWebViewDialog.cs</Link>
+    </Compile>
+    <Compile Include="..\AvaloniaUI.WebView.Avalonia\WebAuthenticationBroker.cs">
+      <Link>WebAuthenticationBroker.cs</Link>
+    </Compile>
+    <Compile Include="..\AvaloniaUI.WebView.Avalonia\WindowNativeWebViewDialog.cs">
+      <Link>WindowNativeWebViewDialog.cs</Link>
     </Compile>
   </ItemGroup>
 </Project>

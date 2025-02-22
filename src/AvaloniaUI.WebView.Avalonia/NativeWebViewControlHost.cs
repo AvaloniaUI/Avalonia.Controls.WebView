@@ -13,11 +13,7 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 #endif
 
-#if AVALONIA
-namespace AvaloniaUI.WebView.Avalonia;
-#elif WPF
-namespace AvaloniaUI.WebView.Wpf;
-#endif
+namespace AvaloniaUI.WebView;
 
 internal class NativeWebViewControlHost : NativeControlHost
 {
@@ -49,14 +45,12 @@ internal class NativeWebViewControlHost : NativeControlHost
         {
             adapter = new MaciosWebViewAdapter();
         }
+        //else
+        //if (OperatingSystemEx.IsLinux())
+        //{
+        //    adapter = new Gtk.GtkWebViewAdapter();
+        //}
         else
-        // if (OperatingSystemEx.IsLinux())
-        // {
-        //     new Gtk.GtkWebView2Adapter();
-        //
-        //     return base.CreateNativeControlCore(parent);
-        //     // adapter = new Gtk.GtkWebView2Adapter();
-        // } else
         // if (OperatingSystemEx.IsBrowser())
         // {
         //     adapter = new BrowserIFrameAdapter();

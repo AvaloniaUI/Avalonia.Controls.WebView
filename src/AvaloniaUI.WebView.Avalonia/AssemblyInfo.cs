@@ -1,3 +1,3 @@
 ﻿using Avalonia.Metadata;
 
-[assembly: XmlnsDefinition("https://github.com/avaloniaui", "AvaloniaUI.WebView.Avalonia")]
+[assembly: XmlnsDefinition("https://github.com/avaloniaui", "AvaloniaUI.WebView")]

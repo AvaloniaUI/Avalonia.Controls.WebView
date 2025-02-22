@@ -14,7 +14,7 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 
     <AvaloniaVersion>11.1.0</AvaloniaVersion>
-    <AvaloniaSampleVersion>11.1.0</AvaloniaSampleVersion>
+    <AvaloniaSampleVersion>11.2.4</AvaloniaSampleVersion>
 
     <PackageOutputPath>$(RepoRoot)\artifacts\packages</PackageOutputPath>
   </PropertyGroup>

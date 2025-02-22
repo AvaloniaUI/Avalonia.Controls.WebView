@@ -11,18 +11,18 @@ namespace AvaloniaUI.WebView;
 [SupportedOSPlatform("ios13.0")]
 internal static class MaciosWebAuthenticationBroker
 {
-    public static async Task<WebAuthenticationResult> AuthenticateAsync(TopLevel topLevel, WebAuthenticatorOptions options)
+    public static async Task<Uri> AuthenticateAsync(TopLevel topLevel, Uri requestUri, string scheme)
     {
         var tcs = new TaskCompletionSource<Uri>();
 
         using var context = new ASWebAuthenticationPresentationContextProviding(GetWindowHandle(topLevel));
 
-        using var session = CreateSession(options.RequestUri, options.CallbackUri.Scheme, tcs);
+        using var session = CreateSession(requestUri, scheme, tcs);
         session.PresentationContextProvider = context;
         session.Start();
 
         var result = await tcs.Task;
-        return new WebAuthenticationResult(result);
+        return result;
     }
 
     private static ASWebAuthenticationSession CreateSession(Uri requestUri, string scheme, TaskCompletionSource<Uri> completion)

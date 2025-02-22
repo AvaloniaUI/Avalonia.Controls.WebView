@@ -1,4 +1,6 @@
-﻿using System.Windows.Input;
+﻿using System.Runtime.InteropServices;
+using System.Windows.Input;
+using System.Windows.Interop;
 using Avalonia;
 using AvaloniaUI.Xpf.WpfAbstractions;
 using TabItem = System.Windows.Controls.TabItem;
@@ -16,6 +18,23 @@ namespace AvaloniaUI.WebView.Wpf.Samples
             InitializeComponent();
             var w = XpfWpfAbstraction.GetAvaloniaWindowForWindow(this);
             w.AttachDevTools();
+            var _ = new A();
+        }
+
+        private class A : HwndHost
+        {
+            public A() : base()
+            {
+            }
+            protected override HandleRef BuildWindowCore(HandleRef hwndParent)
+            {
+                throw new System.NotImplementedException();
+            }
+
+            protected override void DestroyWindowCore(HandleRef hwnd)
+            {
+                throw new System.NotImplementedException();
+            }
         }
 
         private async void NativeWebView_OnNavigationCompleted(object? sender, WebViewNavigationCompletedEventArgs e)

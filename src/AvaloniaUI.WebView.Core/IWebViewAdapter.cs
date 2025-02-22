@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Threading.Tasks;
-using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Platform;
+using RoutedEventArgs = Avalonia.Interactivity.RoutedEventArgs;
+using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
 
 namespace AvaloniaUI.WebView;
 
@@ -26,6 +24,59 @@ public class WebViewNavigationCompletedEventArgs : WebViewNavigationEventArgs
 public class WebViewNavigationStartingEventArgs : WebViewNavigationEventArgs
 {
     public bool Cancel { get; set; }
+}
+
+internal interface INativeWebViewDialog : IDisposable
+{
+    /// <summary>
+    /// Gets WebView instance hosted inside the dialog.
+    /// </summary>
+    IWebView WebView { get; }
+
+    /// <summary>
+    /// Gets or sets WebView dialog title.
+    /// </summary>
+    string? Title { get; set; }
+
+    /// <summary>
+    /// Gets or sets if WebView dialog is resizable by user. 
+    /// </summary>
+    bool CanUserResize { get; set; }
+
+    /// <summary>
+    /// Fired before WebView dialog is closed.
+    /// </summary>
+    event EventHandler Closing;
+
+    /// <summary>
+    /// Opens the WebView dialog.
+    /// </summary>
+    void Show();
+
+    /// <summary>
+    /// Opens the WebView dialog with <see cref="IPlatformHandle"/> owner.
+    /// </summary>
+    bool Show(IPlatformHandle owner);
+
+    /// <summary>
+    /// Closes the WebView dialog.
+    /// </summary>
+    void Close();
+
+    /// <summary>
+    /// Resizes the WebView dialog.
+    /// </summary>
+    bool Resize(int width, int height);
+
+    /// <summary>
+    /// Moves the WebView dialog. Values are defined in screen coordinates.
+    /// </summary>
+    bool Move(int x, int y);
+
+    /// <summary>
+    /// Gets platform handle of the dialog itself.
+    /// </summary>
+    IPlatformHandle? TryGetPlatformHandle();
 }
 
 internal interface IWebView
@@ -58,7 +109,7 @@ internal interface IWebView
     }
 
     /// <summary>
-    ///     NavigationCompleted dispatches after a navigate of the top level document completes rendering either successfully
+    ///     NavigationCompleted dispatches after navigate of the top level document completes rendering either successfully
     ///     or not.
     /// </summary>
     /// <remarks>
@@ -80,7 +131,7 @@ internal interface IWebView
     ///     Navigates to the previous page in navigation history.
     /// </summary>
     /// <returns>
-    ///     True if successfull. False if there is no page to navigate, native control is not yet initialized or
+    ///     True if successful. False if there is no page to navigate, native control is not yet initialized or
     ///     navigation is not supported
     /// </returns>
     bool GoBack();
@@ -89,7 +140,7 @@ internal interface IWebView
     ///     Navigates to the next page in navigation history.
     /// </summary>
     /// <returns>
-    ///     True if successfull. False if there is no page to navigate, native control is not yet initialized or
+    ///     True if successful. False if there is no page to navigate, native control is not yet initialized or
     ///     navigation is not supported
     /// </returns>
     bool GoForward();
