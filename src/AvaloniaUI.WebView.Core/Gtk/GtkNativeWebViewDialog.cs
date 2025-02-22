@@ -11,7 +11,7 @@ namespace AvaloniaUI.WebView.Gtk;
 
 internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog
 {
-    private static readonly unsafe IntPtr s_closeRequestCallback = new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, bool>)&WindowCloseRequest);
+    private static readonly unsafe IntPtr s_deleteEventCallback = new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, bool>)&DeleteEvent);
     private readonly GtkWebViewAdapter _nativeWebView;
     private IntPtr _windowHandle;
     private bool _disposed;
@@ -30,7 +30,7 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog
 
         _ = RunOnGlibThread(() =>
         {
-            _signal = new GtkSignal(_windowHandle, "close", s_closeRequestCallback, this);
+            _signal = new GtkSignal(_windowHandle, "delete-event", s_deleteEventCallback, this);
             var scrolled = gtk_scrolled_window_new(IntPtr.Zero, IntPtr.Zero);
             gtk_container_add(scrolled, _nativeWebView.Handle);
             gtk_container_add(_windowHandle, scrolled);
@@ -135,7 +135,7 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static bool WindowCloseRequest(IntPtr windowHandle, IntPtr data)
+    private static bool DeleteEvent(IntPtr windowHandle, IntPtr gdkEvent, IntPtr data)
     {
         if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkNativeWebViewDialog dialog)
         {
