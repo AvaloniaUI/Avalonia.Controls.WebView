@@ -28,11 +28,39 @@ public class WebViewNavigationStartingEventArgs : WebViewNavigationEventArgs
 
 internal interface INativeWebViewDialog : IDisposable
 {
+    /// <summary>
+    /// Gets WebView instance hosted inside the dialog.
+    /// </summary>
     IWebView WebView { get; }
+
+    /// <summary>
+    /// Gets or sets WebView dialog title.
+    /// </summary>
     string? Title { get; set; }
+
+    /// <summary>
+    /// Fired before WebView dialog is closed.
+    /// </summary>
+    event EventHandler Closing;
+
+    /// <summary>
+    /// Opens the WebView dialog.
+    /// </summary>
     void Show();
-    void Show(IPlatformHandle owner);
+
+    /// <summary>
+    /// Opens the WebView dialog with <see cref="IPlatformHandle"/> owner.
+    /// </summary>
+    bool Show(IPlatformHandle owner);
+
+    /// <summary>
+    /// Closes the WebView dialog.
+    /// </summary>
     void Close();
+
+    /// <summary>
+    /// Gets platform handle of the dialog itself.
+    /// </summary>
     IPlatformHandle? TryGetPlatformHandle();
 }
 
@@ -66,7 +94,7 @@ internal interface IWebView
     }
 
     /// <summary>
-    ///     NavigationCompleted dispatches after a navigate of the top level document completes rendering either successfully
+    ///     NavigationCompleted dispatches after navigate of the top level document completes rendering either successfully
     ///     or not.
     /// </summary>
     /// <remarks>
@@ -88,7 +116,7 @@ internal interface IWebView
     ///     Navigates to the previous page in navigation history.
     /// </summary>
     /// <returns>
-    ///     True if successfull. False if there is no page to navigate, native control is not yet initialized or
+    ///     True if successful. False if there is no page to navigate, native control is not yet initialized or
     ///     navigation is not supported
     /// </returns>
     bool GoBack();
@@ -97,7 +125,7 @@ internal interface IWebView
     ///     Navigates to the next page in navigation history.
     /// </summary>
     /// <returns>
-    ///     True if successfull. False if there is no page to navigate, native control is not yet initialized or
+    ///     True if successful. False if there is no page to navigate, native control is not yet initialized or
     ///     navigation is not supported
     /// </returns>
     bool GoForward();

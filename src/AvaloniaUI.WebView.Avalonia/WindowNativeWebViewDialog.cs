@@ -13,6 +13,7 @@ namespace AvaloniaUI.WebView;
 internal class WindowNativeWebViewDialog : Window, INativeWebViewDialog
 {
     private readonly NativeWebView _nativeWebView = new();
+    private EventHandler? _closing;
 
     public WindowNativeWebViewDialog()
     {
@@ -20,6 +21,11 @@ internal class WindowNativeWebViewDialog : Window, INativeWebViewDialog
         _nativeWebView.NavigationCompleted += (_, a) => NavigationCompleted?.Invoke(this, a);
         _nativeWebView.NavigationStarted += (_, a) => NavigationStarted?.Invoke(this, a);
         _nativeWebView.WebMessageReceived += (_, a) => WebMessageReceived?.Invoke(this, a);
+
+        Closing += (_, args) =>
+        {
+            _closing?.Invoke(this, args);
+        };
     }
 
     public IWebView WebView => _nativeWebView;
@@ -46,7 +52,13 @@ internal class WindowNativeWebViewDialog : Window, INativeWebViewDialog
 
     public void Dispose() {}
 
-    void INativeWebViewDialog.Show(IPlatformHandle _) => throw new NotSupportedException();
+    event EventHandler? INativeWebViewDialog.Closing
+    {
+        add => _closing += value;
+        remove => _closing -= value;
+    }
+
+    bool INativeWebViewDialog.Show(IPlatformHandle _) => false;
 
 #if WPF
     public IPlatformHandle? TryGetPlatformHandle() => XpfWpfAbstraction.GetAvaloniaTopLevelForWindow(this)?.TryGetPlatformHandle();

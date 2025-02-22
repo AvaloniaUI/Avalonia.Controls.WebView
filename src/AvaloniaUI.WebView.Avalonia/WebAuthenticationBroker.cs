@@ -49,6 +49,7 @@ public static class WebAuthenticationBroker
         using var dialog = new NativeWebViewDialog();
         var tcs = new TaskCompletionSource<WebAuthenticationResult>();
 
+        dialog.Closing += OnClosing;
         dialog.NavigationStarted += OnNavigationStarted;
 
         try
@@ -61,16 +62,21 @@ public static class WebAuthenticationBroker
         }
         finally
         {
+            dialog.Closing -= OnClosing;
             dialog.NavigationStarted -= OnNavigationStarted;
             dialog.Close();
         }
 
+        void OnClosing(object? sender, EventArgs e)
+        {
+            tcs.SetCanceled();
+        }
         void OnNavigationStarted(object? sender, WebViewNavigationStartingEventArgs e)
         {
             if (e.Request is not null && IsCallbackUri(e.Request, options.CallbackUri))
             {
                 e.Cancel = true;
-                tcs.TrySetResult(new WebAuthenticationResult(e.Request));
+                tcs.SetResult(new WebAuthenticationResult(e.Request));
             }
         }
     }

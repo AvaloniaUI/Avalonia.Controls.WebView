@@ -1,4 +1,6 @@
 ﻿using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
 using PlatformHandle = Avalonia.Platform.PlatformHandle;
@@ -9,9 +11,11 @@ namespace AvaloniaUI.WebView.Gtk;
 
 internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog
 {
+    private static readonly unsafe IntPtr s_closeRequestCallback = new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, bool>)&WindowCloseRequest);
     private readonly GtkWebViewAdapter _nativeWebView;
     private IntPtr _windowHandle;
     private bool _disposed;
+    private GtkSignal? _signal;
 
     public GtkNativeWebViewDialog()
     {
@@ -26,6 +30,7 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog
 
         _ = RunOnGlibThread(() =>
         {
+            _signal = new GtkSignal(_windowHandle, "close", s_closeRequestCallback, this);
             var scrolled = gtk_scrolled_window_new(IntPtr.Zero, IntPtr.Zero);
             gtk_container_add(scrolled, _nativeWebView.Handle);
             gtk_container_add(_windowHandle, scrolled);
@@ -34,6 +39,7 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog
     }
 
     public IWebView WebView => _nativeWebView;
+    public event EventHandler? Closing;
 
     public string? Title
     {
@@ -69,15 +75,14 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog
         gtk_window_present(_windowHandle);
     });
 
-    public void Show(IPlatformHandle owner)
+    public bool Show(IPlatformHandle owner)
     {
         if (owner.HandleDescriptor != "XID")
         {
-            Show();
-            return;
+            return false;
         }
 
-        RunOnGlibThread(() =>
+        return RunOnGlibThread(() =>
         {
             var xid = owner.Handle;
             var parent = gdk_x11_window_foreign_new_for_display(gdk_display_get_default(), xid);
@@ -89,6 +94,8 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog
             }
             gtk_widget_show_all(_windowHandle);
             gtk_window_present(_windowHandle);
+
+            return true;
         });
     }
 
@@ -109,6 +116,7 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog
     {
         if (disposing && !_disposed)
         {
+            _signal?.Dispose();
             Close();
             _nativeWebView.Dispose();
             _disposed = true;
@@ -124,5 +132,18 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog
     ~GtkNativeWebViewDialog()
     {
         Dispose(false);
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static bool WindowCloseRequest(IntPtr windowHandle, IntPtr data)
+    {
+        if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkNativeWebViewDialog dialog)
+        {
+            return false;
+        }
+
+        var cancel = new CancelEventArgs();
+        dialog.Closing?.Invoke(dialog, cancel);
+        return cancel.Cancel;
     }
 }

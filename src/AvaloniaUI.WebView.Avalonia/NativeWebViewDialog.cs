@@ -18,35 +18,60 @@ public class NativeWebViewDialog : IWebView, INativeWebViewDialog
     public NativeWebViewDialog()
     {
         _impl = OperatingSystemEx.IsLinux() ? new GtkNativeWebViewDialog() : new WindowNativeWebViewDialog();
+        _impl.Closing += (_, args) => Closing?.Invoke(this, args);
         _impl.WebView.NavigationStarted += (_, args) => NavigationStarted?.Invoke(this, args);
         _impl.WebView.NavigationStarted += (_, args) => NavigationStarted?.Invoke(this, args);
         _impl.WebView.WebMessageReceived += (_, args) => WebMessageReceived?.Invoke(this, args);
     }
 
+    /// <inheritdoc/>
     public bool CanGoBack => _impl.WebView.CanGoBack;
+    /// <inheritdoc/>
     public bool CanGoForward => _impl.WebView.CanGoForward;
+    /// <inheritdoc/>
     public Uri Source { get => _impl.WebView.Source; set => _impl.WebView.Source = value; }
 
+    /// <inheritdoc/>
     public event EventHandler<WebViewNavigationCompletedEventArgs>? NavigationCompleted;
+    /// <inheritdoc/>
     public event EventHandler<WebViewNavigationStartingEventArgs>? NavigationStarted;
+    /// <inheritdoc/>
     public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
 
+    /// <inheritdoc/>
     public bool GoBack() => _impl.WebView.GoBack();
+    /// <inheritdoc/>
     public bool GoForward() => _impl.WebView.GoForward();
+    /// <inheritdoc/>
     public Task<string?> InvokeScript(string script) => _impl.WebView.InvokeScript(script);
+    /// <inheritdoc/>
     public void Navigate(Uri url) => _impl.WebView.Navigate(url);
+    /// <inheritdoc/>
     public void NavigateToString(string text) => _impl.WebView.NavigateToString(text);
+    /// <inheritdoc/>
     public bool Refresh() => _impl.WebView.Refresh();
+    /// <inheritdoc/>
     public bool Stop() => _impl.WebView.Stop();
 
+    /// <inheritdoc/>
     public void Dispose() => _impl.Dispose();
 
+    /// <inheritdoc/>
     public string? Title { get => _impl.Title; set => _impl.Title = value; }
+    /// <inheritdoc/>
+    public event EventHandler? Closing;
+    /// <inheritdoc/>
     public void Show() => _impl.Show();
 
 #if WPF
+    /// <summary>
+    /// Opens the WebView dialog with <see cref="Window"/> owner.
+    /// </summary>
     public void Show(Window owner)
 #elif AVALONIA
+    /// <summary>
+    /// Opens the WebView dialog with <see cref="TopLevel"/> owner.
+    /// </summary>
     public void Show(TopLevel owner)
 #endif
     {
@@ -65,21 +90,41 @@ public class NativeWebViewDialog : IWebView, INativeWebViewDialog
             window.Show(ownerWindow);
 #endif
         }
-        else if (avTopLevel?.TryGetPlatformHandle() is { } platformHandle)
-        {
-            _impl.Show(platformHandle);
-        }
-        else
+        else if (avTopLevel?.TryGetPlatformHandle() is not { } platformHandle
+            || !_impl.Show(platformHandle))
         {
             _impl.Show();
         }
     }
 
+    /// <inheritdoc/>
     public void Close() => _impl.Close();
 
+    /// <inheritdoc/>
     public IPlatformHandle? TryGetPlatformHandle() => _impl.TryGetPlatformHandle();
+
+    /// <summary>
+    /// Gets platform handle of the webview hosted inside the dialog.
+    /// </summary>
+    public IPlatformHandle? TryGetWebViewPlatformHandle() => _impl.WebView as IWebViewAdapter;
+
+    /// <summary>
+    /// Returns instance <see cref="NativeWebViewCommandManager"/> that allows executing common keyboard commands. Or null, if not supported by the platform.
+    /// </summary>
+    public NativeWebViewCommandManager? TryGetCommandManager() =>
+        _impl.WebView is IWebViewAdapterWithCommands commands ? new NativeWebViewCommandManager(commands) : null;
+
+    /// <summary>
+    /// Returns instance <see cref="NativeWebViewCookieManager"/> that allows reading and settings cookies. Or null, if not supported by the platform.
+    /// </summary>
+    public NativeWebViewCookieManager? TryGetCookieManager() =>
+        _impl.WebView is IWebViewAdapterWithCookieManager adapter ? new NativeWebViewCookieManager(adapter) : null;
+
+    /// <summary>
+    /// If dialog is based on a <see cref="Window"/>, returns its instance to allow full control.
+    /// </summary>
     public Window? TryGetWindow() => _impl as WindowNativeWebViewDialog;
 
     IWebView INativeWebViewDialog.WebView => _impl.WebView;
-    void INativeWebViewDialog.Show(IPlatformHandle owner) => _impl.Show(owner);
+    bool INativeWebViewDialog.Show(IPlatformHandle owner) => _impl.Show(owner);
 }

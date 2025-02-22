@@ -56,31 +56,45 @@ public class NativeWebView : Control, IWebView
     protected override Visual? GetVisualChild(int index) => _controlHostImpl;
 #endif
 
+    /// <inheritdoc/>
     public event EventHandler<WebViewNavigationCompletedEventArgs>? NavigationCompleted;
-
+    /// <inheritdoc/>
     public event EventHandler<WebViewNavigationStartingEventArgs>? NavigationStarted;
+    /// <inheritdoc/>
     public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
 
+    /// <inheritdoc/>
     public Uri Source
     {
         get => (Uri)GetValue(SourceProperty);
         set => SetValue(SourceProperty, value);
     }
 
+    /// <summary>
+    /// Returns instance <see cref="NativeWebViewCommandManager"/> that allows executing common keyboard commands. Or null, if not supported by the platform.
+    /// </summary>
     public NativeWebViewCommandManager? TryGetCommandManager() =>
         _controlHostImpl.TryGetAdapter() is IWebViewAdapterWithCommands commands ? new NativeWebViewCommandManager(commands) : null;
 
+    /// <summary>
+    /// Returns instance <see cref="NativeWebViewCookieManager"/> that allows reading and settings cookies. Or null, if not supported by the platform.
+    /// </summary>
     public NativeWebViewCookieManager? TryGetCookieManager() =>
         _controlHostImpl.TryGetAdapter() is IWebViewAdapterWithCookieManager adapter ? new NativeWebViewCookieManager(adapter) : null;
 
+    /// <inheritdoc/>
     public bool CanGoBack => _controlHostImpl.TryGetAdapter()?.CanGoBack ?? false;
 
+    /// <inheritdoc/>
     public bool CanGoForward => _controlHostImpl.TryGetAdapter()?.CanGoForward ?? false;
 
+    /// <inheritdoc/>
     public bool GoBack() => _controlHostImpl.TryGetAdapter()?.GoBack() ?? false;
 
+    /// <inheritdoc/>
     public bool GoForward() => _controlHostImpl.TryGetAdapter()?.GoForward() ?? false;
 
+    /// <inheritdoc/>
     public async Task<string?> InvokeScript(string scriptName)
     {
         try
@@ -94,6 +108,7 @@ public class NativeWebView : Control, IWebView
         }
     }
 
+    /// <inheritdoc/>
     public async void Navigate(Uri url)
     {
         try
@@ -106,6 +121,7 @@ public class NativeWebView : Control, IWebView
         }
     }
 
+    /// <inheritdoc/>
     public async void NavigateToString(string text)
     {
         try
@@ -118,8 +134,10 @@ public class NativeWebView : Control, IWebView
         }
     }
 
+    /// <inheritdoc/>
     public bool Refresh() => _controlHostImpl.TryGetAdapter()?.Refresh() ?? false;
 
+    /// <inheritdoc/>
     public bool Stop() => _controlHostImpl.TryGetAdapter()?.Stop() ?? false;
 
     /// <summary>
