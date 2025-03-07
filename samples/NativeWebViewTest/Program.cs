@@ -4,7 +4,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using AvaloniaUI.WebView;
+using Avalonia.Xpf.Controls;
 
 // This code is received from the costumer, and I was too lazy to change it to normal Main method with [StaThread].
 if (OperatingSystem.IsWindows())

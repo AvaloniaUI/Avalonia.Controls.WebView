@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Avalonia.Controls.WebView.Samples.MainView"
+             KeyDown="Window_OnKeyDown"
+             KeyUp="Window_OnKeyUp">
+    <TabControl x:Name="TabControl">
+        <TabItem Header="AvaloniaUI">
+            <Grid x:Name="GridContainer" RowDefinitions="3*, *">
+                <NativeWebView x:Name="WebView"
+                               Source="https://google.com/"
+                               NavigationCompleted="NativeWebView_OnNavigationCompleted"
+                               NavigationStarted="NativeWebView_OnNavigationStarted"
+                               WebMessageReceived="NativeWebView_OnWebMessageReceived"
+                               KeyDown="InputElement_OnKeyDown"
+                               KeyUp="InputElement_OnKeyUp" />
+                <TextBox IsReadOnly="True" Grid.Row="1" x:Name="LogList" />
+            </Grid>
+        </TabItem>
+        <TabItem Header="WebAuthenticationBroker">
+            <StackPanel>
+                <TextBox x:Name="RequestUri"
+                         UseFloatingWatermark="True"
+                         Watermark="Request Uri" />
+                <TextBox x:Name="RedirectUri"
+                         UseFloatingWatermark="True"
+                         Watermark="Redirect Uri" />
+                <Button Content="Go" Click="WebAuthenticationBrokerButton_OnClick" />
+                <TextBox x:Name="CallbackUri"
+                         AcceptsReturn="True"
+                         UseFloatingWatermark="True"
+                         Watermark="Callback Uri" />
+            </StackPanel>
+        </TabItem>
+    </TabControl>
+</UserControl>

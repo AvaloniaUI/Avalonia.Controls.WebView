@@ -25,7 +25,7 @@ class Build : NukeBuild
     readonly AbsolutePath Output = RootDirectory / "artifacts" / "packages";
 
     [Parameter]
-    readonly AbsolutePath ProjectFile = RootDirectory / "AvaloniaUI.WebView.Packages.slnf";
+    readonly AbsolutePath ProjectFile = RootDirectory / "Avalonia.Controls.WebView.Packages.slnf";
 
     string CiRunNumber => Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER");
     

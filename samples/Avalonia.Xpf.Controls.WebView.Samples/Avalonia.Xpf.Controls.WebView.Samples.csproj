@@ -1,0 +1,19 @@
+﻿<Project Sdk="Xpf.Sdk/1.3.0">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <XpfReplaceSystemDrawing>false</XpfReplaceSystemDrawing>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Avalonia.Xpf.Controls.WebView\Avalonia.Xpf.Controls.WebView.csproj" />
+    <PackageReference Include="Avalonia.Diagnostics" Version="$(XpfAvaloniaVersion)"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="AvaloniaUI.Xpf.LicenseKey" Value="****" />
+  </ItemGroup>
+</Project>

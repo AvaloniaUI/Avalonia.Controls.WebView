@@ -1,0 +1,9 @@
+﻿{
+  "solution": {
+    "path": "Avalonia.Controls.WebView.sln",
+    "projects": [
+      "src\\Avalonia.Controls.WebView.Core\\Avalonia.Controls.WebView.Core.csproj",
+      "src\\Avalonia.Controls.WebView\\Avalonia.Controls.WebView.csproj"
+    ]
+  }
+}

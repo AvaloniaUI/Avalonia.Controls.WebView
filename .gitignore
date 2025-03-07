@@ -350,8 +350,5 @@ MigrationBackup/
 .ionide/
 .idea
 .DS_Store
-native/AvaloniaUI.WebView.Native/src/OSX/WebView.Native.OSX.xcodeproj/project.xcworkspace/xcuserdata
-native/AvaloniaUI.WebView.Native/src/OSX/WebView.Native.OSX.xcodeproj/xcuserdata
 
-native/AvaloniaUI.WebView.Native/src/OSX/build
 

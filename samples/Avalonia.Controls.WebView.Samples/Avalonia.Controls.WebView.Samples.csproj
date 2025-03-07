@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="$(AvaloniaSampleVersion)"/>
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaSampleVersion)"/>
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\Avalonia.Controls.WebView\Avalonia.Controls.WebView.csproj" />
+    </ItemGroup>
+
+</Project>
