@@ -18,6 +18,7 @@
     <!-- It was a lie. -->
     <Avalonia_I_Want_To_Use_Private_Apis_In_Nuget_Package_And_Promise_To_Pin_The_Exact_Avalonia_Version_In_Package_Dependency>true</Avalonia_I_Want_To_Use_Private_Apis_In_Nuget_Package_And_Promise_To_Pin_The_Exact_Avalonia_Version_In_Package_Dependency>
     <AvaloniaAccessUnstablePrivateApis>true</AvaloniaAccessUnstablePrivateApis>
+    <_WebViewBuildTime>$([System.DateTime]::Now.ToString('yyyy-MM-dd'))</_WebViewBuildTime>
   </PropertyGroup>
 
   <!-- Common group -->
@@ -66,6 +67,10 @@
     <InternalsVisibleTo Include="Avalonia.Xpf.Controls.WebView" />
     <AssemblyAttribute Include="System.Runtime.CompilerServices.DisableRuntimeMarshalling"
                        Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>BuildTime</_Parameter1>
+      <_Parameter2>$(_WebViewBuildTime)</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
 
   <Import Project="Avalonia.Controls.WebView.Core.targets" />
