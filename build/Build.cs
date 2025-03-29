@@ -80,8 +80,52 @@ class Build : NukeBuild
                 .SetProject(ProjectFile));
         });
 
+    Target CopyPackagesToNuGetCache => _ => _
+        .DependsOn(CreateNugetPackages)
+        .Executes(() =>
+        {
+            var globalPackagesFolder = SettingsUtility.GetGlobalPackagesFolder(
+                Settings.LoadDefaultSettings(RootDirectory));
+
+            var packageFiles = Output.GlobFiles("*.nupkg");
+            if (packageFiles.Count == 0)
+            {
+                throw new InvalidOperationException("No nupkg files were found.");
+            }
+
+            foreach (var path in packageFiles)
+            {
+                using var f = File.Open(path.ToString(), FileMode.Open, FileAccess.Read);
+                using var zip = new ZipArchive(f, ZipArchiveMode.Read);
+                var nuspecEntry = zip.Entries.First(e => e.FullName.EndsWith(".nuspec") && e.FullName == e.Name);
+                var packageId = XDocument.Load(nuspecEntry.Open()).Document!.Root!
+                    .Elements().First(x => x.Name.LocalName == "metadata")
+                    .Elements().First(x => x.Name.LocalName == "id").Value;
+
+                var packagePath = Path.Combine(
+                    globalPackagesFolder,
+                    packageId.ToLowerInvariant(),
+                    GetVersion());
+
+                if (Directory.Exists(packagePath))
+                    Directory.Delete(packagePath, true);
+                Directory.CreateDirectory(packagePath);
+                zip.ExtractToDirectory(packagePath);
+                File.WriteAllText(Path.Combine(packagePath, ".nupkg.metadata"), @"{
+  ""version"": 2,
+  ""contentHash"": ""FnIKqnvWIoQ+6ZZcVGX0dZyFA9A5GaRFTfTK+bj3coj0Eb528+4GADTMTIb2pmx/lpi79ZXJAln1A+Lyr+i6Vw=="",
+  ""source"": ""https://api.nuget.org/v3/index.json""
+}");
+                Log.Information("Package path is " + packagePath);
+            }
+        });
+
     string GetVersion()
     {
+        if (ScheduledTargets.Any(t => t.Name == nameof(CopyDiagnosticsToNuGetCache)))
+        {
+            return "9999.0.0-localbuild";
+        }
         if (Version.TryParse(RefName, out var version))
         {
             return RefName;
