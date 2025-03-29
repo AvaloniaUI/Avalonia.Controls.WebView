@@ -45,7 +45,7 @@ namespace Avalonia.Xpf.Controls
 
         public NativeWebView()
         {
-            Licensing.ValidateWebView();
+            Core.Licensing.ValidateWebView();
 
             _controlHostImpl = new NativeWebViewControlHost();
             _controlHostImpl.AdapterInitialized += ControlHostImplOnAdapterInitialized;
@@ -79,18 +79,18 @@ namespace Avalonia.Xpf.Controls
         }
 
         /// <summary>
-        /// Returns instance <see cref="NativeWebViewCommandManager"/> that allows executing common keyboard commands. Or null, if not supported by the platform.
+        /// Returns instance <see cref="Avalonia.Controls.NativeWebViewCommandManager"/> that allows executing common keyboard commands. Or null, if not supported by the platform.
         /// </summary>
         public Core.NativeWebViewCommandManager? TryGetCommandManager() =>
             _controlHostImpl.TryGetAdapter() switch
             {
                 Core.IWebViewAdapterWithCommands commands => new Core.NativeWebViewCommandManager(commands),
-                { } adapter => new Core.GenericCommands(_controlHostImpl.TryGetAdapter()),
+                { } adapter => new Core.GenericCommands(adapter),
                 _ => null
             };
 
         /// <summary>
-        /// Returns instance <see cref="NativeWebViewCookieManager"/> that allows reading and settings cookies. Or null, if not supported by the platform.
+        /// Returns instance <see cref="Avalonia.Controls.NativeWebViewCookieManager"/> that allows reading and settings cookies. Or null, if not supported by the platform.
         /// </summary>
         public Core.NativeWebViewCookieManager? TryGetCookieManager() =>
             _controlHostImpl.TryGetAdapter() is Core.IWebViewAdapterWithCookieManager adapter ? new(adapter) : null;
@@ -195,7 +195,7 @@ namespace Avalonia.Xpf.Controls
             _ignoreNavigation = true;
             try
             {
-                SetCurrentValue(SourceProperty, e.Request);
+                SetCurrentValue(SourceProperty, e.Request ?? Core.WebViewHelper.EmptyPage);
                 NavigationCompleted?.Invoke(this, e);
             }
             finally
@@ -204,7 +204,7 @@ namespace Avalonia.Xpf.Controls
             }
         }
 
-        private void WithFocusOnGotFocus(object sender, EventArgs e)
+        private void WithFocusOnGotFocus(object? sender, EventArgs e)
         {
             _ignoreFocusChanges = true;
             try
@@ -226,7 +226,7 @@ namespace Avalonia.Xpf.Controls
             }
         }
 
-        private void WithFocusOnLostFocus(object sender, EventArgs e)
+        private void WithFocusOnLostFocus(object? sender, EventArgs e)
         {
             // no-op?
         }
@@ -242,7 +242,7 @@ namespace Avalonia.Xpf.Controls
             element?.RaiseEvent(obj);
         }
 
-        private void ControlHostImplOnAdapterDeinitialized(object sender, Core.IWebViewAdapter adapter)
+        private void ControlHostImplOnAdapterDeinitialized(object? sender, Core.IWebViewAdapter adapter)
         {
             adapter.NavigationStarted -= WebViewAdapterOnNavigationStarted;
             adapter.NavigationCompleted -= WebViewAdapterOnNavigationCompleted;
@@ -258,7 +258,7 @@ namespace Avalonia.Xpf.Controls
             }
         }
 
-        private void ControlHostImplOnAdapterInitialized(object sender, Core.IWebViewAdapter adapter)
+        private void ControlHostImplOnAdapterInitialized(object? sender, Core.IWebViewAdapter adapter)
         {
             adapter.NavigationStarted += WebViewAdapterOnNavigationStarted;
             adapter.NavigationCompleted += WebViewAdapterOnNavigationCompleted;
@@ -297,7 +297,7 @@ namespace Avalonia.Xpf.Controls
             }
         }
 
-        private void OnIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        private void OnIsVisibleChanged(object? sender, DependencyPropertyChangedEventArgs e)
         {
             _ = Dispatcher.InvokeAsync(() => _controlHostImpl.TryGetAdapter()?.SizeChanged(), DispatcherPriority.Background);
         }

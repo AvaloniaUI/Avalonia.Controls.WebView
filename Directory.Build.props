@@ -12,6 +12,9 @@
     <AvaloniaVersion>11.1.0</AvaloniaVersion>
     <AvaloniaSampleVersion>11.2.5</AvaloniaSampleVersion>
 
+    <!-- The event '' is never used -->
+    <NoWarn>$(NoWarn);CS0067</NoWarn>
+
     <RepoRoot Condition="'$(RepoRoot)' == ''">$(MSBuildThisFileDirectory)</RepoRoot>
     <PackageOutputPath>$(RepoRoot)\artifacts\packages</PackageOutputPath>
     <RepositoryPropsRoot>$(MSBuildThisFileDirectory)/build/Props/</RepositoryPropsRoot>

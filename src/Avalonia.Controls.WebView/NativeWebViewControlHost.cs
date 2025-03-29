@@ -158,7 +158,7 @@ namespace Avalonia.Xpf.Controls
                 if (!task.IsCompleted)
                 {
                     var frame = new DispatcherFrame();
-                    _ = task.ContinueWith(static (_, s) => ((DispatcherFrame)s).Continue = false, frame);
+                    _ = task.ContinueWith(static (_, s) => ((DispatcherFrame)s!).Continue = false, frame);
 #if WPF
                     Dispatcher.PushFrame(frame);
 #elif AVALONIA

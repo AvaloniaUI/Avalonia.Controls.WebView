@@ -49,8 +49,8 @@ class Build : NukeBuild
         .DependsOn(OutputParameters)
         .Executes(() =>
         {
-            var diagnosticSupportRoot = RootDirectory / "src";
-            foreach (var srcProject in diagnosticSupportRoot.GlobFiles("**/*.csproj"))
+            var srcRootDirectory = RootDirectory / "src";
+            foreach (var srcProject in srcRootDirectory.GlobFiles("**/*.csproj"))
             {
                 if (srcProject.Name.Contains("Xpf") && CiRunNumber is not null)
                 {
@@ -73,11 +73,22 @@ class Build : NukeBuild
         .DependsOn(Compile)
         .Executes(() =>
         {
-            DotNetPack(c => c
-                .SetConfiguration(Configuration)
-                .AddProperty("PackageVersion", GetVersion())
-                .SetOutputDirectory(Output)
-                .SetProject(ProjectFile));
+            var srcRootDirectory = RootDirectory / "src";
+            foreach (var srcProject in srcRootDirectory.GlobFiles("**/*.csproj"))
+            {
+                if (srcProject.Name.Contains("Xpf") && CiRunNumber is not null)
+                {
+                    // Skip XPF on CI
+                    continue;
+                }
+
+                DotNetPack(c => c
+                    .SetProject(srcProject)
+                    .AddProperty("PackageVersion", GetVersion())
+                    .SetConfiguration(Configuration)
+                    .SetOutputDirectory(Output)
+                );
+            }
         });
 
     Target CopyPackagesToNuGetCache => _ => _

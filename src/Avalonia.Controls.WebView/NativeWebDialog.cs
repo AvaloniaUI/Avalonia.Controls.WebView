@@ -40,7 +40,7 @@ namespace Avalonia.Xpf.Controls
         /// <inheritdoc/>
         public bool CanGoForward => _impl.WebView.CanGoForward;
         /// <inheritdoc/>
-        public Uri Source { get => _impl.WebView.Source; set => _impl.WebView.Source = value; }
+        public Uri Source { get => _impl.WebView.Source ?? Core.WebViewHelper.EmptyPage; set => _impl.WebView.Source = value; }
 
         /// <inheritdoc/>
         public event EventHandler<WebViewNavigationCompletedEventArgs>? NavigationCompleted;
