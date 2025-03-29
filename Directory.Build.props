@@ -10,7 +10,7 @@
     <IsPackable>false</IsPackable>
   
     <AvaloniaVersion>11.1.0</AvaloniaVersion>
-    <AvaloniaSampleVersion>11.2.5</AvaloniaSampleVersion>
+    <AvaloniaSampleVersion>11.2.6</AvaloniaSampleVersion>
 
     <!-- The event '' is never used -->
     <NoWarn>$(NoWarn);CS0067</NoWarn>
