@@ -2,7 +2,7 @@
     <Import Project="../../src/Avalonia.Controls.WebView/build/Avalonia.Controls.WebView.props" />
 
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net9.0</TargetFramework>
         <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     </PropertyGroup>
     <ItemGroup>
