@@ -23,7 +23,9 @@ class Build : NukeBuild
     ///   - JetBrains Rider            https://nuke.build/rider
     ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
     ///   - Microsoft VSCode           https://nuke.build/vscode
-    public static int Main() => Execute<Build>(x => x.CreateNugetPackages);
+    public static int Main() => IsLocalBuild ?
+        Execute<Build>(x => x.CopyPackagesToNuGetCache) :
+        Execute<Build>(x => x.CreateNugetPackages);
 
     [NuGetPackage("dotnet-ilrepack", "ILRepackTool.dll", Framework = "net8.0")] readonly Tool IlRepackTool;
     [NuGetPackage("Obfuscar.GlobalTool", "GlobalTools.dll", Framework = "net8.0")] readonly Tool Obfuscar;
@@ -138,7 +140,7 @@ class Build : NukeBuild
             }
             finally
             {
-                //tempFile.DeleteFile();
+                tempFile.DeleteFile();
             }
         });
 
