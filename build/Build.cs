@@ -130,6 +130,8 @@ class Build : NukeBuild
                 DotNetPack(c => c
                     .SetProject(srcProject)
                     .SetNoBuild(true)
+                    .SetNoRestore(true)
+                    .SetContinuousIntegrationBuild(true)
                     .AddProperty("PackageVersion", GetVersion())
                     .SetConfiguration(Configuration)
                     .SetOutputDirectory(Output)
