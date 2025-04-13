@@ -12,6 +12,7 @@ using Nuke.Common;
 using Nuke.Common.IO;
 using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
+using Nuke.Common.Tools.PowerShell;
 using Serilog;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
 
@@ -103,7 +104,11 @@ class Build : NukeBuild
         .DependsOn(IlMerge)
         .Executes(() =>
         {
-            // 
+            // Avalonia.Controls.WebView
+            PowerShellTasks.PowerShell(c => c
+                .SetProcessWorkingDirectory(RootDirectory)
+                .SetCommand(
+                    $"babel {RootDirectory}/src/Avalonia.Controls.WebView/bin/{Configuration}/net8.0/Avalonia.Controls.WebView.dll --project {RootDirectory}/src/Avalonia.Controls.WebView/Avalonia.Controls.WebView.babel --rules {RootDirectory}/src/Avalonia.Controls.WebView/Avalonia.Controls.WebView.babel.rules --output {RootDirectory}/src/Avalonia.Controls.WebView/bin/{Configuration}/net8.0/Avalonia.Controls.WebView.dll  --mapout {RootDirectory}/Obfuscated/Avalonia.Controls.WebView.ObfuscationMap.xml --logfile {RootDirectory}/Obfuscated/Avalonia.Controls.WebView.Obfuscation.log"));
         });
 
     Target CreateNugetPackages => _ => _
