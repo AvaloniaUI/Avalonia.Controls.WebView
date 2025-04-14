@@ -14,10 +14,15 @@
                                NavigationCompleted="NativeWebView_OnNavigationCompleted"
                                NavigationStarted="NativeWebView_OnNavigationStarted"
                                WebMessageReceived="NativeWebView_OnWebMessageReceived"
+                               NewWindowRequested="NativeWebView_OnNewWindowRequested"
                                KeyDown="InputElement_OnKeyDown"
                                KeyUp="InputElement_OnKeyUp" />
                 <TextBox IsReadOnly="True" Grid.Row="1" x:Name="LogList" />
             </Grid>
+        </TabItem>
+        <TabItem Header="GetUserMedia">
+            <NativeWebView Source="https://webrtc.github.io/samples/"
+                           NewWindowRequested="NativeWebView_OnNewWindowRequested" />
         </TabItem>
         <TabItem Header="WebAuthenticationBroker">
             <StackPanel>

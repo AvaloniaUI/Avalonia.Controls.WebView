@@ -16,6 +16,7 @@ internal class WKWebViewConfiguration : NSObject
     public WKWebViewConfiguration() : base(s_class)
     {
         Init();
+        Preferences = new WKPreferences(Libobjc.intptr_objc_msgSend(Handle, Libobjc.sel_getUid("preferences")));
     }
 
     public WKWebsiteDataStore WebsiteDataStore => new(Libobjc.intptr_objc_msgSend(Handle, s_websiteDataStore), false);
@@ -41,14 +42,5 @@ internal class WKWebViewConfiguration : NSObject
         Libobjc.void_objc_msgSend(controllerPtr, s_contentRemoveScriptMessageHandlerForName, handlerName.Handle);
     }
 
-    public void EnableDeveloperExtras()
-    {
-        var preferences = Libobjc.intptr_objc_msgSend(Handle, Libobjc.sel_getUid("preferences"));
-        using var key = NSString.Create("developerExtrasEnabled");
-        Libobjc.void_objc_msgSend(
-            preferences,
-            Libobjc.sel_getUid("setValue:forKey:"),
-            NSNumber.Yes.Handle,
-            key.Handle);
-    }
+    public WKPreferences Preferences { get; }
 }

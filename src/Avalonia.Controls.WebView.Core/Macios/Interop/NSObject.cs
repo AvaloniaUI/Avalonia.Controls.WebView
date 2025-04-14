@@ -16,6 +16,8 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
     private static readonly IntPtr s_conformsToProtocol = Libobjc.sel_getUid("conformsToProtocol:");
     private static readonly IntPtr s_respondsToSelector = Libobjc.sel_getUid("respondsToSelector:");
     private static readonly IntPtr s_description = Libobjc.sel_getUid("description");
+    private static readonly IntPtr s_setValueForKeySel = Libobjc.sel_getUid("setValue:forKey:");
+    private static readonly IntPtr s_valueForKeySel = Libobjc.sel_getUid("valueForKey:");
 
     private bool _owns;
     private IntPtr? _class;
@@ -70,6 +72,17 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
 
     public static string? GetDescription(IntPtr handle) =>
         NSString.GetString(Libobjc.intptr_objc_msgSend(handle, s_description));
+
+    public void SetValueForKey(IntPtr value, NSString key) => Libobjc.void_objc_msgSend(
+        Handle,
+        s_setValueForKeySel,
+        value,
+        key.Handle);
+
+    public IntPtr ValueForKey(NSString key) => Libobjc.intptr_objc_msgSend(
+        Handle,
+        s_valueForKeySel,
+        key.Handle);
 
     protected unsafe bool SetIvarValue(string varName, IntPtr value)
     {

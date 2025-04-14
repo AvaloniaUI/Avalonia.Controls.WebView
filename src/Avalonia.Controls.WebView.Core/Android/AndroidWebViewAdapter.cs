@@ -67,6 +67,7 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
 
     public event EventHandler<WebViewNavigationCompletedEventArgs>? NavigationCompleted;
     public event EventHandler<WebViewNavigationStartingEventArgs>? NavigationStarted;
+    public event EventHandler<WebViewNewWindowRequestedEventArgs>? NewWindowRequested;
     public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
     public event EventHandler? GotFocus;
     public event EventHandler? LostFocus;
@@ -195,11 +196,20 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
     {
         public override bool ShouldOverrideUrlLoading(WebView? view, IWebResourceRequest? request)
         {
-            var args = new WebViewNavigationStartingEventArgs { Request = new Uri(request!.Url!.ToString()!) };
-            adapter.NavigationStarted?.Invoke(adapter, args);
-            return args.Cancel;
+            if (request?.IsForMainFrame == false)
+            {
+                var args = new WebViewNewWindowRequestedEventArgs { Request = new Uri(request!.Url!.ToString()!) };
+                adapter.NewWindowRequested?.Invoke(adapter, args);
+                return args.Handled;
+            }
+            else
+            {
+                var args = new WebViewNavigationStartingEventArgs { Request = new Uri(request!.Url!.ToString()!) };
+                adapter.NavigationStarted?.Invoke(adapter, args);
+                return args.Cancel;
+            }
         }
-
+        
         public override void OnPageFinished(WebView? view, string? url)
         {
             base.OnPageFinished(view, url);

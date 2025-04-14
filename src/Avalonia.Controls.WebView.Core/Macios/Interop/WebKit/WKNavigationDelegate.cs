@@ -54,6 +54,8 @@ internal unsafe class WKNavigationDelegate : NSManagedObjectBase
     }
 
     private static readonly IntPtr s_actionRequest = Libobjc.sel_getUid("request");
+    private static readonly IntPtr s_navigationType = Libobjc.sel_getUid("navigationType");
+    private static readonly IntPtr s_targetFrame = Libobjc.sel_getUid("targetFrame");
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void OnDecidePolicyForNavigationAction(IntPtr self, IntPtr sel, IntPtr webView, IntPtr navigationAction, IntPtr decisionHandler)
@@ -63,7 +65,11 @@ internal unsafe class WKNavigationDelegate : NSManagedObjectBase
         using var request = new NSURLRequest(Libobjc.intptr_objc_msgSend(navigationAction, s_actionRequest), false);
         using var nsUrl = request.Url;
 
-        var args = new DecidePolicyNavigationEventArgs { Request = new Uri(nsUrl.AbsoluteString!) };
+        var args = new DecidePolicyNavigationEventArgs
+        {
+            Request = new Uri(nsUrl.AbsoluteString!),
+            TargetFrame = Libobjc.intptr_objc_msgSend(navigationAction, s_targetFrame)
+        };
         managed?.DecidePolicyNavigation?.Invoke(managed, args);
 
         var callback = (delegate* unmanaged[Cdecl]<IntPtr, long, void>)BlockLiteral.GetCallback(decisionHandler);
@@ -73,5 +79,6 @@ internal unsafe class WKNavigationDelegate : NSManagedObjectBase
     public class DecidePolicyNavigationEventArgs : CancelEventArgs
     {
         public required Uri Request { get; init; }
+        public IntPtr TargetFrame { get; init; }
     }
 }

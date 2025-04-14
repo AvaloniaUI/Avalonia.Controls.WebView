@@ -68,6 +68,10 @@ namespace Avalonia.Xpf.Controls
         public event EventHandler<Core.WebViewNavigationCompletedEventArgs>? NavigationCompleted;
         /// <inheritdoc/>
         public event EventHandler<Core.WebViewNavigationStartingEventArgs>? NavigationStarted;
+
+        /// <inheritdoc/>
+        public event EventHandler<Core.WebViewNewWindowRequestedEventArgs>? NewWindowRequested;
+
         /// <inheritdoc/>
         public event EventHandler<Core.WebMessageReceivedEventArgs>? WebMessageReceived;
 
@@ -204,6 +208,11 @@ namespace Avalonia.Xpf.Controls
             }
         }
 
+        private void WebViewAdapterOnNewWindowRequested(object? sender, Core.WebViewNewWindowRequestedEventArgs e)
+        {
+            NewWindowRequested?.Invoke(this, e);
+        }
+
         private void WithFocusOnGotFocus(object? sender, EventArgs e)
         {
             _ignoreFocusChanges = true;
@@ -247,6 +256,7 @@ namespace Avalonia.Xpf.Controls
             adapter.NavigationStarted -= WebViewAdapterOnNavigationStarted;
             adapter.NavigationCompleted -= WebViewAdapterOnNavigationCompleted;
             adapter.WebMessageReceived -= WebViewAdapterOnWebMessageReceived;
+            adapter.NewWindowRequested -= WebViewAdapterOnNewWindowRequested;
             if (adapter is Core.IWebViewAdapterWithFocus withFocus)
             {
                 withFocus.LostFocus -= WithFocusOnLostFocus;
@@ -263,6 +273,7 @@ namespace Avalonia.Xpf.Controls
             adapter.NavigationStarted += WebViewAdapterOnNavigationStarted;
             adapter.NavigationCompleted += WebViewAdapterOnNavigationCompleted;
             adapter.WebMessageReceived += WebViewAdapterOnWebMessageReceived;
+            adapter.NewWindowRequested += WebViewAdapterOnNewWindowRequested;
             if (adapter is Core.IWebViewAdapterWithFocus withFocus)
             {
                 withFocus.LostFocus += WithFocusOnLostFocus;

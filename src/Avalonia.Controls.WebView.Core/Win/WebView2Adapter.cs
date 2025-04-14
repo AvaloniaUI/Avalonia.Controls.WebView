@@ -31,7 +31,6 @@ internal class WebView2Adapter : IWebViewAdapterWithCookieManager
 
     public bool IsInitialized { get; private set; }
 
-    public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
     public bool CanGoBack => _controller?.CoreWebView2?.CanGoBack ?? false;
 
     public bool CanGoForward => _controller?.CoreWebView2?.CanGoForward ?? false;
@@ -47,6 +46,8 @@ internal class WebView2Adapter : IWebViewAdapterWithCookieManager
 
     public event EventHandler<WebViewNavigationCompletedEventArgs>? NavigationCompleted;
     public event EventHandler<WebViewNavigationStartingEventArgs>? NavigationStarted;
+    public event EventHandler<WebViewNewWindowRequestedEventArgs>? NewWindowRequested;
+    public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
     public event EventHandler? Initialized;
 
     public void Dispose()
@@ -163,6 +164,18 @@ internal class WebView2Adapter : IWebViewAdapterWithCookieManager
         {
             WebMessageReceived?.Invoke(this,
                 new WebMessageReceivedEventArgs { Body = e.TryGetWebMessageAsString() ?? e.WebMessageAsJson });
+        }
+
+        webView.NewWindowRequested += WebViewOnNewWindowRequested;
+        
+        void WebViewOnNewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs e)
+        {
+            if (Uri.TryCreate(e.Uri, UriKind.Absolute, out var uri))
+            {
+                var args = new WebViewNewWindowRequestedEventArgs { Request = uri };
+                NewWindowRequested?.Invoke(this, args);
+                if (args.Handled) e.Handled = true;
+            }
         }
 
         return () =>

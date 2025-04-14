@@ -32,10 +32,12 @@ public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWit
         _config = new WKWebViewConfiguration { JavaScriptEnabled = true };
         _config.AddScriptMessageHandler(_scriptHandler, _postAvWebViewMessageName);
 
+        _config.Preferences.MediaDevicesEnabled = true;
+
         var enableDevTools = AvaloniaLocator.Current.GetService<WebViewOptions>()?.EnableDevTools == true;
         if (enableDevTools)
         {
-            _config.EnableDeveloperExtras();
+            _config.Preferences.DeveloperExtrasEnabled = true;
         }
 
         _navDelegate = new WKNavigationDelegate();
@@ -83,6 +85,7 @@ public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWit
 
     public event EventHandler<WebViewNavigationCompletedEventArgs>? NavigationCompleted;
     public event EventHandler<WebViewNavigationStartingEventArgs>? NavigationStarted;
+    public event EventHandler<WebViewNewWindowRequestedEventArgs>? NewWindowRequested;
     public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
     public event EventHandler? GotFocus;
     public event EventHandler? LostFocus;
@@ -177,9 +180,18 @@ public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWit
 
     private void OnDelegateOnDecidePolicyNavigation(object? _, WKNavigationDelegate.DecidePolicyNavigationEventArgs args)
     {
-        var startedArgs = new WebViewNavigationStartingEventArgs { Request = args.Request };
-        NavigationStarted?.Invoke(this, startedArgs);
-        args.Cancel = startedArgs.Cancel;
+        if (args.TargetFrame == IntPtr.Zero)
+        {
+            var newWindowRequestedArgs = new WebViewNewWindowRequestedEventArgs { Request = args.Request };
+            NewWindowRequested?.Invoke(this, newWindowRequestedArgs);
+            args.Cancel = newWindowRequestedArgs.Handled;
+        }
+        else
+        {
+            var startedArgs = new WebViewNavigationStartingEventArgs { Request = args.Request };
+            NavigationStarted?.Invoke(this, startedArgs);
+            args.Cancel = startedArgs.Cancel;
+        }
     }
 
     private async void OnDelegateOnDidFinishNavigation(object? sender, EventArgs args)

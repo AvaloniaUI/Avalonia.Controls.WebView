@@ -26,6 +26,11 @@ public class WebViewNavigationStartingEventArgs : WebViewNavigationEventArgs
     public bool Cancel { get; set; }
 }
 
+public class WebViewNewWindowRequestedEventArgs : WebViewNavigationEventArgs
+{
+    public bool Handled { get; set; }
+}
+
 internal interface INativeWebViewDialog : IDisposable
 {
     /// <summary>
@@ -121,6 +126,11 @@ internal interface IWebView
     ///     NavigationStarting dispatches before a new navigate starts for the top level document.
     /// </summary>
     event EventHandler<WebViewNavigationStartingEventArgs>? NavigationStarted;
+
+    /// <summary>
+    ///     NavigationStarting dispatches before a new navigate starts for the top level document.
+    /// </summary>
+    event EventHandler<WebViewNewWindowRequestedEventArgs>? NewWindowRequested;
 
     /// <summary>
     ///     WebMessageReceived dispatches after web content sends a message to the app host via invokeCSharpAction(body).

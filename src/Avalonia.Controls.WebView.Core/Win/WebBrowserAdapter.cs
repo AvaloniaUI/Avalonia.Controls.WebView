@@ -35,6 +35,7 @@ internal unsafe class WebBrowserAdapter : IWebViewAdapter
     public string HandleDescriptor => "HWDN";
     public event EventHandler<WebViewNavigationCompletedEventArgs>? NavigationCompleted;
     public event EventHandler<WebViewNavigationStartingEventArgs>? NavigationStarted;
+    public event EventHandler<WebViewNewWindowRequestedEventArgs>? NewWindowRequested;
     public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
     public bool CanGoBack => true;
     public bool CanGoForward => true;

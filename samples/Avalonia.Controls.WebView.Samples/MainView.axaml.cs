@@ -157,5 +157,11 @@ public partial class MainView : UserControl
         requestUri += "&redirect_uri=" + redirectUri;
         return (requestUri, redirectUri);
     }
+
+    private void NativeWebView_OnNewWindowRequested(object? sender, WebViewNewWindowRequestedEventArgs e)
+    {
+        TabControl.Items.Add(new TabItem { Header = "New tab", Content = new NativeWebView { Source = e.Request! } });
+        e.Handled = true;
+    }
 }
 
