@@ -41,27 +41,32 @@ namespace Avalonia.Xpf.Controls
             nameof(Source), new Uri("about:blank"));
 #endif
 
-        private readonly NativeWebViewControlHost _controlHostImpl;
+        private readonly Core.INativeWebViewControlImpl _controlHostImpl;
 
         public NativeWebView()
         {
             Core.Licensing.ValidateWebView();
 
+#if AVALONIA
+            _controlHostImpl = (INativeWebViewControlImpl?)NativeWebViewCompositorHost.TryCreate() ?? new NativeWebViewControlHost();
+#else
             _controlHostImpl = new NativeWebViewControlHost();
+#endif
+
             _controlHostImpl.AdapterInitialized += ControlHostImplOnAdapterInitialized;
             _controlHostImpl.AdapterDeinitialized += ControlHostImplOnAdapterDeinitialized;
 #if AVALONIA
-            VisualChildren.Add(_controlHostImpl);
+            VisualChildren.Add((Control)_controlHostImpl);
 #elif WPF
             IsVisibleChanged += OnIsVisibleChanged;
-            AddVisualChild(_controlHostImpl);
-            AddLogicalChild(_controlHostImpl);
+            AddVisualChild((System.Windows.Media.Visual)_controlHostImpl);
+            AddLogicalChild((System.Windows.Media.Visual)_controlHostImpl);
 #endif
         }
 
 #if WPF
         protected override int VisualChildrenCount => 1;
-        protected override System.Windows.Media.Visual? GetVisualChild(int index) => _controlHostImpl;
+        protected override System.Windows.Media.Visual? GetVisualChild(int index) => (System.Windows.Media.Visual)_controlHostImpl;
 #endif
 
         /// <inheritdoc/>

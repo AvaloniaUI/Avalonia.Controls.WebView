@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Avalonia.Input;
+using Avalonia.Media.Imaging;
 using RoutedEventArgs = Avalonia.Interactivity.RoutedEventArgs;
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
 
@@ -220,4 +222,16 @@ internal interface IWebViewAdapterWithCookieManager : IWebViewAdapter
     void AddOrUpdateCookie(System.Net.Cookie cookie);
     void DeleteCookie(string name, string domain, string path);
     Task<IReadOnlyList<System.Net.Cookie>> GetCookiesAsync();
+}
+
+internal interface IWebViewAdapterWithOffscreenInput : IWebViewAdapter
+{
+    bool KeyInput(bool press, PhysicalKey physical, string symbol, KeyModifiers modifiers, uint timestamp);
+    bool PointerInput(PointerPoint point, KeyModifiers modifiers, uint timestamp);
+    bool PointerWheelInput(Vector delta, PointerPoint point, KeyModifiers modifiers, uint timestamp);
+}
+
+internal interface IWebViewAdapterWithOffscreenBuffer : IWebViewAdapter
+{
+    void UpdateWriteableBitmap(ref WriteableBitmap? bitmap, IntPtr pixbuf);
 }

@@ -19,7 +19,7 @@ namespace Avalonia.Controls
 namespace Avalonia.Xpf.Controls
 #endif
 {
-    internal class NativeWebViewControlHost : NativeControlHost
+    internal class NativeWebViewControlHost : NativeControlHost, INativeWebViewControlImpl
     {
         private TaskCompletionSource<IWebViewAdapter> _webViewReadyCompletion = new();
         private ReparentingScope? _reparentingScope;
@@ -98,9 +98,9 @@ namespace Avalonia.Xpf.Controls
             return adapter;
         }
 
-        internal Task<IWebViewAdapter> GetAdapterAsync() => _webViewReadyCompletion.Task;
+        public Task<IWebViewAdapter> GetAdapterAsync() => _webViewReadyCompletion.Task;
 
-        internal IWebViewAdapter? TryGetAdapter() => _webViewReadyCompletion.Task.Status == TaskStatus.RanToCompletion ?
+        public IWebViewAdapter? TryGetAdapter() => _webViewReadyCompletion.Task.Status == TaskStatus.RanToCompletion ?
             _webViewReadyCompletion.Task.Result :
             null;
 
