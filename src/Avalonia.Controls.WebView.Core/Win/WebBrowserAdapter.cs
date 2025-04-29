@@ -180,7 +180,7 @@ internal unsafe class WebBrowserAdapter : IWebViewAdapter
     public event EventHandler? Initialized;
     public bool IsInitialized => true;
 
-    public void SizeChanged()
+    public void SizeChanged(PixelSize containerSize)
     {
     }
 

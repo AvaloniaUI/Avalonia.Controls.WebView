@@ -190,7 +190,7 @@ internal interface IWebViewAdapter : IWebView, IDisposable, IPlatformHandle
     bool IsInitialized { get; }
     event EventHandler? Initialized;
 
-    void SizeChanged();
+    void SizeChanged(PixelSize containerSize);
 
     void SetParent(IPlatformHandle parent);
 }
@@ -226,12 +226,12 @@ internal interface IWebViewAdapterWithCookieManager : IWebViewAdapter
 
 internal interface IWebViewAdapterWithOffscreenInput : IWebViewAdapter
 {
-    bool KeyInput(bool press, PhysicalKey physical, string symbol, KeyModifiers modifiers, uint timestamp);
-    bool PointerInput(PointerPoint point, KeyModifiers modifiers, uint timestamp);
-    bool PointerWheelInput(Vector delta, PointerPoint point, KeyModifiers modifiers, uint timestamp);
+    bool KeyInput(bool press, PhysicalKey physical, string? symbol, KeyModifiers modifiers);
+    bool PointerInput(PointerPoint point, KeyModifiers modifiers);
+    bool PointerWheelInput(Vector delta, PointerPoint point, KeyModifiers modifiers);
 }
 
 internal interface IWebViewAdapterWithOffscreenBuffer : IWebViewAdapter
 {
-    void UpdateWriteableBitmap(ref WriteableBitmap? bitmap, IntPtr pixbuf);
+    void UpdateWriteableBitmap(ref WriteableBitmap? bitmap);
 }

@@ -152,7 +152,7 @@ public class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWit
         }, DispatcherPriority.Background);
     }
 
-    public void SizeChanged()
+    public void SizeChanged(PixelSize containerSize)
     {
     }
 

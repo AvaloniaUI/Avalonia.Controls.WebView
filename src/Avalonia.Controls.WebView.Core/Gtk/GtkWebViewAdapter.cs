@@ -127,9 +127,8 @@ internal class GtkWebViewAdapter : IWebViewAdapter
     {
     }
 
-    public void SizeChanged()
+    public virtual void SizeChanged(PixelSize containerSize)
     {
-        // GTK handles sizing automatically through its container system
     }
 
     public void Dispose()

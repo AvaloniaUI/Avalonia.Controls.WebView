@@ -46,7 +46,7 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
     public bool IsInitialized => true;
     public event EventHandler? Initialized;
 
-    public void SizeChanged()
+    public void SizeChanged(PixelSize containerSize)
     {
         //noop
     }

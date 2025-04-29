@@ -2,6 +2,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Avalonia.Media;
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
 using Core = Avalonia.Controls;
 #if WPF
