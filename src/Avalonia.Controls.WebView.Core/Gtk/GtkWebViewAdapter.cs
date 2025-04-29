@@ -328,9 +328,10 @@ internal class GtkWebViewAdapter : IWebViewAdapter, IWebViewAdapterWithFocus
 
     protected virtual void Dispose(bool disposing)
     {
-        if (Handle != IntPtr.Zero)
+        var widgetHandle = Handle;
+        if (widgetHandle != IntPtr.Zero)
         {
-            gtk_widget_destroy(Handle);
+            Handle = IntPtr.Zero;
 
             if (disposing)
             {
@@ -338,8 +339,9 @@ internal class GtkWebViewAdapter : IWebViewAdapter, IWebViewAdapterWithFocus
                 _decidePolicySignal?.Dispose();
                 _focusInSignal?.Dispose();
                 _focusOutSignal?.Dispose();
-                Handle = IntPtr.Zero;
             }
+
+            gtk_widget_destroy(widgetHandle);
         }
     }
 

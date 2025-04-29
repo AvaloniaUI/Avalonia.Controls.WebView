@@ -17,7 +17,7 @@ internal unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr*, IntPtr, bool>)&DrawCallback);
 
     private readonly bool _useGtkOffscreen;
-    private readonly IntPtr _windowHandle;
+    private IntPtr _windowHandle;
     private PixelSize _sizeRequest;
     private GtkSignal? _drawSignal;
 
@@ -47,9 +47,20 @@ internal unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
 
     public void UpdateWriteableBitmap(ref WriteableBitmap? bitmap)
     {
+        if (_windowHandle == IntPtr.Zero)
+        {
+            bitmap = null;
+            return;
+        }
+
         var inBitmap = bitmap;
         bitmap = RunOnGlibThreadAsync(() =>
         {
+            if (_windowHandle == IntPtr.Zero)
+            {
+                return null;
+            }
+
             IntPtr pixbuf;
             if (_useGtkOffscreen)
             {
@@ -126,6 +137,9 @@ internal unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
 
     public override void SizeChanged(PixelSize containerSize)
     {
+        if (_windowHandle == IntPtr.Zero)
+            return;
+
         _sizeRequest = containerSize;
         RunOnGlibThreadAsync(() =>
         {
@@ -274,11 +288,19 @@ internal unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        var window = _windowHandle;
+        if (window != IntPtr.Zero)
         {
-            _drawSignal?.Dispose();
+            _windowHandle = IntPtr.Zero;
+
+            if (disposing)
+            {
+                _drawSignal?.Dispose();
+            }
+
+            base.Dispose(disposing);
+            gtk_widget_destroy(window);
         }
-        base.Dispose(disposing);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]

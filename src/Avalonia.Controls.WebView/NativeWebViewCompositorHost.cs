@@ -12,38 +12,20 @@ namespace Avalonia.Controls;
 namespace Avalonia.Xpf.Controls;
 #endif
 
-internal class NativeWebViewCompositorHost : Control, INativeWebViewControlImpl
+internal class NativeWebViewCompositorHost(Func<IWebViewAdapterWithOffscreenBuffer> webViewFactory) : Control, INativeWebViewControlImpl
 {
-    private readonly TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer> _webViewReadyCompletion = new();
-    private readonly VisualHandler _customVisualHandler;
-    private CompositionCustomVisual? _customVisual;
+    private TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer> _webViewReadyCompletion = new();
+    //private ReparentingScope? _reparentingScope;
 
-    private NativeWebViewCompositorHost(IWebViewAdapterWithOffscreenBuffer webViewAdapter)
-    {
-        _customVisualHandler = new VisualHandler(webViewAdapter);
-        if (!webViewAdapter.IsInitialized)
-        {
-            webViewAdapter.Initialized += (sender, args) =>
-            {
-                _webViewReadyCompletion.TrySetResult(webViewAdapter);
-                AdapterInitialized?.Invoke(this, webViewAdapter);
-                webViewAdapter.DrawRequested += () => _customVisual?.SendHandlerMessage(VisualHandler.DrawRequested);
-            };
-        }
-        else
-        {
-            _webViewReadyCompletion.TrySetResult(webViewAdapter);
-            webViewAdapter.DrawRequested += () => _customVisual?.SendHandlerMessage(VisualHandler.DrawRequested);
-        }
-    }
+    private CompositionCustomVisual? _customVisual;
 
     public static NativeWebViewCompositorHost? TryCreate()
     {
         if (OperatingSystemEx.IsLinux())
-            return new NativeWebViewCompositorHost(new GtkOffscreenWebViewAdapter());
+            return new NativeWebViewCompositorHost(() => new GtkOffscreenWebViewAdapter());
         return null;
     }
-    
+
     public event EventHandler<IWebViewAdapter>? AdapterInitialized;
     public event EventHandler<IWebViewAdapter>? AdapterDeinitialized;
 
@@ -55,20 +37,54 @@ internal class NativeWebViewCompositorHost : Control, INativeWebViewControlImpl
     public IDisposable BeginReparenting(bool yieldOnLayoutBeforeExiting) => EmptyDisposable.Instance;
     public IAsyncDisposable BeginReparentingAsync() => EmptyDisposable.Instance;
 
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        var size = base.ArrangeOverride(finalSize);
+        if (_customVisual is not null)
+        {
+            _customVisual.Size = new Vector(size.Width, size.Height);
+        }
+        return size;
+    }
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
 
+        var adapter = webViewFactory();
+
         var compositorVisual = ElementComposition.GetElementVisual(this)!;
-        _customVisual = compositorVisual.Compositor.CreateCustomVisual(_customVisualHandler);
+        _customVisual = compositorVisual.Compositor.CreateCustomVisual(new VisualHandler(adapter));
         _customVisual.Size = new Vector(Bounds.Width, Bounds.Height);
         _customVisual.SendHandlerMessage(VisualHandler.DrawRequested);
         ElementComposition.SetElementChildVisual(this, _customVisual);
+
+        if (adapter.IsInitialized)
+        {
+            WebViewAdapterOnInitialized(adapter, EventArgs.Empty);
+        }
+        else
+        {
+            adapter.Initialized += WebViewAdapterOnInitialized;
+        }
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+
+        var adapter = (IWebViewAdapterWithOffscreenBuffer?)TryGetAdapter();
+
+        _webViewReadyCompletion.TrySetCanceled();
+        _webViewReadyCompletion = new TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer>();
+
+        if (adapter is not null)
+        {
+            adapter.DrawRequested -= OffscreenAdapter_OnDrawRequested;
+            adapter.Initialized -= WebViewAdapterOnInitialized;
+            AdapterDeinitialized?.Invoke(this, adapter);
+            adapter.Dispose();
+        }
 
         if (_customVisual is not null)
         {
@@ -78,14 +94,17 @@ internal class NativeWebViewCompositorHost : Control, INativeWebViewControlImpl
         }
     }
 
-    protected override Size ArrangeOverride(Size finalSize)
+    private void WebViewAdapterOnInitialized(object? sender, EventArgs e)
     {
-        var size = base.ArrangeOverride(finalSize);
-        if (_customVisual is not null)
-        {
-            _customVisual.Size = new Vector(size.Width, size.Height);
-        }
-        return size;
+        var adapter = (IWebViewAdapterWithOffscreenBuffer)sender!;
+        _webViewReadyCompletion.TrySetResult(adapter);
+        AdapterInitialized?.Invoke(this, adapter);
+        adapter.DrawRequested += OffscreenAdapter_OnDrawRequested;
+    }
+
+    private void OffscreenAdapter_OnDrawRequested()
+    {
+        _customVisual?.SendHandlerMessage(VisualHandler.DrawRequested);
     }
 
     private class VisualHandler(IWebViewAdapterWithOffscreenBuffer offscreenBuffer) : CompositionCustomVisualHandler
