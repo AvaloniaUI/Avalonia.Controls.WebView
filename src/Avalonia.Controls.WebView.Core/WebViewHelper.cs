@@ -12,6 +12,12 @@ internal class WebViewHelper
     public static bool IsMsWebView1Available =>
         false; // OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17134);
 
+    public static bool GtkOffscreenAvailable()
+    {
+        var options = AvaloniaLocator.Current.GetService<WebViewOptions>();
+        return options?.ExperimentalGtkOffscreen ?? false;
+    }
+
     private static bool IsMsWebView2AvailableInternal()
     {
         if (!OperatingSystemEx.IsWindows())

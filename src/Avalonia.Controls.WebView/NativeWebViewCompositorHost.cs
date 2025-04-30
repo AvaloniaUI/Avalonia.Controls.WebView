@@ -31,7 +31,7 @@ internal class NativeWebViewCompositorHost : Control, INativeWebViewControlImpl
 
     public static NativeWebViewCompositorHost? TryCreate()
     {
-        if (OperatingSystemEx.IsLinux())
+        if (WebViewHelper.GtkOffscreenAvailable() && OperatingSystemEx.IsLinux())
             return new NativeWebViewCompositorHost(c => new GtkOffscreenAvaloniaWebViewAdapter(c));
         return null;
     }
