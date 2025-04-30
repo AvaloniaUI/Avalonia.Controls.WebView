@@ -114,7 +114,7 @@ internal abstract class WebView2BaseAdapter : IWebViewAdapterWithCookieManager
         return true;
     }
 
-    public virtual void SizeChanged()
+    public virtual void SizeChanged(PixelSize containerSize)
     {
         Dispatcher.UIThread.Post(() =>
         {
@@ -123,6 +123,7 @@ internal abstract class WebView2BaseAdapter : IWebViewAdapterWithCookieManager
             {
                 _controller.BoundsMode = CoreWebView2BoundsMode.UseRawPixels;
                 _controller.Bounds = new Rectangle(0, 0, rect.Width, rect.Height);
+                _controller.NotifyParentWindowPositionChanged();
             }
         });
     }
@@ -146,9 +147,10 @@ internal abstract class WebView2BaseAdapter : IWebViewAdapterWithCookieManager
         await webView.AddScriptToExecuteOnDocumentCreatedAsync(
             "function invokeCSharpAction(data){window.chrome.webview.postMessage(data);}");
         controller.IsVisible = true;
+        controller.ShouldDetectMonitorScaleChanges = false;
         _controller = controller;
 
-        SizeChanged();
+        SizeChanged(default);
 
         _subscriptions = AddHandlers(webView);
 

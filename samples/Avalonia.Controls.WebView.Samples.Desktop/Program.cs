@@ -19,7 +19,8 @@ internal class Program
             .UsePlatformDetect()
             .With(new WebViewOptions
             {
-                EnableDevTools = true
+                EnableDevTools = true,
+                ExperimentalGtkOffscreen = true
             })
             .LogToTrace();
 }

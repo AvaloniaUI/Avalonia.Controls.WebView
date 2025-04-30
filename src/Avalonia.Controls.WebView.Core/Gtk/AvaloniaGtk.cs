@@ -10,6 +10,12 @@ internal static class AvaloniaGtk
 {
     public static Task<T> RunOnGlibThreadAsync<T>(Func<T> callback) => CachedDelegate<T>.Run(callback);
 
+    public static Task RunOnGlibThreadAsync(Action callback) => CachedDelegate<object?>.Run(() =>
+    {
+        callback();
+        return (object?)null;
+    });
+
     public static T RunOnGlibThread<T>(Func<T> callback)
     {
         var task = CachedDelegate<T>.Run(callback);

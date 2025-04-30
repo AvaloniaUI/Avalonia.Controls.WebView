@@ -20,6 +20,10 @@
                 <TextBox IsReadOnly="True" Grid.Row="1" x:Name="LogList" />
             </Grid>
         </TabItem>
+        <TabItem Header="Input types">
+            <NativeWebView Source="https://www.w3schools.com/tags/att_input_type.asp"
+                           NewWindowRequested="NativeWebView_OnNewWindowRequested" />
+        </TabItem>
         <TabItem Header="GetUserMedia">
             <NativeWebView Source="https://webrtc.github.io/samples/"
                            NewWindowRequested="NativeWebView_OnNewWindowRequested" />

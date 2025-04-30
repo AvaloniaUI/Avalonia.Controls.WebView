@@ -118,7 +118,7 @@ internal sealed class WebView1Adapter : IWebViewAdapter
         return true;
     }
 
-    public void SizeChanged()
+    public void SizeChanged(PixelSize containerSize)
     {
         WinApiHelpers.GetWindowRect(Handle, out var rect);
 

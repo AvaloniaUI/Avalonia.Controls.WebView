@@ -1,6 +1,7 @@
 ﻿#if AVALONIA || WPF
 using System;
 using System.Threading.Tasks;
+using Avalonia.Media;
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
 using AvInput = Avalonia.Input;
 using Core = Avalonia.Controls;
@@ -11,6 +12,8 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using System.Windows.Controls;
 using System.Diagnostics.CodeAnalysis;
+using System.Windows.Media;
+
 #elif AVALONIA
 using Avalonia.Threading;
 using Avalonia.Input;
@@ -41,27 +44,41 @@ namespace Avalonia.Xpf.Controls
             nameof(Source), new Uri("about:blank"));
 #endif
 
-        private readonly NativeWebViewControlHost _controlHostImpl;
+        private readonly Core.INativeWebViewControlImpl _controlHostImpl;
+
+        static NativeWebView()
+        {
+#if WPF
+            FocusableProperty.OverrideMetadata(typeof(NativeWebView), new UIPropertyMetadata(true));
+#elif AVALONIA
+            FocusableProperty.OverrideDefaultValue<NativeWebView>(true);
+#endif
+        }
 
         public NativeWebView()
         {
             Core.Licensing.ValidateWebView();
 
+#if AVALONIA
+            _controlHostImpl = (INativeWebViewControlImpl?)NativeWebViewCompositorHost.TryCreate() ?? new NativeWebViewControlHost();
+#else
             _controlHostImpl = new NativeWebViewControlHost();
+#endif
+
             _controlHostImpl.AdapterInitialized += ControlHostImplOnAdapterInitialized;
             _controlHostImpl.AdapterDeinitialized += ControlHostImplOnAdapterDeinitialized;
 #if AVALONIA
-            VisualChildren.Add(_controlHostImpl);
+            VisualChildren.Add((Control)_controlHostImpl);
 #elif WPF
             IsVisibleChanged += OnIsVisibleChanged;
-            AddVisualChild(_controlHostImpl);
-            AddLogicalChild(_controlHostImpl);
+            AddVisualChild((System.Windows.Media.Visual)_controlHostImpl);
+            AddLogicalChild((System.Windows.Media.Visual)_controlHostImpl);
 #endif
         }
 
 #if WPF
         protected override int VisualChildrenCount => 1;
-        protected override System.Windows.Media.Visual? GetVisualChild(int index) => _controlHostImpl;
+        protected override System.Windows.Media.Visual? GetVisualChild(int index) => (System.Windows.Media.Visual)_controlHostImpl;
 #endif
 
         /// <inheritdoc/>
@@ -310,19 +327,19 @@ namespace Avalonia.Xpf.Controls
 
         private void OnIsVisibleChanged(object? sender, DependencyPropertyChangedEventArgs e)
         {
-            _ = Dispatcher.InvokeAsync(() => _controlHostImpl.TryGetAdapter()?.SizeChanged(), DispatcherPriority.Background);
+            _ = Dispatcher.InvokeAsync(() => _controlHostImpl.TryGetAdapter()?.SizeChanged(PixelSize.FromSizeWithDpi(new Size(RenderSize.Width, RenderSize.Height), VisualTreeHelper.GetDpi(this).DpiScaleX)), DispatcherPriority.Background);
         }
 
         protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
         {
             base.OnRenderSizeChanged(sizeInfo);
-            _controlHostImpl.TryGetAdapter()?.SizeChanged();
+            _controlHostImpl.TryGetAdapter()?.SizeChanged(PixelSize.FromSizeWithDpi(new Size(sizeInfo.NewSize.Width, sizeInfo.NewSize.Height), VisualTreeHelper.GetDpi(this).DpiScaleX));
         }
 
         protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
         {
             base.OnDpiChanged(oldDpi, newDpi);
-            _controlHostImpl.TryGetAdapter()?.SizeChanged();
+            _controlHostImpl.TryGetAdapter()?.SizeChanged(PixelSize.FromSizeWithDpi(new Size(RenderSize.Width, RenderSize.Height), newDpi.DpiScaleX));
         }
 
 #elif AVALONIA
@@ -340,14 +357,15 @@ namespace Avalonia.Xpf.Controls
             }
             else if (change.Property == IsVisibleProperty)
             {
-                _ = Dispatcher.UIThread.InvokeAsync(() => _controlHostImpl.TryGetAdapter()?.SizeChanged(), DispatcherPriority.Background);
+                _ = Dispatcher.UIThread.InvokeAsync(() => _controlHostImpl.TryGetAdapter()?.SizeChanged(
+                    PixelSize.FromSize(Bounds.Size, TopLevel.GetTopLevel(this)!.RenderScaling)), DispatcherPriority.Background);
             }
         }
 
         protected override void OnSizeChanged(SizeChangedEventArgs e)
         {
             base.OnSizeChanged(e);
-            _controlHostImpl.TryGetAdapter()?.SizeChanged();
+            _controlHostImpl.TryGetAdapter()?.SizeChanged(PixelSize.FromSize(e.NewSize, TopLevel.GetTopLevel(this)!.RenderScaling));
         }
 #endif
 
@@ -377,6 +395,69 @@ namespace Avalonia.Xpf.Controls
             {
                 _ = adapterWithFocus.ResignFocus();
             }
+        }
+#endif
+
+#if AVALONIA
+
+        public override void Render(DrawingContext context)
+        {
+            context.DrawRectangle(Brushes.Transparent, null, Bounds);
+            base.Render(context);
+        }
+
+        protected override void OnPointerPressed(PointerPressedEventArgs e)
+        {
+            if (_controlHostImpl.TryGetAdapter() is IWebViewAdapterWithOffscreenInput input)
+            {
+                e.Handled = input.PointerInput(e.GetCurrentPoint(this), e.KeyModifiers);
+            }
+            base.OnPointerPressed(e);
+        }
+
+        protected override void OnPointerReleased(PointerReleasedEventArgs e)
+        {
+            if (_controlHostImpl.TryGetAdapter() is IWebViewAdapterWithOffscreenInput input)
+            {
+                e.Handled = input.PointerInput(e.GetCurrentPoint(this), e.KeyModifiers);
+            }
+            base.OnPointerReleased(e);
+        }
+
+        protected override void OnPointerMoved(PointerEventArgs e)
+        {
+            if (_controlHostImpl.TryGetAdapter() is IWebViewAdapterWithOffscreenInput input)
+            {
+                e.Handled = input.PointerInput(e.GetCurrentPoint(this), e.KeyModifiers);
+            }
+            base.OnPointerMoved(e);
+        }
+
+        protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+        {
+            if (_controlHostImpl.TryGetAdapter() is IWebViewAdapterWithOffscreenInput input)
+            {
+                e.Handled = input.PointerWheelInput(e.Delta, e.GetCurrentPoint(this), e.KeyModifiers);
+            }
+            base.OnPointerWheelChanged(e);
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            if (_controlHostImpl.TryGetAdapter() is IWebViewAdapterWithOffscreenInput input)
+            {
+                e.Handled = input.KeyInput(true, e.PhysicalKey, e.KeySymbol, e.KeyModifiers);
+            }
+            base.OnKeyDown(e);
+        }
+
+        protected override void OnKeyUp(KeyEventArgs e)
+        {
+            if (_controlHostImpl.TryGetAdapter() is IWebViewAdapterWithOffscreenInput input)
+            {
+                e.Handled = input.KeyInput(false, e.PhysicalKey, e.KeySymbol, e.KeyModifiers);
+            }
+            base.OnKeyUp(e);
         }
 #endif
 

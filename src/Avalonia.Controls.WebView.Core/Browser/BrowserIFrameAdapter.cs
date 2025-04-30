@@ -39,7 +39,7 @@ namespace Avalonia.Controls.WebView.Core.Browser
         }
         
         public bool IsInitialized { get; private set; }
-        public void SizeChanged() { }
+        public void SizeChanged(PixelSize containerSize) { }
 
         public bool CanGoBack => WebViewInterop.CanGoBack(Object);
 

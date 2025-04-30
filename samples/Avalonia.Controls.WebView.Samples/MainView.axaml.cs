@@ -135,7 +135,6 @@ public partial class MainView : UserControl
     private static (string requestUri, string redirectUri) GetGoogleAuth()
     {
         var href = Environment.GetCommandLineArgs().Skip(1).FirstOrDefault();
-        Console.WriteLine("HRef " + href);
 
         var redirectUri = OperatingSystem.IsIOS() ?
             "com.googleusercontent.apps.457602913817-kd2547t40mrvqi63c4m7lphs5s6s5lt2://" :
