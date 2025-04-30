@@ -10,7 +10,7 @@ using static Avalonia.Controls.Gtk.AvaloniaGtk;
 
 namespace Avalonia.Controls.Gtk;
 
-internal class GtkWebViewAdapter : IWebViewAdapter, IWebViewAdapterWithFocus
+internal class GtkWebViewAdapter : IWebViewAdapterWithFocus
 {
     private const string PostAvWebViewMessageName = "postAvWebViewMessage";
 
@@ -37,14 +37,14 @@ internal class GtkWebViewAdapter : IWebViewAdapter, IWebViewAdapterWithFocus
     private static readonly unsafe IntPtr s_focusOutCallback =
         new((delegate* unmanaged[Cdecl]<IntPtr, GdkEvent*, IntPtr, bool>)&FocusOutCallback);
 
-    private static readonly unsafe IntPtr s_userMessageCallback =
-        new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, bool>)&UserMessageCallback);
+    private static readonly unsafe IntPtr s_scriptMessageReceivedCallback =
+        new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void>)&ScriptMessagReceivedCallback);
 
     private GtkSignal? _loadChangedSignal;
     private GtkSignal? _decidePolicySignal;
     private GtkSignal? _focusInSignal;
     private GtkSignal? _focusOutSignal;
-    private GtkSignal? _userMessageSignal;
+    private GtkSignal? _scriptMessageReceivedSignal;
     private IntPtr _webViewHandle;
     private Uri _source = WebViewHelper.EmptyPage;
 
@@ -52,17 +52,31 @@ internal class GtkWebViewAdapter : IWebViewAdapter, IWebViewAdapterWithFocus
     {
         RunOnGlibThreadAsync(() =>
         {
-            _webViewHandle = webkit_web_view_new();
+            var contentManager = webkit_user_content_manager_new();
+            _scriptMessageReceivedSignal = new GtkSignal(contentManager, $"script-message-received::{PostAvWebViewMessageName}", s_scriptMessageReceivedCallback, this);
+            webkit_user_content_manager_register_script_message_handler(contentManager, PostAvWebViewMessageName);
+
+            var script = webkit_user_script_new(
+                $$"""
+                  function invokeCSharpAction(data)
+                  {
+                    var message = typeof data === 'object' ? JSON.stringify(data) : data;
+                    window.webkit.messageHandlers.{{PostAvWebViewMessageName}}.postMessage(message);
+                  }
+                  """,
+                0, 0, IntPtr.Zero, IntPtr.Zero);
+            webkit_user_content_manager_add_script(contentManager, script);
+
+            _webViewHandle = webkit_web_view_new_with_user_content_manager(contentManager);
             g_object_ref_sink(_webViewHandle);
 
             _loadChangedSignal = new GtkSignal(Handle, "load-changed", s_loadChangedCallback, this);
             _decidePolicySignal = new GtkSignal(Handle, "decide-policy", s_decidePolicyCallback, this);
             _focusInSignal = new GtkSignal(Handle, "focus-in-event", s_focusInCallback, this);
             _focusOutSignal = new GtkSignal(Handle, "focus-out-event", s_focusOutCallback, this);
-            _userMessageSignal = new GtkSignal(Handle, "user-message-received", s_userMessageCallback, this);
 
             IsInitialized = true;
-            Initialized?.Invoke(this, EventArgs.Empty);
+            Dispatcher.UIThread.InvokeAsync(() => Initialized?.Invoke(this, EventArgs.Empty));
         });
     }
 
@@ -255,14 +269,7 @@ internal class GtkWebViewAdapter : IWebViewAdapter, IWebViewAdapterWithFocus
 
         switch (loadEvent)
         {
-            case WebKitLoadEvent.Finished:
-                webkit_web_view_run_javascript(
-                    webView,
-                    $"function invokeCSharpAction(data){{window.webkit.messageHandlers.{PostAvWebViewMessageName}.postMessage(data);}}",
-                    IntPtr.Zero,
-                    s_scriptCallback,
-                    IntPtr.Zero);
-
+            case WebKitLoadEvent.Committed:
                 adapter._source = adapter.GetSourceUnsafe();
                 Dispatcher.UIThread.InvokeAsync(() => adapter.NavigationCompleted?
                     .Invoke(adapter,
@@ -303,19 +310,7 @@ internal class GtkWebViewAdapter : IWebViewAdapter, IWebViewAdapterWithFocus
         {
             try
             {
-                var jsValue = webkit_javascript_result_get_js_value(jsResult);
-                if (jsValue == IntPtr.Zero)
-                {
-                    tcs.SetResult(null);
-                }
-
-                var p = jsc_value_to_string(jsValue);
-                if (p == IntPtr.Zero)
-                {
-                    tcs.SetResult(null);
-                }
-
-                tcs.SetResult(Marshal.PtrToStringAuto(p));
+                tcs.SetResult(GetValueFromJsResult(jsResult));
             }
             finally
             {
@@ -349,22 +344,37 @@ internal class GtkWebViewAdapter : IWebViewAdapter, IWebViewAdapterWithFocus
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static bool UserMessageCallback(IntPtr widget, IntPtr message, IntPtr data)
+    private static void ScriptMessagReceivedCallback(IntPtr widget, IntPtr jsResult, IntPtr data)
     {
         if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkWebViewAdapter adapter)
         {
-            return false;
+            return;
         }
 
-        var namePtr = webkit_user_message_get_name(message);
-        if (Marshal.PtrToStringAuto(namePtr) == PostAvWebViewMessageName)
+        var result = GetValueFromJsResult(jsResult);
+
+        Dispatcher.UIThread.InvokeAsync(() =>
         {
-            var parameters = webkit_user_message_get_parameters(message);
-            g_variant_get(parameters, "%s", out var result);
-            adapter.WebMessageReceived?.Invoke(adapter, new WebMessageReceivedEventArgs { Body = result });
+            adapter.WebMessageReceived?.Invoke(adapter,
+                new WebMessageReceivedEventArgs { Body = result });
+        });
+    }
+
+    private static string? GetValueFromJsResult(IntPtr jsResult)
+    {
+        var jsValue = webkit_javascript_result_get_js_value(jsResult);
+        if (jsValue == IntPtr.Zero)
+        {
+            return null;
         }
 
-        return false;
+        var p = jsc_value_to_string(jsValue);
+        if (p == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        return Marshal.PtrToStringAuto(p);
     }
 
     protected virtual void DisposeSafe(bool disposing)
@@ -375,7 +385,7 @@ internal class GtkWebViewAdapter : IWebViewAdapter, IWebViewAdapterWithFocus
             Interlocked.Exchange(ref _decidePolicySignal, null)?.Dispose();
             Interlocked.Exchange(ref _focusInSignal, null)?.Dispose();
             Interlocked.Exchange(ref _focusOutSignal, null)?.Dispose();
-            Interlocked.Exchange(ref _userMessageSignal, null)?.Dispose();
+            Interlocked.Exchange(ref _scriptMessageReceivedSignal, null)?.Dispose();
         }
 
         Interlocked.Exchange(ref _webViewHandle, IntPtr.Zero);

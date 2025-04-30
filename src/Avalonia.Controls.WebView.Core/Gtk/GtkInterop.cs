@@ -35,7 +35,23 @@ internal static unsafe partial class GtkInterop
     [DllImport(LibWebKit)]
     internal static extern IntPtr webkit_web_view_new();
 
+    [DllImport(LibWebKit)]
+    internal static extern IntPtr webkit_web_view_new_with_user_content_manager(IntPtr manager);
+
+    [DllImport(LibWebKit)]
+    internal static extern IntPtr webkit_user_content_manager_new();
+
+    [DllImport(LibWebKit)]
+    internal static extern IntPtr webkit_web_view_get_user_content_manager(IntPtr webView);
+
+    [DllImport(LibWebKit)]
+    internal static extern void webkit_user_content_manager_add_script(IntPtr manager, IntPtr userScript);
+
 #if NET7_0_OR_GREATER
+    [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    internal static partial bool webkit_user_content_manager_register_script_message_handler(IntPtr manager, string messageHandler);
+
     [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
     internal static partial void webkit_web_view_load_uri(IntPtr webView, string uri);
 
@@ -44,7 +60,13 @@ internal static unsafe partial class GtkInterop
 
     [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
     internal static partial void webkit_web_view_run_javascript(IntPtr webView, string script, IntPtr cancellable, IntPtr callback, IntPtr userData);
+
+    [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial IntPtr webkit_user_script_new(string script, int injected_frames, int injection_time, IntPtr whitelist, IntPtr blacklist);
 #else
+    [DllImport(LibWebKit)]
+    internal static extern bool webkit_user_content_manager_register_script_message_handler(IntPtr manager, string messageHandler);
+
     [DllImport(LibWebKit)]
     internal static extern void webkit_web_view_load_uri(IntPtr webView, string uri);
 
@@ -53,6 +75,9 @@ internal static unsafe partial class GtkInterop
 
     [DllImport(LibWebKit)]
     internal static extern void webkit_web_view_run_javascript(IntPtr webView, string script, IntPtr cancellable, IntPtr callback, IntPtr userData);
+
+    [DllImport(LibWebKit)]
+    internal static extern IntPtr webkit_user_script_new(string script, int injected_frames, int injection_time, IntPtr whitelist, IntPtr blacklist);
 #endif
 
     [DllImport(LibWebKit)]
