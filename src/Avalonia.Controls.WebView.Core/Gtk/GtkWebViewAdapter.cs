@@ -52,29 +52,7 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus
     {
         RunOnGlibThreadAsync(() =>
         {
-            var contentManager = webkit_user_content_manager_new();
-            _scriptMessageReceivedSignal = new GtkSignal(contentManager, $"script-message-received::{PostAvWebViewMessageName}", s_scriptMessageReceivedCallback, this);
-            webkit_user_content_manager_register_script_message_handler(contentManager, PostAvWebViewMessageName);
-
-            var script = webkit_user_script_new(
-                $$"""
-                  function invokeCSharpAction(data)
-                  {
-                    var message = typeof data === 'object' ? JSON.stringify(data) : data;
-                    window.webkit.messageHandlers.{{PostAvWebViewMessageName}}.postMessage(message);
-                  }
-                  """,
-                0, 0, IntPtr.Zero, IntPtr.Zero);
-            webkit_user_content_manager_add_script(contentManager, script);
-
-            _webViewHandle = webkit_web_view_new_with_user_content_manager(contentManager);
-            g_object_ref_sink(_webViewHandle);
-
-            _loadChangedSignal = new GtkSignal(Handle, "load-changed", s_loadChangedCallback, this);
-            _decidePolicySignal = new GtkSignal(Handle, "decide-policy", s_decidePolicyCallback, this);
-            _focusInSignal = new GtkSignal(Handle, "focus-in-event", s_focusInCallback, this);
-            _focusOutSignal = new GtkSignal(Handle, "focus-out-event", s_focusOutCallback, this);
-
+            InitializeSafe();
             IsInitialized = true;
             Dispatcher.UIThread.InvokeAsync(() => Initialized?.Invoke(this, EventArgs.Empty));
         });
@@ -180,6 +158,32 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus
 
     public virtual void SizeChanged(PixelSize containerSize)
     {
+    }
+
+    protected virtual void InitializeSafe()
+    {
+        var contentManager = webkit_user_content_manager_new();
+        _scriptMessageReceivedSignal = new GtkSignal(contentManager, $"script-message-received::{PostAvWebViewMessageName}", s_scriptMessageReceivedCallback, this);
+        webkit_user_content_manager_register_script_message_handler(contentManager, PostAvWebViewMessageName);
+
+        var script = webkit_user_script_new(
+            $$"""
+              function invokeCSharpAction(data)
+              {
+                var message = typeof data === 'object' ? JSON.stringify(data) : data;
+                window.webkit.messageHandlers.{{PostAvWebViewMessageName}}.postMessage(message);
+              }
+              """,
+            0, 0, IntPtr.Zero, IntPtr.Zero);
+        webkit_user_content_manager_add_script(contentManager, script);
+
+        _webViewHandle = webkit_web_view_new_with_user_content_manager(contentManager);
+        g_object_ref_sink(_webViewHandle);
+
+        _loadChangedSignal = new GtkSignal(Handle, "load-changed", s_loadChangedCallback, this);
+        _decidePolicySignal = new GtkSignal(Handle, "decide-policy", s_decidePolicyCallback, this);
+        _focusInSignal = new GtkSignal(Handle, "focus-in-event", s_focusInCallback, this);
+        _focusOutSignal = new GtkSignal(Handle, "focus-out-event", s_focusOutCallback, this);
     }
 
     private Uri GetSourceUnsafe()

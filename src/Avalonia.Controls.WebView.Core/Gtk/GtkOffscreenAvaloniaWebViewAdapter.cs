@@ -10,7 +10,7 @@ using static Avalonia.Controls.Gtk.AvaloniaGtk;
 
 namespace Avalonia.Controls.Gtk;
 
-internal unsafe class GtkOffscreenAvaloniaWebViewAdapter : GtkOffscreenWebViewAdapter
+internal unsafe class GtkOffscreenAvaloniaWebViewAdapter(Control parent) : GtkOffscreenWebViewAdapter
 {
     private static readonly IntPtr s_showOptionMenuCallback =
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, GdkEvent*, GdkRectangle*, IntPtr, bool>)&ShowOptionMenuCallback);
@@ -19,19 +19,16 @@ internal unsafe class GtkOffscreenAvaloniaWebViewAdapter : GtkOffscreenWebViewAd
     private static readonly IntPtr s_optionsMenuClosedCallback =
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, void>)&MenuClosedCallback);
 
-    private readonly Control _parent;
+    private readonly Control _parent = parent;
     private GtkSignal? _showOptionMenuSignal;
     //private GtkSignal? _contextMenuSignal;
     private HashSet<IDisposable> _openedMenus = new();
 
-    public GtkOffscreenAvaloniaWebViewAdapter(Control parent)
+    protected override void InitializeSafe()
     {
-        _parent = parent;
-        RunOnGlibThreadAsync(() =>
-        {
-            _showOptionMenuSignal = new GtkSignal(Handle, "show-option-menu", s_showOptionMenuCallback, this);
-            //_contextMenuSignal = new GtkSignal(Handle, "context-menu", s_contextMenuCallback, this);
-        });
+        base.InitializeSafe();
+        _showOptionMenuSignal = new GtkSignal(Handle, "show-option-menu", s_showOptionMenuCallback, this);
+        //_contextMenuSignal = new GtkSignal(Handle, "context-menu", s_contextMenuCallback, this);
     }
 
     protected override void DisposeSafe(bool disposing)

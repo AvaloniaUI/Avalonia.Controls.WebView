@@ -13,39 +13,16 @@ using static Avalonia.Controls.Gtk.AvaloniaGtk;
 
 namespace Avalonia.Controls.Gtk;
 
-internal unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
+/// <param name="useGtkOffscreen">Debug only, useful for testing.</param>
+internal unsafe class GtkOffscreenWebViewAdapter(bool useGtkOffscreen = true) : GtkWebViewAdapter,
     IWebViewAdapterWithOffscreenBuffer, IWebViewAdapterWithOffscreenInput
 {
     private static readonly IntPtr s_drawCallback =
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr*, IntPtr, bool>)&DrawCallback);
 
-    private readonly bool _useGtkOffscreen;
     private IntPtr _windowHandle;
     private PixelSize _sizeRequest;
     private GtkSignal? _drawSignal;
-
-    /// <param name="useGtkOffscreen">Debug only, useful for testing.</param>
-    public GtkOffscreenWebViewAdapter(bool useGtkOffscreen = true)
-    {
-        _useGtkOffscreen = useGtkOffscreen;
-        _windowHandle = RunOnGlibThread(() =>
-        {
-            var window = useGtkOffscreen ? gtk_offscreen_window_new() : gtk_window_new(0 /* GTK_WINDOW_TOPLEVEL */);
-            g_object_ref_sink(window);
-            gtk_window_set_default_size(window, 100, 100);
-            return window;
-        });
-
-        RunOnGlibThreadAsync(() =>
-        {
-            gtk_container_add(_windowHandle, Handle);
-            gtk_widget_set_has_window(Handle, true);
-            gtk_widget_realize(Handle);
-            gtk_widget_show_all(_windowHandle);
-            _drawSignal = new GtkSignal(Handle, "draw", s_drawCallback, this);
-            return 0;
-        });
-    }
 
     public event Action? DrawRequested;
 
@@ -64,7 +41,7 @@ internal unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
             }
 
             IntPtr pixbuf;
-            if (_useGtkOffscreen)
+            if (useGtkOffscreen)
             {
                 pixbuf = gtk_offscreen_window_get_pixbuf(_windowHandle);
             }
@@ -129,7 +106,7 @@ internal unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
         _sizeRequest = containerSize;
         RunOnGlibThreadAsync(() =>
         {
-            if (_useGtkOffscreen)
+            if (useGtkOffscreen)
                 gtk_window_set_default_size(_windowHandle, _sizeRequest.Width, _sizeRequest.Height);
             else
                 gtk_window_resize(_windowHandle, _sizeRequest.Width, _sizeRequest.Height);
@@ -270,6 +247,22 @@ internal unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
         if (pointProperties?.IsXButton2Pressed == true)
             output |= GdkModifierType.GDK_BUTTON5_MASK;
         return output;
+    }
+
+    protected override void InitializeSafe()
+    {
+        base.InitializeSafe();
+
+        _windowHandle = useGtkOffscreen ? gtk_offscreen_window_new() : gtk_window_new(0 /* GTK_WINDOW_TOPLEVEL */);
+        g_object_ref_sink(_windowHandle);
+        gtk_window_set_default_size(_windowHandle, 100, 100);
+
+        gtk_container_add(_windowHandle, Handle);
+        gtk_widget_set_has_window(Handle, true);
+        gtk_widget_realize(Handle);
+        gtk_widget_show_all(_windowHandle);
+
+        _drawSignal = new GtkSignal(Handle, "draw", s_drawCallback, this);
     }
 
     protected override void DisposeSafe(bool disposing)
