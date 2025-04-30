@@ -180,6 +180,13 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus
         _webViewHandle = webkit_web_view_new_with_user_content_manager(contentManager);
         g_object_ref_sink(_webViewHandle);
 
+        var enableDevTools = AvaloniaLocator.Current.GetService<WebViewOptions>()?.EnableDevTools == true;
+        if (enableDevTools)
+        {
+            var settings = webkit_web_view_get_settings(_webViewHandle);
+            webkit_settings_set_enable_developer_extras(settings, true);
+        }
+
         _loadChangedSignal = new GtkSignal(Handle, "load-changed", s_loadChangedCallback, this);
         _decidePolicySignal = new GtkSignal(Handle, "decide-policy", s_decidePolicyCallback, this);
         _focusInSignal = new GtkSignal(Handle, "focus-in-event", s_focusInCallback, this);

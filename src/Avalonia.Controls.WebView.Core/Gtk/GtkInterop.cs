@@ -24,6 +24,12 @@ internal static unsafe partial class GtkInterop
 #endif
 
     [DllImport(LibWebKit)]
+    internal static extern void webkit_settings_set_enable_developer_extras(IntPtr webView, bool enabled);
+
+    [DllImport(LibWebKit)]
+    internal static extern IntPtr webkit_web_view_get_settings(IntPtr webView);
+
+    [DllImport(LibWebKit)]
     internal static extern IntPtr webkit_web_view_get_uri(IntPtr webView);
 
     [DllImport(LibGio)]
