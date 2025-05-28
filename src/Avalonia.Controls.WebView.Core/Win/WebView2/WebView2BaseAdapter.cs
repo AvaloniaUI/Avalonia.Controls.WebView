@@ -198,25 +198,61 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
 
     public void AddOrUpdateCookie(Cookie cookie)
     {
-        if (TryGetWebView2() is { } webView)
+        if (TryGetWebView2() is ICoreWebView2_2 webView2)
         {
-            // var webViewCookie = webView.CookieManager.CreateCookieWithSystemNetCookie(cookie);
-            // webView.CookieManager.AddOrUpdateCookie(webViewCookie);
+            var cookieManager = webView2.GetCookieManager();
+            var unitEpoch = DateTime.SpecifyKind(new DateTime(1970, 1, 1), DateTimeKind.Utc);
+            var seconds = (cookie.Expires.ToUniversalTime() - unitEpoch).TotalSeconds;
+
+            var webViewCookie = cookieManager.CreateCookie(cookie.Name, cookie.Value, cookie.Domain, cookie.Path);
+            webViewCookie.SetIsHttpOnly(cookie.HttpOnly ? 1 : 0);
+            webViewCookie.SetIsSecure(cookie.Secure ? 1 : 0);
+            webViewCookie.SetExpires(seconds < 0 ? -1.0d : seconds);
+            cookieManager.AddOrUpdateCookie(webViewCookie);
         }
     }
 
     public void DeleteCookie(string name, string domain, string path)
     {
-        //TryGetWebView2()?.CookieManager.DeleteCookiesWithDomainAndPath(name, domain, path);
+        if (TryGetWebView2() is ICoreWebView2_2 webView2)
+        {
+            var cookieManager = webView2.GetCookieManager();
+            cookieManager.DeleteCookiesWithDomainAndPath(name, domain, path);
+        }
     }
 
-    public Task<IReadOnlyList<Cookie>> GetCookiesAsync()
+    public async Task<IReadOnlyList<Cookie>> GetCookiesAsync()
     {
-        return Task.FromResult<IReadOnlyList<Cookie>>([]);
-        // if (TryGetWebView2() is not { } webView)
-        //     return [];
-        // var cookies = await webView.CookieManager.GetCookiesAsync(null);
-        // return cookies.Select(c => c.ToSystemNetCookie()).ToArray();
+        if (TryGetWebView2() is ICoreWebView2_2 webView2)
+        {
+            var cookieManager = webView2.GetCookieManager();
+            var handler = new WebView2GetCookiesCompletedHandler();
+            var unitEpoch = DateTime.SpecifyKind(new DateTime(1970, 1, 1), DateTimeKind.Utc);
+
+            cookieManager.GetCookies(null, handler);
+            var list = await handler.Result.Task;
+
+            var cookies = new List<Cookie>();
+            for (uint i = 0; i < list.GetCount(); i++)
+            {
+                var cookie = list.GetValueAtIndex(i);
+                var seconds = cookie.GetExpires();
+                cookies.Add(new Cookie(cookie.GetName(), cookie.GetValue(), cookie.GetPath(), cookie.GetDomain())
+                {
+                    Expires = seconds < 0.0 ?
+                        DateTime.MinValue :
+                        seconds * 10000000.0 + unitEpoch.Ticks > DateTime.MaxValue.Ticks ?
+                            DateTime.MaxValue :
+                            unitEpoch.AddSeconds(seconds),
+                    HttpOnly = cookie.GetIsHttpOnly() == 1,
+                    Secure = cookie.GetIsSecure() == 1,
+                });
+            }
+
+            return cookies;
+        }
+
+        return [];
     }
 
     protected virtual void Dispose(bool disposing)
