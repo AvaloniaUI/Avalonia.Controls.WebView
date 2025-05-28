@@ -11,7 +11,7 @@ internal static class AsyncOperationEx
         this TaskCompletionSource<TResult> taskCompletionSource,
         AsyncStatus asyncStatus,
         Func<TResult> resolver)
-        where TResult : class, IInspectable
+        where TResult : class
     {
         if (asyncStatus == AsyncStatus.Started)
         {
@@ -38,9 +38,21 @@ internal static class AsyncOperationEx
             }
             catch (COMException ex)
             {
-                var exWithMessage = Marshal.GetExceptionForHR(ex.ErrorCode)
-                                    ?? ex;
-                taskCompletionSource.TrySetException(exWithMessage);
+                switch (ex.HResult)
+                {
+                    case unchecked((int)0x80020006):
+                        taskCompletionSource.TrySetException(new JavaScriptException("There is no function"));
+                        break;
+                    case unchecked((int)0x80020101):
+                        taskCompletionSource.TrySetException(new JavaScriptException("A JavaScript error or exception occured while executing function"));
+                        break;
+                    case unchecked((int)0x800a138a):
+                        taskCompletionSource.TrySetException(new JavaScriptException("Is not a function"));
+                        break;
+                    default:
+                        taskCompletionSource.TrySetException(new InvalidOperationException(ex.Message));
+                        break;
+                }
             }
         }
 

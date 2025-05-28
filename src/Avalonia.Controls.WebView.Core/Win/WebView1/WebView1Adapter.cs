@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Avalonia.Controls.Win.WebView1.Interop;
+using Avalonia.Controls.Win.WebView2;
 using Avalonia.Platform;
 using Avalonia.Threading;
 
@@ -63,6 +64,13 @@ internal sealed class WebView1Adapter : IWebViewAdapter
             settings.put_IsScriptNotifyAllowed(true);
         }
 
+        if (control is IWebViewControl2 control2)
+        {
+            using var initScript =
+                new HStringInterop("function invokeCSharpAction(data){window.external.notify(data);}");
+            control2.AddInitializeScript(initScript.Handle);
+        }
+
         _webViewControl = control;
         // ReSharper disable once SuspiciousTypeConversion.Global
         // IWebViewControlSite can be queried from the IWebViewControl
@@ -118,10 +126,19 @@ internal sealed class WebView1Adapter : IWebViewAdapter
         return true;
     }
 
-    public Task<string?> InvokeScript(string script)
+    public async Task<string?> InvokeScript(string script)
     {
-        //return _webViewControl?.InvokeScriptAsync("eval", new[] { script }).AsTask() ?? Task.FromResult<string?>(null);
-        return Task.FromResult<string?>(script);
+        if (_webViewControl is null)
+            return null;
+
+        using var args = new HStringIterator([script]);
+        using var command = new HStringInterop("eval");
+
+        var operation = _webViewControl.InvokeScriptAsync(command.Handle, args);
+        var handler = new HStringResultHandler();
+        operation.put_Completed(handler);
+
+        return await handler.Task;
     }
 
     public void Navigate(Uri url)
@@ -169,7 +186,16 @@ internal sealed class WebView1Adapter : IWebViewAdapter
 
     public void SetParent(IPlatformHandle parent)
     {
+        if (parent.HandleDescriptor != "HWND")
+            throw new InvalidOperationException("IPlatformHandle.HandleDescriptor must be HWND");
+
+        PInvoke.SetParent(new HWND(Handle), new HWND(parent.Handle));
     }
+
+    internal void OnNavigationStarted(WebViewNavigationStartingEventArgs args) => NavigationStarted?.Invoke(this, args);
+    internal void OnNavigationCompleted(WebViewNavigationCompletedEventArgs args) => NavigationCompleted?.Invoke(this, args);
+    internal void OnWebMessageReceived(WebMessageReceivedEventArgs args) => WebMessageReceived?.Invoke(this, args);
+    internal void OnNewWindowRequested(WebViewNewWindowRequestedEventArgs args) => NewWindowRequested?.Invoke(this, args);
 
     private static IWebViewControlProcess CreateProcess()
     {
@@ -183,40 +209,18 @@ internal sealed class WebView1Adapter : IWebViewAdapter
 
     private Action AddHandlers(IWebViewControl webView)
     {
-        // webView.NavigationStarting += WebViewOnNavigationStarting;
-        // void WebViewOnNavigationStarting(object? sender, WebViewControlNavigationStartingEventArgs e)
-        // {
-        //     var args = new WebViewNavigationStartingEventArgs { Request = e.Uri };
-        //     NavigationStarted?.Invoke(this, args);
-        //     if (args.Cancel)
-        //     {
-        //         e.Cancel = true;
-        //     }
-        // }
-        //
-        // webView.NavigationCompleted += WebViewOnNavigationCompleted;
-        // async void WebViewOnNavigationCompleted(object? sender, WebViewControlNavigationCompletedEventArgs e)
-        // {
-        //     await InvokeScript("function invokeCSharpAction(data){window.external.notify(data);}");
-        //     
-        //     NavigationCompleted?.Invoke(this, new WebViewNavigationCompletedEventArgs
-        //     {
-        //         Request = ((WebViewControl)sender!).Source,
-        //         IsSuccess = e.IsSuccess
-        //     });
-        // }
-        //
-        // webView.ScriptNotify += WebViewOnScriptNotify;
-        // void WebViewOnScriptNotify(IWebViewControl sender, WebViewControlScriptNotifyEventArgs args)
-        // {
-        //     WebMessageReceived?.Invoke(this, new WebMessageReceivedEventArgs { Body = args.Value });
-        // }
+        var callbacks = new WebViewCallbacks(new WeakReference<WebView1Adapter>(this));
+        webView.add_NavigationStarting(callbacks, out var token1);
+        webView.add_NavigationCompleted(callbacks, out var token2);
+        webView.add_ScriptNotify(callbacks, out var token3);
+        webView.add_NewWindowRequested(callbacks, out var token4);
 
         return () =>
         {
-            // webView.NavigationStarting -= WebViewOnNavigationStarting;
-            // webView.NavigationCompleted -= WebViewOnNavigationCompleted;
-            // webView.ScriptNotify -= WebViewOnScriptNotify;
+            webView.remove_NavigationStarting(token1);
+            webView.remove_NavigationCompleted(token2);
+            webView.remove_ScriptNotify(token3);
+            webView.remove_NewWindowRequested(token4);
         };
     }
 

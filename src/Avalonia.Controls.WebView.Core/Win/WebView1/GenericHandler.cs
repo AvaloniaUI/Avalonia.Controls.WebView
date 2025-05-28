@@ -7,7 +7,7 @@ namespace Avalonia.Controls.Win.WebView1;
 
 internal abstract class BaseHandler<TAsyncInfo, TResult> : CallbackBase
     where TAsyncInfo : IInspectable
-    where TResult : class, IInspectable
+    where TResult : class
 {
     private readonly TaskCompletionSource<TResult> _taskCompletionSource = new();
     public Task<TResult> Task => _taskCompletionSource.Task;

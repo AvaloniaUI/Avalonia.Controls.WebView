@@ -10,18 +10,18 @@ namespace Avalonia.Controls.Win.WebView1.Interop;
 [ComImport]
 [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 #endif
-[Guid("ac3d28ac-8362-51c6-b2cc-16f3672758f1")]
-internal partial interface IAsyncOperation_WebViewControl : IInspectable
+[Guid("3e1fe603-f897-5263-b328-0806426b8a79")]
+internal partial interface IAsyncOperation_HString : IInspectable
 {
 #if !COM_SOURCE_GEN
     void _VtblGap1_3();
 #endif
 
-    void put_Completed(IAsyncOperationCompletedHandler_WebViewControl handler);
+    void put_Completed(IAsyncOperationCompletedHandler_HString handler);
 
-    IAsyncOperationCompletedHandler_WebViewControl get_Completed();
+    IAsyncOperationCompletedHandler_HString get_Completed();
 
-    IWebViewControl GetResults();
+    IntPtr GetResults();
 }
 
 #if COM_SOURCE_GEN
@@ -30,8 +30,8 @@ internal partial interface IAsyncOperation_WebViewControl : IInspectable
 [ComImport]
 [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 #endif
-[Guid("d61963d6-806d-50a8-a81c-75d9356ad5d7")]
-internal partial interface IAsyncOperationCompletedHandler_WebViewControl
+[Guid("b79a741f-7fb5-50ae-9e99-911201ec3d41")]
+internal partial interface IAsyncOperationCompletedHandler_HString
 {
-    void Invoke(IAsyncOperation_WebViewControl asyncInfo, AsyncStatus asyncStatus);
+    void Invoke(IAsyncOperation_HString asyncInfo, AsyncStatus asyncStatus);
 }

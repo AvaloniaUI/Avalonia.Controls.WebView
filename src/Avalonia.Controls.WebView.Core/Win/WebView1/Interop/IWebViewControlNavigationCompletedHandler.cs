@@ -11,11 +11,7 @@ namespace Avalonia.Controls.Win.WebView1.Interop;
 [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 #endif
 [Guid("57a87c53-47a5-5864-9881-fd4c00f230a9")]
-internal partial interface IWebViewControlNavigationCompletedHandler : IInspectable
+internal partial interface IWebViewControlNavigationCompletedHandler
 {
-#if !COM_SOURCE_GEN
-    void _VtblGap1_3();
-#endif
-
     void Invoke(IntPtr sender, IWebViewControlNavigationCompletedEventArgs args);
 }

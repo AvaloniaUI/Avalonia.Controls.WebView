@@ -22,45 +22,50 @@ public partial class MainView : UserControl
 
     private async void NativeWebView_OnNavigationCompleted(object? sender, WebViewNavigationCompletedEventArgs e)
     {
-        LogList.Text += "\r\nNativeWebView_OnNavigationCompleted " + e.Request;
-
-        var webView = (NativeWebView)sender!;
-        _ = await webView.InvokeScript(""" invokeCSharpAction({'key': 10}) """);
-
-        await InvokeTestScript(webView, "1+1");
-        await InvokeTestScript(webView, "'test'");
-        await InvokeTestScript(webView, "var x = 123; x");
-        await InvokeTestScript(webView, "var x = 'test'; x");
-        await InvokeTestScript(webView, "'te\"st'");
-        await InvokeTestScript(webView, "'te()st'");
-        await InvokeTestScript(webView, "document.body.innerHTML");
-        await InvokeTestScript(webView, "true");
         try
         {
-            await InvokeTestScript(webView, "throw new Error('Hello there')");
+            LogList.Text += "\r\nNativeWebView_OnNavigationCompleted " + e.Request;
+
+            var webView = (NativeWebView)sender!;
+            _ = await webView.InvokeScript(""" invokeCSharpAction({'key': 10}) """);
+
+            await InvokeTestScript(webView, "1+1");
+            await InvokeTestScript(webView, "'test'");
+            await InvokeTestScript(webView, "var x = 123; x");
+            await InvokeTestScript(webView, "var x = 'test'; x");
+            await InvokeTestScript(webView, "'te\"st'");
+            await InvokeTestScript(webView, "'te()st'");
+            await InvokeTestScript(webView, "document.body.innerHTML");
+            await InvokeTestScript(webView, "true");
+            try
+            {
+                await InvokeTestScript(webView, "throw new Error('Hello there')");
+            }
+            catch (Exception ex)
+            {
+                LogList.Text += "\r\nTest Script Exception " + ex.Message;
+            }
+
+            if (webView.TryGetCookieManager() is { } manager)
+            {
+                manager.AddOrUpdateCookie(new Cookie("Hello", "There", "/", ".google.com") { HttpOnly = false });
+                var cookies = await manager.GetCookiesAsync();
+                foreach (var c in cookies)
+                {
+                    LogList.Text += "\r\nCookie retrieved " + c;
+                    manager.DeleteCookie(c.Name, c.Domain, c.Path);
+                }
+
+                cookies = await manager.GetCookiesAsync();
+                foreach (var c in cookies)
+                {
+                    LogList.Text += "\r\nCookie retrieved after delete " + c;
+                }
+            }
         }
         catch (Exception ex)
         {
-            LogList.Text += "\r\nTest Script Exception " + ex.Message;
-        }
-
-        if (webView.TryGetCookieManager() is { } manager)
-        {
-            manager.AddOrUpdateCookie(new Cookie("Hello", "There", "/", ".google.com")
-            {
-                HttpOnly = false
-            });
-            var cookies = await manager.GetCookiesAsync();
-            foreach (var c in cookies)
-            {
-                LogList.Text += "\r\nCookie retrieved " + c;
-                manager.DeleteCookie(c.Name, c.Domain, c.Path);
-            }
-            cookies = await manager.GetCookiesAsync();
-            foreach (var c in cookies)
-            {
-                LogList.Text += "\r\nCookie retrieved after delete " + c;
-            }
+            LogList.Text += "\r\nUnhandled script exception " + ex.Message;
         }
     }
 

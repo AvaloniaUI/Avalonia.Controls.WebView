@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Avalonia.Controls.WebView.Samples.Desktop": {
+      "commandName": "Project",
+      "hotReloadEnabled": false,
+      "nativeDebugging": true
+    }
+  }
+}

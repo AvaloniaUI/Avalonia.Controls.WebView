@@ -65,7 +65,7 @@ internal partial interface IWebViewControl : IInspectable
 
     void NavigateWithHttpRequestMessage(IntPtr requestMessage);
 
-    IntPtr InvokeScriptAsync(IntPtr scriptName, IntPtr arguments);
+    IAsyncOperation_HString InvokeScriptAsync(IntPtr scriptName, IIterable arguments);
 
     void CapturePreviewToStreamAsync(IntPtr stream, out IntPtr operation);
 
@@ -75,7 +75,7 @@ internal partial interface IWebViewControl : IInspectable
 
     void GetDeferredPermissionRequestById(uint id, out IntPtr result);
 
-    void add_NavigationStarting(IntPtr handler, out EventRegistrationToken token);
+    void add_NavigationStarting(IWebViewControlNavigationStartingHandler handler, out EventRegistrationToken token);
 
     void remove_NavigationStarting(EventRegistrationToken token);
 
@@ -87,7 +87,7 @@ internal partial interface IWebViewControl : IInspectable
 
     void remove_DOMContentLoaded(EventRegistrationToken token);
 
-    void add_NavigationCompleted(IntPtr handler, out EventRegistrationToken token);
+    void add_NavigationCompleted(IWebViewControlNavigationCompletedHandler handler, out EventRegistrationToken token);
 
     void remove_NavigationCompleted(EventRegistrationToken token);
 
