@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Versioning;
+using Avalonia.Logging;
 using Microsoft.Win32;
 
 namespace Avalonia.Controls.Win.WebView2;
@@ -26,9 +27,21 @@ internal static class ManagedWebView2Loader
     /// <returns>Path to the WebView2 runtime DLL, or null if not found</returns>
     public static string? FindWebView2Runtime()
     {
-        if (!OperatingSystemEx.IsWindows())
+        if (Environment.GetEnvironmentVariable("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER") is
+            { Length: > 0 } browserFolder)
         {
-            return null;
+            var dllPath = ComputeDllPath(browserFolder);
+            if (File.Exists(dllPath))
+            {
+                Logger.TryGet(LogEventLevel.Information, "WebView")?
+                    .Log(null, "Found WebView2 runtime using WEBVIEW2_BROWSER_EXECUTABLE_FOLDER at: {RuntimePath}", dllPath);
+                return dllPath;
+            }
+            else
+            {
+                Logger.TryGet(LogEventLevel.Warning, "WebView")?
+                    .Log(null, "EmbeddedBrowserWebView.dll cannot be found at WEBVIEW2_BROWSER_EXECUTABLE_FOLDER.");
+            }
         }
 
         // Try HKLM first (machine-wide installation)
@@ -37,6 +50,8 @@ internal static class ManagedWebView2Loader
             var runtimePath = FindRuntimeInRegistry(RegistryHive.LocalMachine, channel.Key);
             if (!string.IsNullOrEmpty(runtimePath))
             {
+                Logger.TryGet(LogEventLevel.Information, "WebView")?
+                    .Log(null, "Found WebView2 {Channel} runtime at: {RuntimePath}", channel.Key, runtimePath);
                 return runtimePath;
             }
         }
@@ -47,6 +62,8 @@ internal static class ManagedWebView2Loader
             var runtimePath = FindRuntimeInRegistry(RegistryHive.CurrentUser, channel.Key);
             if (!string.IsNullOrEmpty(runtimePath))
             {
+                Logger.TryGet(LogEventLevel.Information, "WebView")?
+                    .Log(null, "Found WebView2 {Channel} runtime at: {RuntimePath}", channel.Key, runtimePath);
                 return runtimePath;
             }
         }
@@ -75,15 +92,20 @@ internal static class ManagedWebView2Loader
                 (value.Contains("EBWebView") &&
                  Directory.Exists(value)))
             {
-                // Construct the path to the actual DLL based on architecture
-                var architecture = Environment.Is64BitProcess ? "x64" : "x86";
-                var dllPath = Path.Combine(value, "EBWebView", architecture, "EmbeddedBrowserWebView.dll");
-
+                var dllPath = ComputeDllPath(value);
                 if (File.Exists(dllPath))
                     return dllPath;
             }
         }
 
         return null;
+    }
+
+    private static string ComputeDllPath(string browserFolder)
+    {
+        // Construct the path to the actual DLL based on architecture
+        var architecture = Environment.Is64BitProcess ? "x64" : "x86";
+        var dllPath = Path.Combine(browserFolder, "EBWebView", architecture, "EmbeddedBrowserWebView.dll");
+        return dllPath;
     }
 }
