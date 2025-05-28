@@ -1,16 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Net;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using Windows.Win32;
 using Windows.Win32.Foundation;
-using Avalonia.Controls.Utils;
 using Avalonia.Controls.Win.WebView2.Interop;
-using Avalonia.Logging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 
@@ -83,8 +79,14 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
 
     public Task<string?> InvokeScript(string scriptName)
     {
+        if (TryGetWebView2() is { } webView2)
+        {
+            var handler = new WebView2ExecuteScriptCompletedHandler();
+            webView2.ExecuteScript(scriptName, handler);
+            return handler.Result.Task;
+        }
+
         return Task.FromResult<string?>(null);
-        //return TryGetWebView2()?.ExecuteScriptAsync(scriptName) ?? Task.FromResult<string?>(null);
     }
 
     public void Navigate(Uri url)
@@ -142,14 +144,22 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
         _controller.SetParentWindow(parent.Handle);
     }
 
+    internal void OnNavigationStarted(WebViewNavigationStartingEventArgs args) => NavigationStarted?.Invoke(this, args);
+    internal void OnNavigationCompleted(WebViewNavigationCompletedEventArgs args) => NavigationCompleted?.Invoke(this, args);
+    internal void OnWebMessageReceived(WebMessageReceivedEventArgs args) => WebMessageReceived?.Invoke(this, args);
+    internal void OnNewWindowRequested(WebViewNewWindowRequestedEventArgs args) => NewWindowRequested?.Invoke(this, args);
+
     private async void Initialize(IPlatformHandle parentHost)
     {
         var env = await CoreWebView2Environment.CreateAsync();
         var controller = await CreateWebView2Controller(env, parentHost.Handle);
         var webView = controller.GetCoreWebView2();
 
-        //webView.AddScriptToExecuteOnDocumentCreated(
-          //  "function invokeCSharpAction(data){window.chrome.webview.postMessage(data);}", IntPtr.Zero);
+        var addScriptCompletion = new AddScriptToExecuteOnDocumentCreatedCompletedHandler();
+        webView.AddScriptToExecuteOnDocumentCreated(
+            "function invokeCSharpAction(data){window.chrome.webview.postMessage(data);}", addScriptCompletion);
+        _ = await addScriptCompletion.Result.Task;
+
         controller.SetIsVisible(1);
 
         if (controller is ICoreWebView2Controller3 controller3)
@@ -171,7 +181,7 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
 
     private Action AddHandlers(ICoreWebView2 webView)
     {
-        var callbacks = new Callbacks(new WeakReference<WebView2BaseAdapter>(this));
+        var callbacks = new WebViewCallbacks(new WeakReference<WebView2BaseAdapter>(this));
         webView.add_NavigationStarting(callbacks, out var token1);
         webView.add_NavigationCompleted(callbacks, out var token2);
         webView.add_WebMessageReceived(callbacks, out var token3);
@@ -184,70 +194,6 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
             webView.remove_WebMessageReceived(token3);
             webView.remove_NewWindowRequested(token4);
         };
-    }
-
-#if COM_SOURCE_GEN
-    [GeneratedComClass]
-#endif
-    private partial class Callbacks(WeakReference<WebView2BaseAdapter> weakAdapter) : ICoreWebView2NavigationStartingEventHandler,
-        ICoreWebView2NavigationCompletedEventHandler, ICoreWebView2WebMessageReceivedEventHandler,
-        ICoreWebView2NewWindowRequestedEventHandler
-    {
-        public void Invoke(ICoreWebView2 sender, ICoreWebView2NavigationStartingEventArgs e)
-        {
-            if (weakAdapter.TryGetTarget(out var adapter)
-                && Uri.TryCreate(e.GetUri(), UriKind.Absolute, out var uri))
-            {
-                var args = new WebViewNavigationStartingEventArgs { Request = uri };
-                adapter.NavigationStarted?.Invoke(this, args);
-                if (args.Cancel) e.SetCancel(1);
-            }
-        }
-
-        public void Invoke(ICoreWebView2 sender, ICoreWebView2NavigationCompletedEventArgs e)
-        {
-            if (weakAdapter.TryGetTarget(out var adapter))
-            {
-                adapter.NavigationCompleted?.Invoke(this,
-                    new WebViewNavigationCompletedEventArgs
-                    {
-                        Request = new Uri(sender.GetSource()), IsSuccess = e.GetIsSuccess() == 1
-                    });
-            }
-        }
-
-        public void Invoke(ICoreWebView2 sender, ICoreWebView2WebMessageReceivedEventArgs e)
-        {
-            if (weakAdapter.TryGetTarget(out var adapter))
-            {
-                string? message = null;
-
-                try
-                {
-                    // this `Try` method can throw undescriptive ArgumentException. Keep going WinRT.
-                    message = e.TryGetWebMessageAsString();
-                }
-                catch
-                {
-                    // ignore
-                }
-
-                message ??= e.WebMessageAsJson();
-
-                adapter.WebMessageReceived?.Invoke(this, new WebMessageReceivedEventArgs { Body = message });
-            }
-        }
-
-        public void Invoke(ICoreWebView2 sender, ICoreWebView2NewWindowRequestedEventArgs e)
-        {
-            if (weakAdapter.TryGetTarget(out var adapter)
-                && Uri.TryCreate(e.GetUri(), UriKind.Absolute, out var uri))
-            {
-                var args = new WebViewNewWindowRequestedEventArgs { Request = uri };
-                adapter.NewWindowRequested?.Invoke(this, args);
-                if (args.Handled) e.SetHandled(1);
-            }
-        }
     }
 
     public void AddOrUpdateCookie(Cookie cookie)

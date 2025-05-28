@@ -17,6 +17,8 @@ internal sealed class OperatingSystemEx
     public static bool IsAndroid() => OperatingSystem.IsAndroid();
     [SupportedOSPlatformGuard("ios")]
     public static bool IsIOS() => OperatingSystem.IsIOS();
+    [SupportedOSPlatformGuard("ios")]
+    public static bool IsTvOS() => OperatingSystem.IsTvOS();
     [SupportedOSPlatformGuard("browser")]
     public static bool IsBrowser() => OperatingSystem.IsBrowser();
     [SupportedOSPlatformGuard("ios")]
@@ -35,6 +37,8 @@ internal sealed class OperatingSystemEx
     public static bool IsAndroid() => IsOSPlatform("ANDROID");
     [SupportedOSPlatformGuard("ios")]
     public static bool IsIOS() => IsOSPlatform("IOS");
+    [SupportedOSPlatformGuard("ios")]
+    public static bool IsTvOS() => false;
     [SupportedOSPlatformGuard("browser")]
     public static bool IsBrowser() => IsOSPlatform("BROWSER");
     public static bool IsIOSVersionAtLeast(int i, int i1) => false;

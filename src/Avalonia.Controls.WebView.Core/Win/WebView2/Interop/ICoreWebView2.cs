@@ -54,10 +54,10 @@ internal partial interface ICoreWebView2
     void add_ProcessFailed([MarshalAs(UnmanagedType.Interface)] IntPtr eventHandler, out EventRegistrationToken token);
     void remove_ProcessFailed(EventRegistrationToken token);
 
-    void AddScriptToExecuteOnDocumentCreated([MarshalAs(UnmanagedType.LPWStr)] string javaScript, [MarshalAs(UnmanagedType.Interface)] IntPtr handler);
+    void AddScriptToExecuteOnDocumentCreated([MarshalAs(UnmanagedType.LPWStr)] string javaScript, [MarshalAs(UnmanagedType.Interface)] ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler handler);
     void RemoveScriptToExecuteOnDocumentCreated([MarshalAs(UnmanagedType.LPWStr)] string id);
 
-    void ExecuteScript([MarshalAs(UnmanagedType.LPWStr)] string javaScript, [MarshalAs(UnmanagedType.Interface)] IntPtr handler);
+    void ExecuteScript([MarshalAs(UnmanagedType.LPWStr)] string javaScript, [MarshalAs(UnmanagedType.Interface)] ICoreWebView2ExecuteScriptCompletedHandler handler);
 
     void CapturePreview(int imageFormat, [MarshalAs(UnmanagedType.Interface)] IStream imageStream, [MarshalAs(UnmanagedType.Interface)] IntPtr handler);
 

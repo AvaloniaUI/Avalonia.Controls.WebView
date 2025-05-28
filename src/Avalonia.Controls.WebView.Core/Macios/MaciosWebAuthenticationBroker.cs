@@ -48,7 +48,7 @@ internal static class MaciosWebAuthenticationBroker
             return AppleView.GetWindow(platformHandle.Handle);
         }
 
-        if (OperatingSystem.IsIOS() || OperatingSystem.IsTvOS())
+        if (OperatingSystemEx.IsIOS() || OperatingSystemEx.IsTvOS())
         {
             return AppleView.GetWindow(GetAvaloniaViewHandle(topLevel));
         }
