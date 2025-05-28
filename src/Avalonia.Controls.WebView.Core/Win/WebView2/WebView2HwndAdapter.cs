@@ -1,5 +1,4 @@
-﻿#if !ANDROID && (NET6_0_OR_GREATER || NETFRAMEWORK)
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
@@ -28,4 +27,3 @@ internal partial class WebView2HwndAdapter(IPlatformHandle handle) : WebView2Bas
     private partial class WebView2ControllerHandler : GenericCompletedHandler<ICoreWebView2Controller>,
         ICoreWebView2CreateCoreWebView2ControllerCompletedHandler;
 }
-#endif

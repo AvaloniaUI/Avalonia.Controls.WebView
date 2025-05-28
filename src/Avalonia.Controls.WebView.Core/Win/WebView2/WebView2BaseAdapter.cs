@@ -1,5 +1,4 @@
-﻿#if !ANDROID && (NET6_0_OR_GREATER || NETFRAMEWORK)
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Net;
@@ -46,17 +45,13 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
 
     public bool IsInitialized { get; private set; }
 
-    public bool CanGoBack => true;// TryGetWebView2()?.CanGoBack ?? false;
+    public bool CanGoBack => TryGetWebView2()?.GetCanGoBack() == 1;
 
-    public bool CanGoForward => true;// TryGetWebView2()?.CanGoForward ?? false;
+    public bool CanGoForward => TryGetWebView2()?.GetCanGoForward() == 1;
 
     public Uri Source
     {
-        get
-        {
-            return WebViewHelper.EmptyPage;
-            //return Uri.TryCreate(TryGetWebView2()?.Source, UriKind.Absolute, out var url) ? url : null!;
-        }
+        get => Uri.TryCreate(TryGetWebView2()?.GetSource(), UriKind.Absolute, out var url) ? url : null!;
         set => Navigate(value);
     }
 
@@ -99,7 +94,7 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
 
     public void NavigateToString(string text)
     {
-        //TryGetWebView2()?.NavigateToString(text);
+        TryGetWebView2()?.NavigateToString(text);
     }
 
     public bool Refresh()
@@ -110,7 +105,7 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
 
     public bool Stop()
     {
-        //TryGetWebView2()?.Stop();
+        TryGetWebView2()?.Stop();
         return true;
     }
 
@@ -121,7 +116,11 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
             if (PInvoke.GetWindowRect(new HWND(Handle), out var rect)
                 && _controller is not null)
             {
-                //_controller.BoundsMode = CoreWebView2BoundsMode.UseRawPixels;
+                if (_controller is ICoreWebView2Controller3 controller3)
+                {
+                    controller3.SetBoundsMode(COREWEBVIEW2_BOUNDS_MODE.COREWEBVIEW2_BOUNDS_MODE_USE_RAW_PIXELS);
+                }
+
                 _controller.SetBounds(new tagRECT
                 {
                     right = rect.Width,
@@ -294,4 +293,3 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
         Dispose(false);
     }
 }
-#endif

@@ -41,38 +41,33 @@ namespace Avalonia.Xpf.Controls
             {
                 adapter = new Core.Macios.MaciosWebViewAdapter();
             }
-            //else
-            //if (OperatingSystemEx.IsLinux())
+            else if (OperatingSystemEx.IsWindows()
+                     && Core.Win.WebView2.CoreWebView2Environment.IsAvailable)
+            {
+                adapter = new Core.Win.WebView2.WebView2HwndAdapter(base.CreateNativeControlCore(parent));
+            }
+            //else if (OperatingSystemEx.IsWindows() && WebViewCapabilities.IsMsWebView1Available)
+            //{
+            //    adapter = new Core.Win.WebView1Adapter(base.CreateNativeControlCore(parent));
+            //}
+            //else if (OperatingSystemEx.IsWindows() && IE Supported)
+            //{
+            //}
+            //else if (OperatingSystemEx.IsLinux())
             //{
             //    adapter = new Core.Macios.GtkWebViewAdapter();
             //}
-            else
-            // if (OperatingSystemEx.IsBrowser())
+            // else if (OperatingSystemEx.IsBrowser())
             // {
             //     adapter = new Core.Browser.BrowserIFrameAdapter();
             // } else
 #if ANDROID
-            if (OperatingSystem.IsAndroid())
+            else if (OperatingSystem.IsAndroid())
             {
                 adapter = new Android.AndroidWebViewAdapter(parent);
             }
-#elif NET6_0_OR_GREATER || NETFRAMEWORK
-            if (OperatingSystemEx.IsWindows())
-            {
-                if (Core.Win.WebView2.CoreWebView2Environment.IsAvailable)
-                {
-                    adapter = new Core.Win.WebView2.WebView2HwndAdapter(base.CreateNativeControlCore(parent));
-                }
-                // else if (WebViewCapabilities.IsMsWebView1Available)
-                // {
-                //     adapter = new Core.Win.WebView1Adapter(base.CreateNativeControlCore(parent));
-                // }
-                // else if (IE Supported)
-                // {
-                // }
-            }
 #endif
-            if (adapter is null)
+            else if (adapter is null)
             {
                 return base.CreateNativeControlCore(parent);
             }

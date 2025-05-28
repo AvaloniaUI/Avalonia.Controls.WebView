@@ -1,4 +1,4 @@
-﻿#if NEVER && !ANDROID && (NET6_0_OR_GREATER || NETFRAMEWORK)
+﻿#if NEVER
 using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;

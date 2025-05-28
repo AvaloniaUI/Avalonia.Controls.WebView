@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackAvaloniaNative Condition="'$(PackAvaloniaNative)' == ''">$([MSBuild]::IsOSPlatform(OSX))</PackAvaloniaNative>
     <TargetFrameworks>
       netstandard2.0;net462;
       net6.0;net8.0;
       net8.0-android
     </TargetFrameworks>
+
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <RootNamespace>Avalonia.Controls</RootNamespace>
     <WarningsAsErrors>$(WarningsAsErrors);CA1420;CA1421;</WarningsAsErrors>
