@@ -24,12 +24,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-<!--    <AdditionalFiles Include="**/*.mcidl" />-->
-<!--    <PackageReference Include="MicroCom.Runtime" Version="0.11.0" />-->
-<!--    <PackageReference Include="MicroCom.CodeGenerator.Roslyn" Version="0.11.0">-->
-<!--      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>-->
-<!--      <PrivateAssets>all</PrivateAssets>-->
-<!--    </PackageReference>-->
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.106">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
