@@ -12,6 +12,7 @@ using Nuke.Common;
 using Nuke.Common.IO;
 using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
+using Nuke.Common.Tools.PowerShell;
 using Serilog;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
 
@@ -27,6 +28,8 @@ class Build : NukeBuild
         Execute<Build>(x => x.CreateNugetPackages);
 
     [NuGetPackage("dotnet-ilrepack", "ILRepackTool.dll", Framework = "net8.0")] readonly Tool IlRepackTool;
+
+    [PathVariable] readonly Tool Babel;
 
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = Configuration.Release;
@@ -103,7 +106,38 @@ class Build : NukeBuild
         .DependsOn(IlMerge)
         .Executes(() =>
         {
-            // 
+            if (!OperatingSystem.IsWindows())
+            {
+                Log.Warning("Obfuscation is skipped");
+                if (!IsLocalBuild)
+                {
+                    throw new InvalidOperationException("Babel requires Windows CI machine");
+                }
+
+                return;
+            }
+
+            string[] projectsToObfuscate =
+            [
+                "Avalonia.Controls.WebView",
+                "Avalonia.Xpf.Controls.WebView"
+            ];
+            foreach (var projectName in projectsToObfuscate)
+            {
+                Log.Information("Obfuscating {Project}", projectName);
+
+                var projectRoot = RootDirectory / "src" / projectName;
+                var obfuscationMapFile = RootDirectory / "Obfuscated" / (projectName + ".ObfuscationMap.xml");
+                var obfuscationLogFile = RootDirectory / "Obfuscated" / (projectName + ".Obfuscation.log");
+                var rules = RootDirectory / "build" / "Babel.rules";
+
+                foreach (var buildOutput in (projectRoot / "bin" / Configuration).GlobDirectories("net*"))
+                {
+                    var dllFile = buildOutput / (projectName + ".dll");
+                    
+                    Babel($"{dllFile} --nologo --rules {rules} --output {dllFile}  --mapout {obfuscationMapFile} --logfile {obfuscationLogFile}", RootDirectory);
+                }
+            }
         });
 
     Target CreateNugetPackages => _ => _

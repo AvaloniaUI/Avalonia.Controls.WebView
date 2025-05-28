@@ -1,0 +1,49 @@
+﻿<Rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	version="2.0">
+
+	<Rule name="runAgent"
+		feature="agent"
+		exclude="false"
+		applyToMembers="true">
+
+		<Pattern>*</Pattern>
+		<Properties>
+			<TaskNameList>
+				Base types,
+				Dynamic language,
+				Exposed attributes,
+				Reflected strings,
+				Reflected types
+			</TaskNameList>
+		</Properties>
+	</Rule>
+
+	<Rule name="NoCompilerGenerated" 
+		feature="control flow, value encryption, string encryption" 
+		exclude="true" applyToMembers="false">
+		<Target>Classes</Target>
+		<Pattern>*</Pattern>
+		<HasAttribute onEnclosingType="false">
+			System.Runtime.CompilerServices.CompilerGeneratedAttribute,
+			System.Diagnostics.DebuggerHiddenAttribute
+		</HasAttribute>
+		<Description>Do not obfuscate compiler-generated methods.</Description>
+	</Rule>
+
+	<Rule name="DontRenameAnonymous" 
+		feature="renaming, dead code" 
+		exclude="true" 
+		applyToMembers="true">
+		<Pattern>*</Pattern>
+		<HasAttribute>System.Runtime.CompilerServices.CompilerGeneratedAttribute</HasAttribute>
+		<Description>Do not renaming Anonymous Types.</Description>
+	</Rule>
+
+    <!-- Mono Android is very sensitive -->
+	<Rule name="DontRenameAndroidJavaScriptValueCallback"
+		feature="renaming"
+		exclude="true"
+		applyToMembers="true">
+		<Pattern>*.JavaScriptValueCallback</Pattern>
+	</Rule>
+</Rules>
