@@ -16,7 +16,7 @@ internal class NSURLRequest : NSObject
 
     public static NSURLRequest FromUri(Uri uri)
     {
-        using var nsStr = NSString.Create(uri.ToString());
+        using var nsStr = NSString.Create(uri.AbsoluteUri);
         using var nsUrl = new NSUrl(nsStr);
         var handle = Libobjc.intptr_objc_msgSend(s_class, s_requestWithURL, nsUrl.Handle);
         return new NSURLRequest(handle, false);
