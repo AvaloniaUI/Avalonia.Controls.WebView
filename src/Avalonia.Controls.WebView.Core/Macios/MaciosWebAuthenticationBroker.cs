@@ -27,7 +27,7 @@ internal static class MaciosWebAuthenticationBroker
 
     private static ASWebAuthenticationSession CreateSession(Uri requestUri, string scheme, TaskCompletionSource<Uri> completion)
     {
-        using var requestUrlStr = NSString.Create(requestUri.ToString());
+        using var requestUrlStr = NSString.Create(requestUri.AbsoluteUri);
         using var requestUrl = new NSUrl(requestUrlStr);
         using var schemeStr = NSString.Create(scheme);
 
