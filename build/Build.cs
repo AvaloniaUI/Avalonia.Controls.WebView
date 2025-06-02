@@ -104,17 +104,12 @@ class Build : NukeBuild
     Target Obfuscate => _ => _
         .DependsOn(Compile)
         .DependsOn(IlMerge)
+        .OnlyWhenStatic(() => OperatingSystem.IsWindows() || !IsLocalBuild)
         .Executes(() =>
         {
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindows() && !IsLocalBuild)
             {
-                Log.Warning("Obfuscation is skipped");
-                if (!IsLocalBuild)
-                {
-                    throw new InvalidOperationException("Babel requires Windows CI machine");
-                }
-
-                return;
+                throw new InvalidOperationException("Babel requires Windows CI machine");
             }
 
             string[] projectsToObfuscate =
