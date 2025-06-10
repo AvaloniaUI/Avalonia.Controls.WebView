@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 
@@ -10,10 +10,15 @@ namespace Avalonia.Controls.Win.WebView2.Interop;
 [ComImport]
 [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 #endif
-[Guid("F7F6F714-5D2A-43C6-9503-346ECE02D186")]
-internal partial interface ICoreWebView2CookieList
+[Guid("453E667F-12C7-49D4-BE6D-DDBE7956F57A")]
+internal partial interface ICoreWebView2WebResourceRequestedEventArgs
 {
-    uint GetCount();
+    ICoreWebView2WebResourceRequest GetRequest();
 
-    ICoreWebView2Cookie GetValueAtIndex(uint index);
+    IntPtr GetResponse();
+    void SetResponse(IntPtr response);
+
+    IntPtr GetDeferral();
+
+    int GetResourceContext();
 }

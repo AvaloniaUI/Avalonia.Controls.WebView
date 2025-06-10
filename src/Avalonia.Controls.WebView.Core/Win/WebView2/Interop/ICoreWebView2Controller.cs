@@ -55,7 +55,6 @@ internal partial interface ICoreWebView2Controller
     void NotifyParentWindowPositionChanged();
     void Close();
 
-    [return: MarshalAs(UnmanagedType.Interface)]
     ICoreWebView2 GetCoreWebView2();
 }
 

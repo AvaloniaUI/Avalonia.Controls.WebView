@@ -17,6 +17,7 @@ namespace Avalonia.Controls.Win.WebView2;
 [SupportedOSPlatform("windows6.1")] // win7
 internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieManager, IWindowsWebView2PlatformHandle
 {
+    private EventHandler<WebResourceRequestedEventArgs>? _webResourceRequested;
     private ICoreWebView2Controller? _controller;
     private Action? _subscriptions;
 
@@ -57,7 +58,26 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
     public event EventHandler<WebViewNavigationStartingEventArgs>? NavigationStarted;
     public event EventHandler<WebViewNewWindowRequestedEventArgs>? NewWindowRequested;
     public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
-    public event EventHandler<WebResourceRequestedEventArgs>? WebResourceRequested;
+    public event EventHandler<WebResourceRequestedEventArgs>? WebResourceRequested
+    {
+        add
+        {
+            if (TryGetWebView2() is { } webView2)
+            {
+                webView2.AddWebResourceRequestedFilter("*", 0);
+            }
+            _webResourceRequested += value;
+        }
+        remove
+        {
+            _webResourceRequested -= value;
+            if (_webResourceRequested is null && TryGetWebView2() is { } webView2)
+            {
+                webView2.RemoveWebResourceRequestedFilter("*", 0);
+            }
+        }
+    }
+
     public event EventHandler? Initialized;
 
     public bool GoBack()
@@ -150,6 +170,7 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
     internal void OnNavigationStarted(WebViewNavigationStartingEventArgs args) => NavigationStarted?.Invoke(this, args);
     internal void OnNavigationCompleted(WebViewNavigationCompletedEventArgs args) => NavigationCompleted?.Invoke(this, args);
     internal void OnWebMessageReceived(WebMessageReceivedEventArgs args) => WebMessageReceived?.Invoke(this, args);
+    internal EventHandler<WebResourceRequestedEventArgs>? GetWebResourceRequested() => _webResourceRequested;
     internal void OnNewWindowRequested(WebViewNewWindowRequestedEventArgs args) => NewWindowRequested?.Invoke(this, args);
 
     private async void Initialize(IPlatformHandle parentHost)
@@ -176,6 +197,11 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
 
         _subscriptions = AddHandlers(webView);
 
+        if (_webResourceRequested is not null)
+        {
+            webView.AddWebResourceRequestedFilter("*", 0);
+        }
+
         IsInitialized = true;
         Initialized?.Invoke(this, EventArgs.Empty);
     }
@@ -188,6 +214,7 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
         webView.add_NavigationStarting(callbacks, out var token1);
         webView.add_NavigationCompleted(callbacks, out var token2);
         webView.add_WebMessageReceived(callbacks, out var token3);
+        webView.add_WebResourceRequested(callbacks, out var token5);
         webView.add_NewWindowRequested(callbacks, out var token4);
 
         return () =>
@@ -195,6 +222,7 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
             webView.remove_NavigationStarting(token1);
             webView.remove_NavigationCompleted(token2);
             webView.remove_WebMessageReceived(token3);
+            webView.remove_NewWindowRequested(token5);
             webView.remove_NewWindowRequested(token4);
         };
     }

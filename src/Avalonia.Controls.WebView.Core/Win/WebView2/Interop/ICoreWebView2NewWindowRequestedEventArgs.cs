@@ -25,7 +25,6 @@ internal partial interface ICoreWebView2NewWindowRequestedEventArgs
 
     int GetIsUserInitiated();
 
-    [return: MarshalAs(UnmanagedType.Interface)]
     IntPtr GetDeferral();
 
     IntPtr GetWindowFeatures();

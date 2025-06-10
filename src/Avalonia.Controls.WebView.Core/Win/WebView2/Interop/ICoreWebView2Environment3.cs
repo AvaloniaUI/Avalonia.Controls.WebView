@@ -18,10 +18,7 @@ internal partial interface ICoreWebView2Environment3 : ICoreWebView2Environment2
     void _VtblGap1_6();
 #endif
 
-    [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime)]
     void CreateCoreWebView2CompositionController(IntPtr ParentWindow, [MarshalAs(UnmanagedType.Interface)] ICoreWebView2CreateCoreWebView2CompositionControllerCompletedHandler handler);
 
-    [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime)]
-    [return: MarshalAs(UnmanagedType.Interface)]
     IntPtr CreateCoreWebView2PointerInfo();
 }

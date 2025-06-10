@@ -14,7 +14,6 @@ namespace Avalonia.Controls.Win.WebView2.Interop;
 [Guid("76ECEACB-0462-4D94-AC83-423A6793775E")]
 internal partial interface ICoreWebView2
 {
-    [return: MarshalAs(UnmanagedType.Interface)]
     IntPtr GetSettings();
 
     [return: MarshalAs(UnmanagedType.LPWStr)]
@@ -82,7 +81,6 @@ internal partial interface ICoreWebView2
 
     void GoForward();
 
-    [return: MarshalAs(UnmanagedType.Interface)]
     IntPtr GetDevToolsProtocolEventReceiver([MarshalAs(UnmanagedType.LPWStr)] string eventName);
 
     void Stop();
@@ -106,7 +104,7 @@ internal partial interface ICoreWebView2
 
     int GetContainsFullScreenElement();
 
-    void add_WebResourceRequested([MarshalAs(UnmanagedType.Interface)] IntPtr eventHandler, out EventRegistrationToken token);
+    void add_WebResourceRequested([MarshalAs(UnmanagedType.Interface)] ICoreWebView2WebResourceRequestedEventHandler eventHandler, out EventRegistrationToken token);
     void remove_WebResourceRequested(EventRegistrationToken token);
 
     void AddWebResourceRequestedFilter([MarshalAs(UnmanagedType.LPWStr)] string uri, int ResourceContext);

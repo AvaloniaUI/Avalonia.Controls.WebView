@@ -21,7 +21,6 @@ internal partial interface ICoreWebView2NavigationStartingEventArgs
 
     int GetIsRedirected();
 
-    [return: MarshalAs(UnmanagedType.Interface)]
     IntPtr GetRequestHeaders();
 
     int GetCancel();

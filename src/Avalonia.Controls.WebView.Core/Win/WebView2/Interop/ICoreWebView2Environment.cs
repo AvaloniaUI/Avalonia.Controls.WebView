@@ -15,7 +15,6 @@ internal partial interface ICoreWebView2Environment
 {
     void CreateCoreWebView2Controller(IntPtr ParentWindow, [MarshalAs(UnmanagedType.Interface)] ICoreWebView2CreateCoreWebView2ControllerCompletedHandler handler);
 
-    [return: MarshalAs(UnmanagedType.Interface)]
     IntPtr CreateWebResourceResponse(IntPtr Content, int StatusCode, [MarshalAs(UnmanagedType.LPWStr)] string ReasonPhrase, [MarshalAs(UnmanagedType.LPWStr)] string Headers);
 
     [return: MarshalAs(UnmanagedType.LPWStr)]

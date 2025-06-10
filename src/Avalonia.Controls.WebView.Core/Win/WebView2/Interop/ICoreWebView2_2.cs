@@ -26,10 +26,8 @@ internal partial interface ICoreWebView2_2 : ICoreWebView2
     void add_DOMContentLoaded([MarshalAs(UnmanagedType.Interface)] IntPtr eventHandler, out EventRegistrationToken token);
     void remove_DOMContentLoaded(EventRegistrationToken token);
 
-    [return: MarshalAs(UnmanagedType.Interface)]
     ICoreWebView2CookieManager GetCookieManager();
 
-    [return: MarshalAs(UnmanagedType.Interface)]
     ICoreWebView2Environment Environment();
 }
 

@@ -19,6 +19,5 @@ internal partial interface ICoreWebView2Environment2 : ICoreWebView2Environment
     void _VtblGap1_5();
 #endif
 
-    [return: MarshalAs(UnmanagedType.Interface)]
     IntPtr CreateWebResourceRequest([MarshalAs(UnmanagedType.LPWStr)] string uri, [MarshalAs(UnmanagedType.LPWStr)] string Method, [MarshalAs(UnmanagedType.Interface)] IStream postData, [MarshalAs(UnmanagedType.LPWStr)] string Headers);
 }
