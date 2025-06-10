@@ -17,7 +17,7 @@ namespace Avalonia.Xpf.Controls.WebView.Samples
         {
             InitializeComponent();
             var w = XpfWpfAbstraction.GetAvaloniaWindowForWindow(this);
-            w.AttachDevTools();
+            w?.AttachDevTools();
             var _ = new A();
         }
 
