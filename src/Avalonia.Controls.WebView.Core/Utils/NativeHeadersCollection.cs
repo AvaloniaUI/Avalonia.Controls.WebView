@@ -22,6 +22,58 @@ internal interface INativeHttpHeadersCollectionIterator
     bool MoveNext();
 }
 
+internal class DictionaryNativeHttpRequestHeaders(IReadOnlyDictionary<string, string> headers)
+    : INativeHttpRequestHeaders
+{
+    public bool Immutable => true;
+
+    public bool TryClear() => false;
+
+    public bool TryGetCount(out int count)
+    {
+        count = headers.Count;
+        return true;
+    }
+
+    public string? GetHeader(string name) => headers.TryGetValue(name, out var value) ? value : null;
+
+    public bool Contains(string name) => headers.ContainsKey(name);
+
+    public bool TrySetHeader(string name, string value) => false;
+
+    public bool TryRemoveHeader(string name) => false;
+
+    public INativeHttpHeadersCollectionIterator GetIterator() => new Iterator(headers);
+
+    private class Iterator(IReadOnlyDictionary<string, string> dictionary) : INativeHttpHeadersCollectionIterator
+    {
+        private readonly IEnumerator<KeyValuePair<string, string>> _enumerator = dictionary.GetEnumerator();
+        private bool _initial = true;
+
+        public void GetCurrentHeader(out string name, out string value)
+        {
+            var c = _enumerator.Current;
+            name = c.Key;
+            value = c.Value as string ?? ""; // should always be a string
+        }
+
+        public bool GetHasCurrentHeader()
+        {
+            if (_initial)
+            {
+                _initial = false;
+                return MoveNext();
+            }
+            else
+            {
+                return !string.IsNullOrEmpty(_enumerator.Current.Key);
+            }
+        }
+
+        public bool MoveNext() => _enumerator.MoveNext();
+    }
+}
+
 internal sealed class NativeHeadersCollection(
     INativeHttpRequestHeaders nativeHeaders) :
     WebViewWebRequestHeaders, IDictionary<string, string>
