@@ -33,6 +33,7 @@ namespace Avalonia.Xpf.Controls
             _impl.WebView.NavigationStarted += (_, args) => NavigationStarted?.Invoke(this, args);
             _impl.WebView.NavigationStarted += (_, args) => NavigationStarted?.Invoke(this, args);
             _impl.WebView.WebMessageReceived += (_, args) => WebMessageReceived?.Invoke(this, args);
+            _impl.WebView.WebResourceRequested += (_, args) => WebResourceRequested?.Invoke(this, args); 
             _impl.WebView.NewWindowRequested += (_, args) => NewWindowRequested?.Invoke(this, args);
         }
 
@@ -52,6 +53,9 @@ namespace Avalonia.Xpf.Controls
 
         /// <inheritdoc/>
         public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
+
+        /// <inheritdoc/>
+        public event EventHandler<WebResourceRequestedEventArgs>? WebResourceRequested;
 
         /// <inheritdoc/>
         public bool GoBack() => _impl.WebView.GoBack();

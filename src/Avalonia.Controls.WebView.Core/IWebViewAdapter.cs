@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using Avalonia.Controls.Rendering;
 using Avalonia.Input;
@@ -26,6 +27,17 @@ public class WebViewWebResourceRequest
     public required IDictionary<string, string> Headers { get; init; }
     public required HttpMethod Method { get; init; }
     public required Uri Uri { get; init; }
+
+    public override string ToString()
+    {
+        var request = new StringBuilder();
+        request.AppendLine($"{Method} {Uri}");
+        foreach (var pair in Headers)
+        {
+            request.AppendLine($"{pair.Key}: {pair.Value}");
+        }
+        return request.ToString();
+    }
 }
 
 public class WebViewNavigationEventArgs : EventArgs

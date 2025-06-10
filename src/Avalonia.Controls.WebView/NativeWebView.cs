@@ -92,6 +92,9 @@ namespace Avalonia.Xpf.Controls
         /// <inheritdoc/>
         public event EventHandler<Core.WebMessageReceivedEventArgs>? WebMessageReceived;
 
+        /// <inheritdoc/>
+        public event EventHandler<Core.WebResourceRequestedEventArgs>? WebResourceRequested;
+
         /// <summary>
         ///     AdapterInitialized dispatches after underlying webview adapter was initialized.
         /// </summary>
@@ -215,6 +218,11 @@ namespace Avalonia.Xpf.Controls
             WebMessageReceived?.Invoke(this, e);
         }
 
+        private void WebViewAdapterOnWebResourceRequested(object? sender, Core.WebResourceRequestedEventArgs e)
+        {
+            WebResourceRequested?.Invoke(this, e);
+        }
+
         private void WebViewAdapterOnNavigationStarted(object? sender, Core.WebViewNavigationStartingEventArgs e)
         {
             NavigationStarted?.Invoke(this, e);
@@ -282,6 +290,7 @@ namespace Avalonia.Xpf.Controls
             adapter.NavigationStarted -= WebViewAdapterOnNavigationStarted;
             adapter.NavigationCompleted -= WebViewAdapterOnNavigationCompleted;
             adapter.WebMessageReceived -= WebViewAdapterOnWebMessageReceived;
+            adapter.WebResourceRequested -= WebViewAdapterOnWebResourceRequested;
             adapter.NewWindowRequested -= WebViewAdapterOnNewWindowRequested;
             if (adapter is Core.IWebViewAdapterWithFocus withFocus)
             {
@@ -301,6 +310,7 @@ namespace Avalonia.Xpf.Controls
             adapter.NavigationStarted += WebViewAdapterOnNavigationStarted;
             adapter.NavigationCompleted += WebViewAdapterOnNavigationCompleted;
             adapter.WebMessageReceived += WebViewAdapterOnWebMessageReceived;
+            adapter.WebResourceRequested += WebViewAdapterOnWebResourceRequested;
             adapter.NewWindowRequested += WebViewAdapterOnNewWindowRequested;
             if (adapter is Core.IWebViewAdapterWithFocus withFocus)
             {
