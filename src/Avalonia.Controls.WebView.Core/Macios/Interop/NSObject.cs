@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace Avalonia.Controls.Macios.Interop;
@@ -23,17 +24,17 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
     private IntPtr? _class;
     private unsafe ObjcSuper* _superRef;
 
-    private const bool RetainIfNotOwned = false;
-
     protected NSObject(IntPtr handle, bool owns)
     {
         if (handle == default)
             throw new ArgumentNullException(nameof(handle));
 
         Handle = handle;
-        if (!owns && RetainIfNotOwned)
+        if (owns)
         {
-            owns = true;
+            // This object is owned (and usually created) by C# code, and we want to keep it retained while C# reference is alive.
+            // Native object is released in Dispose method. 
+            // When "owns" is false, we do not retain nor release any objects.
             Retain();
         }
         _owns = owns;
@@ -125,7 +126,7 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
             return;
 
 #if DEBUG
-        Console.WriteLine($"Disposing ({disposing}): {GetType()}");
+        Debug.WriteLine($"Disposing (finalize: {!disposing}, owns: {_owns}): {GetType()}");
 #endif
 
         // if (_superRef != default)
@@ -135,7 +136,7 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
 
         if (_owns)
         {
-            //Libobjc.void_objc_msgSend(Handle, s_releaseSel);
+            Libobjc.void_objc_msgSend(Handle, s_releaseSel);
         }
     }
 

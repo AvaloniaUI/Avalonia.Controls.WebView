@@ -21,7 +21,7 @@ internal partial interface ICoreWebView2NavigationStartingEventArgs
 
     int GetIsRedirected();
 
-    IntPtr GetRequestHeaders();
+    ICoreWebView2NavigationStartingEventArgs GetRequestHeaders();
 
     int GetCancel();
     void SetCancel(int value);

@@ -21,7 +21,8 @@ internal interface INativeHttpHeadersCollectionIterator
     bool MoveNext();
 }
 
-internal sealed class NativeHeadersCollection(INativeHttpRequestHeaders nativeHeaders) : IDictionary<string, string>
+internal sealed class NativeHeadersCollection(
+    INativeHttpRequestHeaders nativeHeaders, bool treatAsReadOnly) : IDictionary<string, string>
 {
     public IEnumerator<KeyValuePair<string, string>> GetEnumerator()
     {
@@ -42,11 +43,15 @@ internal sealed class NativeHeadersCollection(INativeHttpRequestHeaders nativeHe
 
     public void Add(KeyValuePair<string, string> item)
     {
+        if (treatAsReadOnly)
+            return;
         nativeHeaders.SetHeader(item.Key, item.Value);
     }
 
     public void Clear()
     {
+        if (treatAsReadOnly)
+            return;
         if (!nativeHeaders.TryClear())
         {
             var keys = new List<string>();
@@ -80,6 +85,8 @@ internal sealed class NativeHeadersCollection(INativeHttpRequestHeaders nativeHe
 
     public bool Remove(KeyValuePair<string, string> item)
     {
+        if (treatAsReadOnly)
+            return false;
         if (Contains(item))
         {
             nativeHeaders.RemoveHeader(item.Key);
@@ -107,10 +114,12 @@ internal sealed class NativeHeadersCollection(INativeHttpRequestHeaders nativeHe
         }
     }
 
-    public bool IsReadOnly => false;
+    public bool IsReadOnly => treatAsReadOnly;
 
     public void Add(string key, string value)
     {
+        if (treatAsReadOnly)
+            return;
         nativeHeaders.SetHeader(key, value);
     }
 
@@ -121,6 +130,8 @@ internal sealed class NativeHeadersCollection(INativeHttpRequestHeaders nativeHe
 
     public bool Remove(string key)
     {
+        if (treatAsReadOnly)
+            return false;
         if (ContainsKey(key))
         {
             nativeHeaders.RemoveHeader(key);
@@ -140,7 +151,12 @@ internal sealed class NativeHeadersCollection(INativeHttpRequestHeaders nativeHe
     public string this[string key]
     {
         get => nativeHeaders.GetHeader(key) ?? throw new KeyNotFoundException(key);
-        set => nativeHeaders.SetHeader(key, value);
+        set
+        {
+            if (treatAsReadOnly)
+                return;
+            nativeHeaders.SetHeader(key, value);
+        }
     }
 
     public ICollection<string> Keys

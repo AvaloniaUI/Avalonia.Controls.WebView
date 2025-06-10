@@ -62,12 +62,11 @@ internal unsafe class WKNavigationDelegate : NSManagedObjectBase
     {
         var managed = ReadManagedSelf<WKNavigationDelegate>(self);
 
-        using var request = new NSURLRequest(Libobjc.intptr_objc_msgSend(navigationAction, s_actionRequest), false);
-        using var nsUrl = request.Url;
+        using var request = NSURLRequest.FromHandle(Libobjc.intptr_objc_msgSend(navigationAction, s_actionRequest));
 
         var args = new DecidePolicyNavigationEventArgs
         {
-            Request = new Uri(nsUrl.AbsoluteString!),
+            Request = request,
             TargetFrame = Libobjc.intptr_objc_msgSend(navigationAction, s_targetFrame)
         };
         managed?.DecidePolicyNavigation?.Invoke(managed, args);
@@ -78,7 +77,7 @@ internal unsafe class WKNavigationDelegate : NSManagedObjectBase
 
     public class DecidePolicyNavigationEventArgs : CancelEventArgs
     {
-        public required Uri Request { get; init; }
+        public required NSURLRequest Request { get; init; }
         public IntPtr TargetFrame { get; init; }
     }
 }

@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Http;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using Avalonia.Controls.Macios.Interop;
 using Avalonia.Controls.Macios.Interop.WebKit;
+using Avalonia.Controls.Utils;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform;
@@ -182,15 +184,34 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
     private void OnDelegateOnDecidePolicyNavigation(object? _, WKNavigationDelegate.DecidePolicyNavigationEventArgs args)
     {
+        using var nsUrl = args.Request.Url;
+        var url = new Uri(nsUrl.AbsoluteString!);
+
+        if (WebResourceRequested is { } webResourceRequested)
+        {
+            var headers = new WKWebKitNativeHttpRequestHeaders(args.Request);
+            var webResourceArgs = new WebResourceRequestedEventArgs
+            {
+                Request = new WebViewWebResourceRequest
+                {
+                    Method = new HttpMethod(args.Request.HTTPMethod.GetString()!),
+                    Uri = url,
+                    Headers = new NativeHeadersCollection(headers, true),
+                }
+            };
+
+            webResourceRequested.Invoke(this, webResourceArgs);
+        }
+
         if (args.TargetFrame == IntPtr.Zero)
         {
-            var newWindowRequestedArgs = new WebViewNewWindowRequestedEventArgs { Request = args.Request };
+            var newWindowRequestedArgs = new WebViewNewWindowRequestedEventArgs { Request = url };
             NewWindowRequested?.Invoke(this, newWindowRequestedArgs);
             args.Cancel = newWindowRequestedArgs.Handled;
         }
         else
         {
-            var startedArgs = new WebViewNavigationStartingEventArgs { Request = args.Request };
+            var startedArgs = new WebViewNavigationStartingEventArgs { Request = url };
             NavigationStarted?.Invoke(this, startedArgs);
             args.Cancel = startedArgs.Cancel;
         }
