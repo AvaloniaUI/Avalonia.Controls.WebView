@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Avalonia.Controls.Platform;
 using Avalonia.Controls.Win.WebView1.Interop;
 using Avalonia.Controls.Win.WebView2;
 using Avalonia.Platform;
@@ -12,7 +14,7 @@ using Avalonia.Threading;
 namespace Avalonia.Controls.Win.WebView1;
 
 [SupportedOSPlatform("windows6.1")]
-internal sealed class WebView1Adapter : IWebViewAdapter
+internal sealed class WebView1Adapter : IWebViewAdapter, IWindowsWebView1PlatformHandle
 {
     private static IWebViewControlProcess? s_lazyProcess;
     private static int s_webViewsCount;
@@ -253,4 +255,8 @@ internal sealed class WebView1Adapter : IWebViewAdapter
             s_lazyProcess = null;
         }
     }
+
+    unsafe IntPtr IWindowsWebView1PlatformHandle.WebViewControl => _webViewControl is not null ?
+        new(ComInterfaceMarshaller<IWebViewControl>.ConvertToUnmanaged(_webViewControl)) :
+        IntPtr.Zero;
 }

@@ -9,12 +9,13 @@ using System.Threading.Tasks;
 using Android.Content;
 using Avalonia.Android;
 using Avalonia.Interactivity;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
 
 namespace Avalonia.Controls.Android;
 
-internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect, IWebViewAdapterWithCookieManager
+internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect, IWebViewAdapterWithCookieManager, IAndroidWebViewPlatformHandle
 {
     private const string PostAvWebViewMessageName = "postAvWebViewMessage";
     private readonly WebView _webView;
@@ -229,6 +230,8 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
                 new WebViewNavigationCompletedEventArgs { Request = uri, IsSuccess = true });
         }
     }
+
+    IntPtr IAndroidWebViewPlatformHandle.WebKitWebView => Handle;
 }
 
 internal class AndroidJavaScriptValueCallback(TaskCompletionSource<string?> callback) : Java.Lang.Object, IValueCallback

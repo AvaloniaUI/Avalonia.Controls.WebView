@@ -10,7 +10,7 @@ using static Avalonia.Controls.Gtk.AvaloniaGtk;
 
 namespace Avalonia.Controls.Gtk;
 
-internal class GtkWebViewAdapter : IWebViewAdapterWithFocus
+internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatformHandle
 {
     private const string PostAvWebViewMessageName = "postAvWebViewMessage";
 
@@ -418,4 +418,6 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus
             DisposeSafe(false);
         });
     }
+
+    IntPtr IGtkWebViewPlatformHandle.WebKitWebView => Handle;
 }

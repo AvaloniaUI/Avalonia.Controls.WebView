@@ -14,7 +14,8 @@ namespace Avalonia.Controls.Macios;
 
 [SupportedOSPlatform("macos")]
 [SupportedOSPlatform("ios")]
-internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect, IWebViewAdapterWithCookieManager, IWebViewAdapterWithCommands
+internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect,
+    IWebViewAdapterWithCookieManager, IWebViewAdapterWithCommands, IAppleWKWebViewPlatformHandle
 {
     private const string PostAvWebViewMessageName = "postAvWebViewMessage";
 
@@ -352,5 +353,8 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
     public void SelectAll() => _webView.SelectAll();
     public void Undo() => _webView.Undo();
     public void Redo() => _webView.Redo();
+
+    IntPtr IAppleWKWebViewPlatformHandle.WKWebView => Handle;
+    IntPtr IAppleWKWebViewPlatformHandle.GetWKWebViewRetained() => _webView.Retain();
 }
 

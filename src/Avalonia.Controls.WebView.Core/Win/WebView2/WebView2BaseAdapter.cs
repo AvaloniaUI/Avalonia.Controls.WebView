@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Avalonia.Controls.Platform;
 using Avalonia.Controls.Win.WebView2.Interop;
 using Avalonia.Platform;
 using Avalonia.Threading;
@@ -13,7 +15,7 @@ using Avalonia.Threading;
 namespace Avalonia.Controls.Win.WebView2;
 
 [SupportedOSPlatform("windows6.1")] // win7
-internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieManager
+internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieManager, IWindowsWebView2PlatformHandle
 {
     private ICoreWebView2Controller? _controller;
     private Action? _subscriptions;
@@ -274,4 +276,12 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
     {
         Dispose(false);
     }
+
+    unsafe IntPtr IWindowsWebView2PlatformHandle.CoreWebView2 => TryGetWebView2() is { } webView ?
+        new(ComInterfaceMarshaller<ICoreWebView2>.ConvertToUnmanaged(webView)) :
+        IntPtr.Zero;
+
+    unsafe IntPtr IWindowsWebView2PlatformHandle.CoreWebView2Controller => _controller is not null ?
+        new(ComInterfaceMarshaller<ICoreWebView2Controller>.ConvertToUnmanaged(_controller)) :
+        IntPtr.Zero;
 }

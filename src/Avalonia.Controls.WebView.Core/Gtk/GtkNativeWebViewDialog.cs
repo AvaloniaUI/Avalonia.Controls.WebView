@@ -2,14 +2,13 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
-using PlatformHandle = Avalonia.Platform.PlatformHandle;
+using Avalonia.Platform;
 using static Avalonia.Controls.Gtk.GtkInterop;
 using static Avalonia.Controls.Gtk.AvaloniaGtk;
 
 namespace Avalonia.Controls.Gtk;
 
-internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog
+internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebViewPlatformHandle
 {
     private static readonly unsafe IntPtr s_deleteEventCallback = new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, bool>)&DeleteEvent);
     private readonly GtkWebViewAdapter _nativeWebView;
@@ -149,7 +148,7 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog
         return true;
     }
 
-    public IPlatformHandle? TryGetPlatformHandle() => new PlatformHandle(_windowHandle, "GtkWindow");
+    public IPlatformHandle? TryGetPlatformHandle() => this;
 
     private void Dispose(bool disposing)
     {
@@ -185,4 +184,8 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog
         dialog.Closing?.Invoke(dialog, cancel);
         return cancel.Cancel;
     }
+
+    IntPtr IGtkWebViewPlatformHandle.WebKitWebView => _nativeWebView.Handle;
+    IntPtr IPlatformHandle.Handle => _windowHandle;
+    string? IPlatformHandle.HandleDescriptor => "GtkWindow";
 }
