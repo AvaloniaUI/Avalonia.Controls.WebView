@@ -21,7 +21,8 @@ internal partial interface ICoreWebView2HttpRequestHeaders
     [return: MarshalAs(UnmanagedType.Bool)]
     bool Contains([MarshalAs(UnmanagedType.LPWStr)] string name);
 
-    void SetHeader([MarshalAs(UnmanagedType.LPWStr)] string name, [MarshalAs(UnmanagedType.LPWStr)] string value);
+    [PreserveSig]
+    int SetHeader([MarshalAs(UnmanagedType.LPWStr)] string name, [MarshalAs(UnmanagedType.LPWStr)] string value);
 
     [PreserveSig]
     int RemoveHeader([MarshalAs(UnmanagedType.LPWStr)] string name);

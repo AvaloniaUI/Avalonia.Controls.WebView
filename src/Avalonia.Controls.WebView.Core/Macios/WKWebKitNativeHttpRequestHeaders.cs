@@ -4,9 +4,11 @@ using Avalonia.Controls.Utils;
 
 namespace Avalonia.Controls.Macios;
 
-internal class WKWebKitNativeHttpRequestHeaders(NSURLRequest request) : INativeHttpRequestHeaders
+internal class WKWebKitNativeHttpRequestHeaders(NSURLRequest request, bool treatAsImmutable) : INativeHttpRequestHeaders
 {
     public bool WasMutated { get; private set; }
+
+    public bool Immutable => treatAsImmutable;
 
     public bool TryClear() => false;
 
@@ -23,17 +25,29 @@ internal class WKWebKitNativeHttpRequestHeaders(NSURLRequest request) : INativeH
         return !string.IsNullOrEmpty(request[name]);
     }
 
-    public void SetHeader(string name, string value)
+    public bool TrySetHeader(string name, string value)
     {
+        if (treatAsImmutable)
+        {
+            return false;
+        }
+
         if (request is NSMutableURLRequest mutable)
         {
             mutable[name] = value;
             WasMutated = true;
         }
+
+        return true;
     }
 
-    public bool RemoveHeader(string name)
+    public bool TryRemoveHeader(string name)
     {
+        if (treatAsImmutable)
+        {
+            return false;
+        }
+
         if (request is NSMutableURLRequest mutable
             && !string.IsNullOrEmpty(request[name]))
         {

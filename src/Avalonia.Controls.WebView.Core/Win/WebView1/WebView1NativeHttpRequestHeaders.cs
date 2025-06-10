@@ -9,6 +9,7 @@ namespace Avalonia.Controls.Win.WebView1;
 internal class WebView1NativeHttpRequestHeaders(
     IHttpRequestHeaderCollection requestHeader) : INativeHttpRequestHeaders
 {
+    public bool Immutable => false;
     public bool TryClear() => false;
     public bool TryGetCount(out int count)
     {
@@ -28,14 +29,15 @@ internal class WebView1NativeHttpRequestHeaders(
         return false;
     }
 
-    public void SetHeader(string name, string value)
+    public bool TrySetHeader(string name, string value)
     {
         using var hName = new HStringInterop(name);
         using var hValue = new HStringInterop(value);
         requestHeader.TryAppendWithoutValidation(hName.Handle, hValue.Handle);
+        return true;
     }
 
-    public bool RemoveHeader(string name)
+    public bool TryRemoveHeader(string name)
     {
         LogWarning();
         return false;

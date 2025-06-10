@@ -6,12 +6,13 @@ namespace Avalonia.Controls.Utils;
 
 internal interface INativeHttpRequestHeaders
 {
+    bool Immutable { get; }
     bool TryClear();
     bool TryGetCount(out int count);
     string? GetHeader(string name);
     bool Contains(string name);
-    void SetHeader(string name, string value);
-    bool RemoveHeader(string name);
+    bool TrySetHeader(string name, string value);
+    bool TryRemoveHeader(string name);
     INativeHttpHeadersCollectionIterator GetIterator();
 }
 internal interface INativeHttpHeadersCollectionIterator
@@ -22,9 +23,23 @@ internal interface INativeHttpHeadersCollectionIterator
 }
 
 internal sealed class NativeHeadersCollection(
-    INativeHttpRequestHeaders nativeHeaders, bool treatAsReadOnly) : IDictionary<string, string>
+    INativeHttpRequestHeaders nativeHeaders) :
+    WebViewWebRequestHeaders, IDictionary<string, string>
 {
-    public IEnumerator<KeyValuePair<string, string>> GetEnumerator()
+    public override bool TrySet(string name, string value)
+    {
+        return nativeHeaders.TrySetHeader(name, value);
+    }
+
+    public override bool TryRemove(string name)
+    {
+        return nativeHeaders.TryRemoveHeader(name);
+    }
+
+    public override IEnumerable<string> Values => ((IDictionary<string, string>)this).Values;
+    public override IEnumerable<string> Keys => ((IDictionary<string, string>)this).Keys;
+
+    public override IEnumerator<KeyValuePair<string, string>> GetEnumerator()
     {
         var iterator = nativeHeaders.GetIterator();
         while (iterator.GetHasCurrentHeader())
@@ -43,14 +58,12 @@ internal sealed class NativeHeadersCollection(
 
     public void Add(KeyValuePair<string, string> item)
     {
-        if (treatAsReadOnly)
-            return;
-        nativeHeaders.SetHeader(item.Key, item.Value);
+        nativeHeaders.TrySetHeader(item.Key, item.Value);
     }
 
     public void Clear()
     {
-        if (treatAsReadOnly)
+        if (nativeHeaders.Immutable)
             return;
         if (!nativeHeaders.TryClear())
         {
@@ -65,7 +78,7 @@ internal sealed class NativeHeadersCollection(
             }
 
             foreach (var key in keys)
-                nativeHeaders.RemoveHeader(key);
+                nativeHeaders.TryRemoveHeader(key);
         }
     }
 
@@ -85,17 +98,14 @@ internal sealed class NativeHeadersCollection(
 
     public bool Remove(KeyValuePair<string, string> item)
     {
-        if (treatAsReadOnly)
-            return false;
         if (Contains(item))
         {
-            nativeHeaders.RemoveHeader(item.Key);
-            return true;
+            return nativeHeaders.TryRemoveHeader(item.Key);
         }
         return false;
     }
 
-    public int Count
+    public override int Count
     {
         get
         {
@@ -114,52 +124,48 @@ internal sealed class NativeHeadersCollection(
         }
     }
 
-    public bool IsReadOnly => treatAsReadOnly;
+    public bool IsReadOnly => nativeHeaders.Immutable;
 
     public void Add(string key, string value)
     {
-        if (treatAsReadOnly)
-            return;
-        nativeHeaders.SetHeader(key, value);
+        nativeHeaders.TrySetHeader(key, value);
     }
 
-    public bool ContainsKey(string key)
+    public override bool ContainsKey(string key)
     {
         return nativeHeaders.Contains(key);
     }
 
     public bool Remove(string key)
     {
-        if (treatAsReadOnly)
-            return false;
         if (ContainsKey(key))
         {
-            nativeHeaders.RemoveHeader(key);
-            return true;
+            return nativeHeaders.TryRemoveHeader(key);
         }
         return false;
     }
 
 #nullable disable // netstandard2.0 ...
-    public bool TryGetValue(string key, [MaybeNullWhen(false)] out string value)
+    public override bool TryGetValue(string key, [MaybeNullWhen(false)] out string value)
 #nullable restore
     {
-        value = nativeHeaders.GetHeader(key);
-        return value != null;
+        if (nativeHeaders.Contains(key))
+        {
+            value = nativeHeaders.GetHeader(key);
+            return true;
+        }
+
+        value = null;
+        return false;
     }
 
-    public string this[string key]
+    string IDictionary<string, string>.this[string key]
     {
         get => nativeHeaders.GetHeader(key) ?? throw new KeyNotFoundException(key);
-        set
-        {
-            if (treatAsReadOnly)
-                return;
-            nativeHeaders.SetHeader(key, value);
-        }
+        set => nativeHeaders.TrySetHeader(key, value);
     }
 
-    public ICollection<string> Keys
+    ICollection<string> IDictionary<string, string>.Keys
     {
         get
         {
@@ -176,7 +182,7 @@ internal sealed class NativeHeadersCollection(
         }
     }
 
-    public ICollection<string> Values
+    ICollection<string> IDictionary<string, string>.Values
     {
         get
         {

@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,9 +24,31 @@ public sealed class WebResourceRequestedEventArgs : EventArgs
     public required WebViewWebResourceRequest Request { get; init; }
 }
 
-public class WebViewWebResourceRequest
+public abstract class WebViewWebRequestHeaders : IReadOnlyDictionary<string, string>
 {
-    public required IDictionary<string, string> Headers { get; init; }
+    public abstract int Count { get; }
+    public abstract bool TrySet(string name, string value);
+    public abstract bool TryRemove(string name);
+
+    public abstract bool ContainsKey(string key);
+#if NET6_0_OR_GREATER
+    public abstract bool TryGetValue(string key, [MaybeNullWhen(false)] out string value);
+#else
+    public abstract bool TryGetValue(string key, out string value);
+#endif
+
+    public abstract IEnumerable<string> Keys { get; }
+    public abstract IEnumerable<string> Values { get; }
+
+    public abstract IEnumerator<KeyValuePair<string, string>> GetEnumerator();
+
+    public string this[string key] => TryGetValue(key, out var value) ? value : string.Empty;
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+}
+
+public sealed class WebViewWebResourceRequest
+{
+    public required WebViewWebRequestHeaders Headers { get; init; }
     public required HttpMethod Method { get; init; }
     public required Uri Uri { get; init; }
 

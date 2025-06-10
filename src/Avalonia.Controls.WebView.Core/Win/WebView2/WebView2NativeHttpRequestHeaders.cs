@@ -5,6 +5,7 @@ namespace Avalonia.Controls.Win.WebView2;
 
 internal class WebView2NativeHttpRequestHeaders(ICoreWebView2HttpRequestHeaders headers) : INativeHttpRequestHeaders
 {
+    public bool Immutable => false;
     public bool TryClear() => false;
     public bool TryGetCount(out int count)
     {
@@ -16,9 +17,9 @@ internal class WebView2NativeHttpRequestHeaders(ICoreWebView2HttpRequestHeaders 
 
     public bool Contains(string name) => headers.Contains(name);
 
-    public void SetHeader(string name, string value) => headers.SetHeader(name, value);
+    public bool TrySetHeader(string name, string value) => headers.SetHeader(name, value) == 0;
 
-    public bool RemoveHeader(string name) => headers.RemoveHeader(name) == 0;
+    public bool TryRemoveHeader(string name) => headers.RemoveHeader(name) == 0;
 
     public INativeHttpHeadersCollectionIterator GetIterator() => new Iterator(headers.GetIterator());
 

@@ -98,7 +98,7 @@ internal partial class WebViewCallbacks(WeakReference<WebView1Adapter> weakAdapt
             {
                 var request = new WebViewWebResourceRequest
                 {
-                    Headers = new NativeHeadersCollection(new WebView1NativeHttpRequestHeaders(nativeRequest.GetHeaders()), false),
+                    Headers = new NativeHeadersCollection(new WebView1NativeHttpRequestHeaders(nativeRequest.GetHeaders())),
                     Method = new HttpMethod(HStringInterop.FromIntPtr(nativeRequest.GetMethod().Method())!),
                     Uri = uri
                 };

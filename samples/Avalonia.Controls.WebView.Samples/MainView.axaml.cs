@@ -94,7 +94,7 @@ public partial class MainView : UserControl
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
             .Select(static e => e.Length > 100 ? e[..100] : e));
         LogList.Text += "\r\nNativeWebView_OnWebResourceRequested " + requestFormatted;
-        e.Request.Headers.Add("X-MyHeader", "Value");
+        var wasSet = e.Request.Headers.TrySet("X-MyHeader", "Value");
     }
 
     private void InputElement_OnKeyDown(object? sender, KeyEventArgs e)
