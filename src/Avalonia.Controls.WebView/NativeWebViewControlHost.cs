@@ -52,7 +52,7 @@ namespace Avalonia.Xpf.Controls
             }
             else if (OperatingSystemEx.IsLinux())
             {
-                adapter = new Core.Gtk.GtkX11WebViewAdapter(base.CreateNativeControlCore(parent));
+                adapter = new Core.Gtk.GtkX11WebViewAdapter(parent);
             }
             // else if (OperatingSystemEx.IsBrowser())
             // {

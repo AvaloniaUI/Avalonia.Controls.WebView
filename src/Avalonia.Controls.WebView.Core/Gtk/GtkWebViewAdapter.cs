@@ -56,12 +56,13 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
 
     public GtkWebViewAdapter()
     {
-        RunOnGlibThreadAsync(() =>
+        RunOnGlibThread(() =>
         {
             InitializeSafe();
             IsInitialized = true;
-            Dispatcher.UIThread.InvokeAsync(OnInitialized);
         });
+        // ReSharper disable once VirtualMemberCallInConstructor
+        OnInitialized();
     }
 
     public bool IsInitialized { get; private set; }
