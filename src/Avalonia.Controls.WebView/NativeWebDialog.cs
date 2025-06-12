@@ -380,6 +380,7 @@ namespace Avalonia.Xpf.Controls
                 dialogImpl = new WindowNativeWebViewDialog(factory);
             }
 
+            dialogImpl.AdapterInitialized += DialogImplOnAdapterInitialized;
             dialogImpl.Closing += DialogImplOnClosing;
 
             if (_initialCanUserResize is not null)
@@ -391,17 +392,18 @@ namespace Avalonia.Xpf.Controls
             if (_initialSize is { } size)
                 dialogImpl.Resize(size.Width, size.Height);
 
-            if (TryGetAdapter() is { } adapter)
-                DialogImplOnAdapterInitialized(this, new Core.WebViewAdapterEventArgs(adapter));
-            else
-                dialogImpl.AdapterInitialized += DialogImplOnAdapterInitialized;
-            dialogImpl.AdapterDestroyed += DialogImplOnAdapterDestroyed;
-
             _implTcs.SetResult(dialogImpl);
+
+            if (dialogImpl.TryGetAdapter() is { } adapter)
+                DialogImplOnAdapterInitialized(dialogImpl, new Core.WebViewAdapterEventArgs(adapter));
         }
 
         private void DialogImplOnAdapterDestroyed(object? sender, Core.WebViewAdapterEventArgs e)
         {
+            var dialog = (INativeWebViewDialog)sender!;
+            dialog.AdapterInitialized -= DialogImplOnAdapterInitialized;
+            dialog.AdapterDestroyed -= DialogImplOnAdapterDestroyed;
+
             var adapter = (Core.IWebViewAdapter)e.TryGetPlatformHandle()!;
             adapter.NavigationStarted -= WebViewAdapterOnNavigationStarted;
             adapter.NavigationCompleted -= WebViewAdapterOnNavigationCompleted;
@@ -413,6 +415,10 @@ namespace Avalonia.Xpf.Controls
 
         private void DialogImplOnAdapterInitialized(object? sender, Core.WebViewAdapterEventArgs e)
         {
+            var dialog = (INativeWebViewDialog)sender!;
+            dialog.AdapterInitialized -= DialogImplOnAdapterInitialized;
+            dialog.AdapterDestroyed += DialogImplOnAdapterDestroyed;
+
             var adapter = (Core.IWebViewAdapter)e.TryGetPlatformHandle()!;
             if (_navigationStarted is not null)
                 adapter.NavigationStarted += WebViewAdapterOnNavigationStarted;
