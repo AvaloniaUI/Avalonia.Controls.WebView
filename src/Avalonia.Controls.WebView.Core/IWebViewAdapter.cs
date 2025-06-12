@@ -234,12 +234,12 @@ internal interface IWebView
     event EventHandler<WebViewNavigationCompletedEventArgs>? NavigationCompleted;
 
     /// <summary>
-    ///     NavigationStarting dispatches before a new navigate starts for the top level document.
+    ///     NavigationStarted dispatches before a new navigate starts for the top level document.
     /// </summary>
     event EventHandler<WebViewNavigationStartingEventArgs>? NavigationStarted;
 
     /// <summary>
-    ///     NavigationStarting dispatches before a new navigate starts for the top level document.
+    ///     NewWindowRequested dispatches before a new navigate starts for the top level document.
     /// </summary>
     event EventHandler<WebViewNewWindowRequestedEventArgs>? NewWindowRequested;
 

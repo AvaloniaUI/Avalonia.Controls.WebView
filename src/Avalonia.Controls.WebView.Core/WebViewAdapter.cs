@@ -5,6 +5,8 @@ namespace Avalonia.Controls;
 
 internal static class WebViewAdapter
 {
+    public static bool UseHeadless { get; set; }
+
     public abstract record AdapterFactory;
 
     public delegate IWebViewAdapter CreateNativeWebViewAdapter(IPlatformHandle parent, Func<IPlatformHandle, IPlatformHandle> createChild);
@@ -15,6 +17,17 @@ internal static class WebViewAdapter
 
     public static AdapterFactory? CreateFactory(Action<WebViewEnvironmentRequestedEventArgs> environmentRequested)
     {
+        if (UseHeadless)
+        {
+            var args = new HeadlessWebViewEnvironmentRequestedEventArgs();
+            environmentRequested(args);
+            // Headless platform doesn't support NativeControlHost yet,
+            // But compositor solution kinda works there.
+            // Even though it's not production ready part of WebView (compositor/offscreen impl is not enabled by default).
+            return new CompositorHostAdapterFactory(_ =>
+                new Headless.HeadlessWebViewAdapter(args));
+        }
+
 #if ANDROID // Android is the only backend which conditionally compiled, the rest is always present and loaded in runtime
             // TODO: I would like to avoid Xamarin.Android here (as an extra target), and make it in-line with the rest. 
         if (OperatingSystem.IsAndroid())

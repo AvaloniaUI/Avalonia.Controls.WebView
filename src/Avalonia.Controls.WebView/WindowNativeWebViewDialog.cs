@@ -77,6 +77,10 @@ namespace Avalonia.Xpf.Controls
 #elif AVALONIA
             Position = new PixelPoint(x, y);
 #endif
+            if (!IsVisible)
+            {
+                WindowStartupLocation = WindowStartupLocation.Manual;
+            }
             return true;
         }
 

@@ -85,19 +85,15 @@ namespace Avalonia.Xpf.Controls
             (AvTopLevel topLevel, WebAuthenticatorOptions options)
 #endif
         {
-            using var dialog = new NativeWebDialog();
             var tcs = new TaskCompletionSource<WebAuthenticationResult>();
 
+            using var dialog = options.NativeWebDialogFactory?.Invoke() ?? DefaultFactory();
             dialog.Closing += OnClosing;
             dialog.NavigationStarted += OnNavigationStarted;
 
             try
             {
-                dialog.Title = "Authentication";
                 dialog.Source = options.RequestUri;
-                dialog.CanUserResize = false;
-                dialog.Resize(600, 700);
-
                 dialog.Show(topLevel);
 
                 return await tcs.Task;
@@ -129,6 +125,15 @@ namespace Avalonia.Xpf.Controls
                    && navigatingUri.Host == callbackUri.Host
                    && navigatingUri.AbsolutePath == callbackUri.AbsolutePath;
         }
+
+        private static NativeWebDialog DefaultFactory()
+        {
+            var dialog = new NativeWebDialog();
+            dialog.Title = "Authentication";
+            dialog.CanUserResize = false;
+            dialog.Resize(600, 700);
+            return dialog;
+        }
     }
 
     /// <summary>
@@ -142,6 +147,11 @@ namespace Avalonia.Xpf.Controls
         /// If true, WebAuthenticationBroker will avoid platform specific implementation option, and will use webview dialog window.
         /// </summary>
         public bool PreferNativeWebDialog { get; init; }
+
+        /// <summary>
+        /// Callback that can be used to override NativeWebDialog creation when WebAuthenticationBroker uses dialog implementation instead of system auth APIs.
+        /// </summary>
+        public Func<NativeWebDialog?>? NativeWebDialogFactory { get; init; }
     }
 
     /// <param name="CallbackUri">The response URI containing authentication data.</param>

@@ -33,6 +33,7 @@
 <!--    <InternalsVisibleTo Include="Avalonia.Xpf.Controls.WebView, PublicKey=$(AvaloniaPublicKey)" />-->
     <InternalsVisibleTo Include="Avalonia.Controls.WebView" />
     <InternalsVisibleTo Include="Avalonia.Xpf.Controls.WebView" />
+    <InternalsVisibleTo Include="Avalonia.Controls.WebView.Tests" />
   </ItemGroup>
 
   <Import Project="../Avalonia.Controls.WebView.Core/IncludeBuildItems.props" />

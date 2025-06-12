@@ -67,6 +67,18 @@ namespace Avalonia.Xpf.Controls
         {
             Core.Licensing.ValidateWebView();
             Initialized += OnInitialized;
+            _navigationCompleted += (_, e) =>
+            {
+                _ignoreNavigation = true;
+                try
+                {
+                    SetCurrentValue(SourceProperty, e.Request ?? Core.WebViewHelper.EmptyPage);
+                }
+                finally
+                {
+                    _ignoreNavigation = false;
+                }
+            };
         }
 
         internal INativeWebViewControlImpl? TryGetImpl() =>
@@ -308,16 +320,7 @@ namespace Avalonia.Xpf.Controls
 
         private void WebViewAdapterOnNavigationCompleted(object? sender, Core.WebViewNavigationCompletedEventArgs e)
         {
-            _ignoreNavigation = true;
-            try
-            {
-                SetCurrentValue(SourceProperty, e.Request ?? Core.WebViewHelper.EmptyPage);
-                _navigationCompleted?.Invoke(this, e);
-            }
-            finally
-            {
-                _ignoreNavigation = false;
-            }
+            _navigationCompleted?.Invoke(this, e);
         }
 
         private void WebViewAdapterOnNewWindowRequested(object? sender, Core.WebViewNewWindowRequestedEventArgs e)

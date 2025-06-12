@@ -359,7 +359,7 @@ namespace Avalonia.Xpf.Controls
         /// <summary>
         /// If dialog is based on a <see cref="Window"/>, returns its instance to allow full control.
         /// </summary>
-        public Window? TryGetWindow() => TryGetImpl() as WindowNativeWebViewDialog;
+        public Window? TryGetWindow() => GetOrInitialize() as WindowNativeWebViewDialog;
 
         internal bool Show(IPlatformHandle owner) => GetOrInitialize().Show(owner);
 
@@ -400,7 +400,7 @@ namespace Avalonia.Xpf.Controls
 
         private void DialogImplOnAdapterDestroyed(object? sender, Core.WebViewAdapterEventArgs e)
         {
-            var dialog = (INativeWebViewDialog)sender!;
+            var dialog = (Core.INativeWebViewDialog)sender!;
             dialog.AdapterInitialized -= DialogImplOnAdapterInitialized;
             dialog.AdapterDestroyed -= DialogImplOnAdapterDestroyed;
 
@@ -415,7 +415,7 @@ namespace Avalonia.Xpf.Controls
 
         private void DialogImplOnAdapterInitialized(object? sender, Core.WebViewAdapterEventArgs e)
         {
-            var dialog = (INativeWebViewDialog)sender!;
+            var dialog = (Core.INativeWebViewDialog)sender!;
             dialog.AdapterInitialized -= DialogImplOnAdapterInitialized;
             dialog.AdapterDestroyed += DialogImplOnAdapterDestroyed;
 
