@@ -256,6 +256,7 @@ internal sealed class WebView1Adapter : IWebViewAdapter, IWindowsWebView1Platfor
 
         if (s_lazyProcess is { } process && webViewsCount == 0)
         {
+            s_lazyProcess.Terminate();
             s_lazyProcess = null;
         }
     }
