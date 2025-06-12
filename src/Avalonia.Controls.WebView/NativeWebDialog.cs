@@ -400,7 +400,7 @@ namespace Avalonia.Xpf.Controls
 
         private void DialogImplOnAdapterDestroyed(object? sender, Core.WebViewAdapterEventArgs e)
         {
-            var dialog = (INativeWebViewDialog)sender!;
+            var dialog = (Core.INativeWebViewDialog)sender!;
             dialog.AdapterInitialized -= DialogImplOnAdapterInitialized;
             dialog.AdapterDestroyed -= DialogImplOnAdapterDestroyed;
 
@@ -415,7 +415,7 @@ namespace Avalonia.Xpf.Controls
 
         private void DialogImplOnAdapterInitialized(object? sender, Core.WebViewAdapterEventArgs e)
         {
-            var dialog = (INativeWebViewDialog)sender!;
+            var dialog = (Core.INativeWebViewDialog)sender!;
             dialog.AdapterInitialized -= DialogImplOnAdapterInitialized;
             dialog.AdapterDestroyed += DialogImplOnAdapterDestroyed;
 
