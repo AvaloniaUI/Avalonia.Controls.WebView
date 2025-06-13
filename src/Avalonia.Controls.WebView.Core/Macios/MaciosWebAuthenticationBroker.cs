@@ -11,7 +11,7 @@ namespace Avalonia.Controls.Macios;
 [SupportedOSPlatform("ios13.0")]
 internal static class MaciosWebAuthenticationBroker
 {
-    public static async Task<Uri> AuthenticateAsync(TopLevel topLevel, Uri requestUri, string scheme)
+    public static async Task<Uri> AuthenticateAsync(TopLevel topLevel, Uri requestUri, string scheme, bool ephemeral)
     {
         var tcs = new TaskCompletionSource<Uri>();
 
@@ -19,6 +19,7 @@ internal static class MaciosWebAuthenticationBroker
 
         using var session = CreateSession(requestUri, scheme, tcs);
         session.PresentationContextProvider = context;
+        session.PrefersEphemeralWebBrowserSession = ephemeral;
         session.Start();
 
         var result = await tcs.Task;

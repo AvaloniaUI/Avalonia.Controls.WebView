@@ -56,7 +56,7 @@ namespace Avalonia.Xpf.Controls
                 if ((OperatingSystemEx.IsIOSVersionAtLeast(13, 0) || OperatingSystemEx.IsMacOSVersionAtLeast(10, 15)))
                 {
                     var uri = await Core.Macios.MaciosWebAuthenticationBroker.AuthenticateAsync(avTopLevel,
-                        options.RequestUri, options.RedirectUri.Scheme);
+                        options.RequestUri, options.RedirectUri.Scheme, options.NonPersistent);
                     return new WebAuthenticationResult(uri);
                 }
 #if NET8_0_OR_GREATER
@@ -88,6 +88,18 @@ namespace Avalonia.Xpf.Controls
             var tcs = new TaskCompletionSource<WebAuthenticationResult>();
 
             using var dialog = options.NativeWebDialogFactory?.Invoke() ?? DefaultFactory();
+            dialog.EnvironmentRequested += (_, args) =>
+            {
+                if (args is WindowsWebView2EnvironmentRequestedEventArgs webView2
+                    && options.NonPersistent)
+                    webView2.IsInPrivateModeEnabled = true;
+                else if (args is AppleWKWebViewEnvironmentRequestedEventArgs wkWebView
+                         && options.NonPersistent)
+                    wkWebView.DataStore = AppleWKWebViewEnvironmentRequestedEventArgs.WebsiteDataStore.NonPersistent;
+                else if (args is GtkWebViewEnvironmentRequestedEventArgs gtkWebView
+                         && options.NonPersistent)
+                    gtkWebView.EphemeralDataManager = true;
+            };
             dialog.Closing += OnClosing;
             dialog.NavigationStarted += OnNavigationStarted;
 
@@ -147,6 +159,11 @@ namespace Avalonia.Xpf.Controls
         /// If true, WebAuthenticationBroker will avoid platform specific implementation option, and will use webview dialog window.
         /// </summary>
         public bool PreferNativeWebDialog { get; init; }
+
+        /// <summary>
+        /// Hint for the platform implementation to not store any session data persistently.
+        /// </summary>
+        public bool NonPersistent { get; init; }
 
         /// <summary>
         /// Callback that can be used to override NativeWebDialog creation when WebAuthenticationBroker uses dialog implementation instead of system auth APIs.
