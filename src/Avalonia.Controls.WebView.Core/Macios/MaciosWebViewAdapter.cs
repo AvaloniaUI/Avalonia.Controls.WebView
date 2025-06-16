@@ -71,7 +71,8 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _navDelegate.DecidePolicyNavigation += OnDelegateOnDecidePolicyNavigation;
 
         _webView = new WKWebView(_config) { NavigationDelegate = _navDelegate };
-        _webView.Opaque = true;
+        _webView.Opaque = false;
+        _webView.DrawsBackground = false;
         _webView.PerformKeyEquivalent += WebViewOnPerformKeyEquivalent;
         _webView.BecomeFirstResponder += OnWebViewOnBecomeFirstResponder;
         _webView.ResignFirstResponder += OnWebViewOnResignFirstResponder;
@@ -187,6 +188,8 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
             using var color = AppleColor.FromRGBA(
                 value.R / 255f, value.G / 255f, value.B / 255f, value.A / 255f);
             _webView.BackgroundColor = color;
+            if (OperatingSystemEx.IsIOS())
+                _webView.ScrollView!.BackgroundColor = color;
         }
     }
 

@@ -10,7 +10,7 @@ namespace Avalonia.Controls.Macios.Interop;
 /// <summary>
 /// NSView on macOS or UIView on iOS
 /// </summary>
-internal abstract unsafe class AppleView : NSManagedObjectBase
+internal unsafe class AppleView : NSManagedObjectBase
 {
     private static readonly void* s_performKeyEquivalent = (delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, int>)&OnPerformKeyEquivalent;
     private static readonly void* s_acceptsFirstResponder = (delegate* unmanaged[Cdecl]<IntPtr, IntPtr, int>)&AcceptsFirstResponder;
@@ -32,8 +32,10 @@ internal abstract unsafe class AppleView : NSManagedObjectBase
     private static readonly IntPtr s_removeFromSuperview = Libobjc.sel_getUid("removeFromSuperview");
     private static readonly IntPtr s_backgroundColor =  Libobjc.sel_getUid("backgroundColor");
     private static readonly IntPtr s_setBackgroundColor =  Libobjc.sel_getUid("setBackgroundColor:");
-    private static readonly IntPtr s_opaque =  Libobjc.sel_getUid("opaque");
+    private static readonly IntPtr s_opaque =  Libobjc.sel_getUid("isOpaque");
     private static readonly IntPtr s_setOpaque =  Libobjc.sel_getUid("setOpaque:"); 
+
+    private static readonly NSString s_drawsBackground = NSString.Create("drawsBackground");
 
     protected static void RegisterMethods(IntPtr thisClass)
     {
@@ -54,7 +56,7 @@ internal abstract unsafe class AppleView : NSManagedObjectBase
         Debug.Assert(result == 1);
     }
 
-    protected AppleView(IntPtr handle, bool owns) : base(handle, owns)
+    public AppleView(IntPtr handle, bool owns) : base(handle, owns)
     {
     }
 
@@ -81,16 +83,26 @@ internal abstract unsafe class AppleView : NSManagedObjectBase
         }
     }
 
-    public AppleColor BackgroundColor
+    public AppleView? Superview => Libobjc.intptr_objc_msgSend(Handle, s_superview) is var val && val != IntPtr.Zero
+        ? new AppleView(val, false) : null;
+
+    public AppleColor? BackgroundColor
     {
-        get => AppleColor.FromHandle(Libobjc.intptr_objc_msgSend(Handle, s_backgroundColor));
-        set => Libobjc.void_objc_msgSend(Handle, s_setBackgroundColor, value.Handle);
+        get => Libobjc.intptr_objc_msgSend(Handle, s_backgroundColor) is var val && val != IntPtr.Zero
+            ? AppleColor.FromHandle(val) : null;
+        set => Libobjc.void_objc_msgSend(Handle, s_setBackgroundColor, value?.Handle ?? IntPtr.Zero);
     }
 
     public bool Opaque
     {
         get => Libobjc.int_objc_msgSend(Handle, s_opaque) == 1;
         set => Libobjc.void_objc_msgSend(Handle, s_setOpaque, value ? 1 : 0);
+    }
+
+    public bool DrawsBackground
+    {
+        get => ValueForKey(s_drawsBackground) == NSNumber.Yes.Handle;
+        set => SetValueForKey(value ? NSNumber.Yes.Handle : NSNumber.No.Handle, s_drawsBackground);
     }
 
     public void Copy() => Libobjc.void_objc_msgSend(Handle, s_copy);

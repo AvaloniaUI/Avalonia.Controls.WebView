@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Threading.Tasks;
 
 namespace Avalonia.Controls.Macios.Interop.WebKit;
@@ -14,6 +15,7 @@ internal class WKWebView : AppleView
     private static readonly IntPtr s_loadRequest = Libobjc.sel_getUid("loadRequest:");
     private static readonly IntPtr s_loadHTMLString = Libobjc.sel_getUid("loadHTMLString:baseURL:");
     private static readonly IntPtr s_url = Libobjc.sel_getUid("URL");
+    private static readonly IntPtr s_scrollView = Libobjc.sel_getUid("scrollView");
 
     private static readonly IntPtr s_canGoBack = Libobjc.sel_getUid("canGoBack");
     private static readonly IntPtr s_goBack = Libobjc.sel_getUid("goBack");
@@ -55,6 +57,11 @@ internal class WKWebView : AppleView
             Libobjc.void_objc_msgSend(Handle, s_setNavigationDelegate, value?.Handle ?? default);
         }
     }
+
+    [SupportedOSPlatform("ios")]
+    public AppleView? ScrollView => Libobjc.intptr_objc_msgSend(Handle, s_scrollView) is var val && val != IntPtr.Zero ?
+        new AppleView(val, false) :
+        null;
 
     public NSUrl? Url => Libobjc.intptr_objc_msgSend(Handle, s_url) is var handle && handle != default ?
         new(handle, false) :
