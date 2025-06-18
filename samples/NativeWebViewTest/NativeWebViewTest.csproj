@@ -8,10 +8,11 @@
         <UseWpf>true</UseWpf>
         <DisableAutomaticXpfInit>true</DisableAutomaticXpfInit>
         <ApplicationManifest>app.manifest</ApplicationManifest>
+        <AssemblyName>XpfIntegrationTests</AssemblyName>
     </PropertyGroup>
 
     <ItemGroup>
-        <RuntimeHostConfigurationOption Include="AvaloniaUI.Xpf.LicenseKey" Value="****" />
+        <RuntimeHostConfigurationOption Include="AvaloniaUI.Xpf.LicenseKey" Value="$(XpfLicenseKey)" />
     </ItemGroup>
 
     <ItemGroup>

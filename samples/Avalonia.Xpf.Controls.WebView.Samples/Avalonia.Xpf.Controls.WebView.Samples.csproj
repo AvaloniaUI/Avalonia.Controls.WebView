@@ -6,6 +6,7 @@
     <UseWPF>true</UseWPF>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <XpfReplaceSystemDrawing>false</XpfReplaceSystemDrawing>
+    <AssemblyName>XpfIntegrationTests</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +16,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <RuntimeHostConfigurationOption Include="AvaloniaUI.Xpf.LicenseKey" Value="****" />
+    <RuntimeHostConfigurationOption Include="AvaloniaUI.Xpf.LicenseKey" Value="$(XpfLicenseKey)" />
   </ItemGroup>
 </Project>
