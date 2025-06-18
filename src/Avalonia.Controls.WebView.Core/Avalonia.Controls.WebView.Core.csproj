@@ -25,21 +25,18 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
   </ItemGroup>
 
   <ItemGroup>
-<!--    <InternalsVisibleTo Include="Avalonia.Controls.WebView, PublicKey=$(AvaloniaPublicKey)" />-->
-<!--    <InternalsVisibleTo Include="Avalonia.Xpf.Controls.WebView, PublicKey=$(AvaloniaPublicKey)" />-->
-    <InternalsVisibleTo Include="Avalonia.Controls.WebView" />
-    <InternalsVisibleTo Include="Avalonia.Xpf.Controls.WebView" />
-    <InternalsVisibleTo Include="Avalonia.Controls.WebView.Tests" />
+    <InternalsVisibleTo Include="Avalonia.Controls.WebView, PublicKey=$(AvaloniaPublicKey)" />
+    <InternalsVisibleTo Include="Avalonia.Xpf.Controls.WebView, PublicKey=$(AvaloniaPublicKey)" />
+    <InternalsVisibleTo Include="Avalonia.Controls.WebView.Tests, PublicKey=$(AvaloniaPublicKey)" />
   </ItemGroup>
 
   <Import Project="../Avalonia.Controls.WebView.Core/IncludeBuildItems.props" />
   <Import Project="$(RepositoryPropsRoot)/Constants.targets" />
   <Import Project="$(RepositoryPropsRoot)/NullableEnable.targets" />
   <Import Project="$(RepositoryPropsRoot)/PolyfillEnable.targets" />
-<!--  <Import Project="$(RepositoryPropsRoot)/SignEnable.targets" />-->
+  <Import Project="$(RepositoryPropsRoot)/SignEnable.targets" />
   <Import Project="$(RepositoryPropsRoot)/TrimmingEnable.targets" />
 </Project>

@@ -23,4 +23,5 @@
     <ProjectReference Include="..\..\src\Avalonia.Controls.WebView\Avalonia.Controls.WebView.csproj" />
   </ItemGroup>
 
+  <Import Project="$(RepositoryPropsRoot)/SignEnable.targets" />
 </Project>

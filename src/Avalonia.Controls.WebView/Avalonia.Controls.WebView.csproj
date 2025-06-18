@@ -5,7 +5,6 @@
       net8.0;net8.0-android
     </TargetFrameworks>
     <DefineConstants>$(DefineConstants);AVALONIA</DefineConstants>
-    <IsPackable>true</IsPackable>
     <RootNamespace>Avalonia.Controls</RootNamespace>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <AndroidGenerateResourceDesigner>false</AndroidGenerateResourceDesigner>
@@ -24,6 +23,6 @@
   <Import Project="$(RepositoryPropsRoot)/PackEnable.targets" />
   <Import Project="$(RepositoryPropsRoot)/NullableEnable.targets" />
   <Import Project="$(RepositoryPropsRoot)/PolyfillEnable.targets" />
-<!--  <Import Project="$(RepositoryPropsRoot)/SignEnable.targets" />-->
+  <Import Project="$(RepositoryPropsRoot)/SignEnable.targets" />
   <Import Project="$(RepositoryPropsRoot)/TrimmingEnable.targets" />
 </Project>
