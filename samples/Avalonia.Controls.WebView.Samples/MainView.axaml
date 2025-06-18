@@ -4,8 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Avalonia.Controls.WebView.Samples.MainView"
-             KeyDown="Window_OnKeyDown"
-             KeyUp="Window_OnKeyUp">
+             KeyDown="View_OnKeyDown"
+             KeyUp="View_OnKeyUp">
     <TabControl x:Name="TabControl">
         <TabItem Header="AvaloniaUI">
             <Grid x:Name="GridContainer" RowDefinitions="3*, *">
@@ -45,7 +45,7 @@
                 </StackPanel>
                 <Border Background="Yellow">
                     <NativeWebView x:Name="TransparentWebView"
-                                   AttachedToLogicalTree="TransparentWebView_OnAttachedToLogicalTree"/>
+                                   Loaded="TransparentWebView_OnLoaded" />
                 </Border>
             </DockPanel>
         </TabItem>

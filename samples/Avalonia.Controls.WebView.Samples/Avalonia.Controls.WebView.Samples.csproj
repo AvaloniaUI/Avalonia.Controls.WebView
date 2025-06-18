@@ -4,6 +4,7 @@
     <PropertyGroup>
         <TargetFramework>net9.0</TargetFramework>
         <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+        <DefineConstants>$(DefineConstants);AVALONIA</DefineConstants>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="Avalonia" Version="$(AvaloniaSampleVersion)"/>

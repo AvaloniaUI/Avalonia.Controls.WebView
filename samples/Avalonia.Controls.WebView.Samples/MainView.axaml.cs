@@ -2,18 +2,26 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.JavaScript;
 using System.Threading.Tasks;
-using Avalonia.Controls;
+#if AVALONIA
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Media;
-using Avalonia.Platform;
-using Avalonia.Threading;
+#elif WPF
+using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Controls;
+#endif
+using AC = Avalonia.Controls;
+using AP = Avalonia.Platform;
 
+#if AVALONIA
 namespace Avalonia.Controls.WebView.Samples;
+#elif WPF
+namespace Avalonia.Xpf.Controls.WebView.Samples;
+#endif
 
 public partial class MainView : UserControl
 {
@@ -26,7 +34,7 @@ public partial class MainView : UserControl
         RedirectUri.Text = redirectUri;
     }
 
-    private async void NativeWebView_OnNavigationCompleted(object? sender, WebViewNavigationCompletedEventArgs e)
+    private async void NativeWebView_OnNavigationCompleted(object? sender, AC.WebViewNavigationCompletedEventArgs e)
     {
         LogList.Text += "\r\nNativeWebView_OnNavigationCompleted " + e.Request;
 
@@ -81,17 +89,17 @@ public partial class MainView : UserControl
         }
     }
 
-    private void NativeWebView_OnNavigationStarted(object? sender, WebViewNavigationStartingEventArgs e)
+    private void NativeWebView_OnNavigationStarted(object? sender, AC.WebViewNavigationStartingEventArgs e)
     {
         LogList.Text += "\r\nNativeWebView_OnNavigationStarted " + e.Request;
     }
 
-    private void NativeWebView_OnWebMessageReceived(object? sender, WebMessageReceivedEventArgs e)
+    private void NativeWebView_OnWebMessageReceived(object? sender, AC.WebMessageReceivedEventArgs e)
     {
         LogList.Text += "\r\nNativeWebView_OnWebMessageReceived " + e.Body;
     }
 
-    private void NativeWebView_OnWebResourceRequested(object? sender, WebResourceRequestedEventArgs e)
+    private void NativeWebView_OnWebResourceRequested(object? sender, AC.WebResourceRequestedEventArgs e)
     {
         var requestFormatted = string.Join(Environment.NewLine, e.Request.ToString()
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
@@ -103,14 +111,20 @@ public partial class MainView : UserControl
 
     private void InputElement_OnKeyDown(object? sender, KeyEventArgs e)
     {
-        LogList.Text += "\r\nInputElement_OnKeyDown " + e.Key + " " + e.KeyModifiers;
+        LogList.Text += "\r\nInputElement_OnKeyDown " + e.Key + " " + GetKeyModifiers(e);
     }
 
-    private void Window_OnKeyDown(object? sender, KeyEventArgs e)
+    private void View_OnKeyDown(object? sender, KeyEventArgs e)
     {
-        LogList.Text += "\r\nWindow_OnKeyDown " + e.Key + " " + e.KeyModifiers;
+        var modifiers = GetKeyModifiers(e);
+        LogList.Text += "\r\nWindow_OnKeyDown " + e.Key + " " + modifiers;
 
-        if (e is { Key: Key.P, KeyModifiers: KeyModifiers.Control })
+        if (e is { Key: Key.P }
+#if AVALONIA
+            && modifiers.HasFlag(KeyModifiers.Control))
+#elif WPF
+            && modifiers.HasFlag(ModifierKeys.Control))
+#endif
         {
             using (WebView.BeginReparenting())
             {
@@ -128,19 +142,23 @@ public partial class MainView : UserControl
 
     private void InputElement_OnKeyUp(object? sender, KeyEventArgs e)
     {
-        LogList.Text += "\r\nInputElement_OnKeyUp " + e.Key + " " + e.KeyModifiers;
+        LogList.Text += "\r\nInputElement_OnKeyUp " + e.Key + " " + GetKeyModifiers(e);
     }
 
-    private void Window_OnKeyUp(object? sender, KeyEventArgs e)
+    private void View_OnKeyUp(object? sender, KeyEventArgs e)
     {
-        LogList.Text += "\r\nWindow_OnKeyUp " + e.Key + " " + e.KeyModifiers;
+        LogList.Text += "\r\nWindow_OnKeyUp " + e.Key + " " + GetKeyModifiers(e);
     }
 
     private async void WebAuthenticationBrokerButton_OnClick(object? sender, RoutedEventArgs e)
     {
         try
         {
+#if AVALONIA
             var topLevel = TopLevel.GetTopLevel(this);
+#elif WPF
+            var topLevel = Window.GetWindow(this);
+#endif
             var options = new WebAuthenticatorOptions(new Uri(RequestUri.Text!), new Uri(RedirectUri.Text!, UriKind.RelativeOrAbsolute));
 
             var result = await WebAuthenticationBroker.AuthenticateAsync(topLevel!, options);
@@ -178,13 +196,13 @@ public partial class MainView : UserControl
         return (requestUri, redirectUri);
     }
 
-    private void NativeWebView_OnNewWindowRequested(object? sender, WebViewNewWindowRequestedEventArgs e)
+    private void NativeWebView_OnNewWindowRequested(object? sender, AC.WebViewNewWindowRequestedEventArgs e)
     {
         TabControl.Items.Add(new TabItem { Header = "New tab", Content = new NativeWebView { Source = e.Request! } });
         e.Handled = true;
     }
 
-    private unsafe void NativeWebView_OnAdapterCreated(object? sender, WebViewAdapterEventArgs e)
+    private unsafe void NativeWebView_OnAdapterCreated(object? sender, AC.WebViewAdapterEventArgs e)
     {
         LogList.Text += "\r\nNativeWebView_OnAdapterCreated " + e.TryGetPlatformHandle()?.GetType().Name;
 
@@ -204,22 +222,22 @@ public partial class MainView : UserControl
         // }
     }
 
-    private void NativeWebView_OnAdapterDestroyed(object? sender, WebViewAdapterEventArgs e)
+    private void NativeWebView_OnAdapterDestroyed(object? sender, AC.WebViewAdapterEventArgs e)
     {
         LogList.Text += "\r\nNativeWebView_OnAdapterDestroyed " + e.TryGetPlatformHandle()?.GetType().Name;
     }
 
-    private void NativeWebView_OnEnvironmentRequested(object? sender, WebViewEnvironmentRequestedEventArgs e)
+    private void NativeWebView_OnEnvironmentRequested(object? sender, AC.WebViewEnvironmentRequestedEventArgs e)
     {
         LogList.Text += "\r\nNativeWebView_OnEnvironmentRequested";
         e.EnableDevTools = true;
-        if (e is WindowsWebView2EnvironmentRequestedEventArgs webView2)
+        if (e is AP.WindowsWebView2EnvironmentRequestedEventArgs webView2)
         {
             // webView2.UserAgent = "AvaloniaWebView";
             webView2.ProfileName = "AvaloniaUser";
             webView2.UserDataFolder = Path.Combine(AppContext.BaseDirectory, "webview");
         }
-        else if (e is AppleWKWebViewEnvironmentRequestedEventArgs wkWebView)
+        else if (e is AP.AppleWKWebViewEnvironmentRequestedEventArgs wkWebView)
         {
             wkWebView.NonPersistentDataStore = true;
             wkWebView.ApplicationNameForUserAgent = "Avalonia WebView Sample";
@@ -246,8 +264,14 @@ public partial class MainView : UserControl
     {
         TransparentWebView.Background = new LinearGradientBrush
         {
+#if AVALONIA
             StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
             EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+#elif WPF
+            StartPoint = new System.Windows.Point(0, 0),
+            EndPoint = new System.Windows.Point(1, 1),
+            MappingMode = BrushMappingMode.RelativeToBoundingBox,
+#endif
             GradientStops =
             [
                 new GradientStop(Colors.Green, 0),
@@ -256,7 +280,7 @@ public partial class MainView : UserControl
         };
     }
 
-    private void TransparentWebView_OnAttachedToLogicalTree(object? sender, LogicalTreeAttachmentEventArgs e)
+    private void TransparentWebView_OnLoaded(object? sender, RoutedEventArgs e)
     {
         TransparentWebView.NavigateToString(
             """
@@ -310,4 +334,10 @@ public partial class MainView : UserControl
             source :
             new Uri("about:blank");
     }
+
+#if AVALONIA
+    private KeyModifiers GetKeyModifiers(KeyEventArgs e) => e.KeyModifiers;
+#elif WPF
+    private ModifierKeys GetKeyModifiers(KeyEventArgs e) => Keyboard.Modifiers;
+#endif
 }
