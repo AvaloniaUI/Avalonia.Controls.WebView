@@ -5,7 +5,6 @@ using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using Android.App;
 using Android.Content;
-using AndroidX.Browser.CustomTabs;
 using Avalonia.Android;
 
 namespace Avalonia.Controls.Android;
@@ -33,10 +32,8 @@ internal static class AndroidWebAuthenticationBroker
         avActivity.ActivityResult += ActivityResult;
         try
         {
-            var builder = new CustomTabsIntent.Builder()
-                .Build();
+            var intent = new Intent(Intent.ActionView, null);
 
-            var intent = builder.Intent;
             _ = intent.AddFlags(ActivityFlags.SingleTop);
             _ = intent.SetData(global::Android.Net.Uri.Parse(requestUri.ToString()));
 

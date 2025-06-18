@@ -32,7 +32,9 @@ namespace Avalonia.Xpf.Controls
             (AvTopLevel topLevel, WebAuthenticatorOptions options)
 #endif
         {
+#if !WPF
             Licensing.ValidateWebView();
+#endif
 
             var supportsNativeWebDialog =
                 OperatingSystemEx.IsWindows() || OperatingSystemEx.IsLinux() || OperatingSystemEx.IsMacOS();

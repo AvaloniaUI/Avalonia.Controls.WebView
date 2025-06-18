@@ -6,15 +6,25 @@
     <UseWPF>true</UseWPF>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <XpfReplaceSystemDrawing>false</XpfReplaceSystemDrawing>
+    <AssemblyName>XpfIntegrationTests</AssemblyName>
+    <DefineConstants>$(DefineConstants);WPF</DefineConstants>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
+<!--    <PackageReference Include="Avalonia.Xpf.Controls.WebView" Version="9999.0.0-localbuild" />-->
     <ProjectReference Include="..\..\src\Avalonia.Xpf.Controls.WebView\Avalonia.Xpf.Controls.WebView.csproj" />
     <ProjectReference Include="..\..\src\Avalonia.Controls.WebView.Core\Avalonia.Controls.WebView.Core.csproj" />
     <PackageReference Include="Avalonia.Diagnostics" Version="$(XpfAvaloniaVersion)"/>
   </ItemGroup>
 
   <ItemGroup>
-    <RuntimeHostConfigurationOption Include="AvaloniaUI.Xpf.LicenseKey" Value="****" />
+    <RuntimeHostConfigurationOption Include="AvaloniaUI.Xpf.LicenseKey" Value="$(XpfLicenseKey)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Avalonia.Controls.WebView.Samples\MainView.axaml.cs">
+      <Link>MainView.axaml.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>

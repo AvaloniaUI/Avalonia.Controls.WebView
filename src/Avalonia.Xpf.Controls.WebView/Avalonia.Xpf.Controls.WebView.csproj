@@ -4,9 +4,8 @@
     <TargetFrameworks>net462;net6.0-windows</TargetFrameworks>
     <UseWpf>true</UseWpf>
     <DefineConstants>$(DefineConstants);WPF</DefineConstants>
-    <!-- <IsPackable>true</IsPackable> -->
     <RootNamespace>Avalonia.Xpf.Controls</RootNamespace>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <CopyLocalLockFileAssemblies Condition="'$(ILMergeBuild)' == 'true'">true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
@@ -44,10 +43,10 @@
     </Compile>
   </ItemGroup>
 
-<!--  <Import Project="$(RepositoryPropsRoot)/PackEnable.targets" />-->
+  <Import Project="$(RepositoryPropsRoot)/PackEnable.targets" />
   <Import Project="$(RepositoryPropsRoot)/Constants.targets" />
   <Import Project="$(RepositoryPropsRoot)/NullableEnable.targets" />
   <Import Project="$(RepositoryPropsRoot)/PolyfillEnable.targets" />
-<!--  <Import Project="$(RepositoryPropsRoot)/SignEnable.targets" />-->
+  <Import Project="$(RepositoryPropsRoot)/SignEnable.targets" />
   <Import Project="$(RepositoryPropsRoot)/TrimmingEnable.targets" />
 </Project>

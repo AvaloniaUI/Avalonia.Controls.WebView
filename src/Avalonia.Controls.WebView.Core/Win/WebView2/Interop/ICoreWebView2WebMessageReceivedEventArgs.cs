@@ -17,6 +17,6 @@ internal partial interface ICoreWebView2WebMessageReceivedEventArgs
     string GetSource();
     [return: MarshalAs(UnmanagedType.LPWStr)]
     string WebMessageAsJson();
-    [return: MarshalAs(UnmanagedType.LPWStr)]
-    string? TryGetWebMessageAsString();
+    [PreserveSig]
+    int TryGetWebMessageAsString([MarshalAs(UnmanagedType.LPWStr)] out string result);
 }

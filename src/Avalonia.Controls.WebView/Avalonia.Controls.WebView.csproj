@@ -5,13 +5,14 @@
       net8.0;net8.0-android
     </TargetFrameworks>
     <DefineConstants>$(DefineConstants);AVALONIA</DefineConstants>
-    <IsPackable>true</IsPackable>
     <RootNamespace>Avalonia.Controls</RootNamespace>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <CopyLocalLockFileAssemblies Condition="'$(ILMergeBuild)' == 'true'">true</CopyLocalLockFileAssemblies>
     <AndroidGenerateResourceDesigner>false</AndroidGenerateResourceDesigner>
+    <AvnLicensingEmitBuildTime>true</AvnLicensingEmitBuildTime>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AvaloniaUI.Licensing" Version="2.0.0-cibuild000076" />
     <ProjectReference Include="..\Avalonia.Controls.WebView.Core\Avalonia.Controls.WebView.Core.csproj" PrivateAssets="all" />
   </ItemGroup>
 
@@ -24,6 +25,6 @@
   <Import Project="$(RepositoryPropsRoot)/PackEnable.targets" />
   <Import Project="$(RepositoryPropsRoot)/NullableEnable.targets" />
   <Import Project="$(RepositoryPropsRoot)/PolyfillEnable.targets" />
-<!--  <Import Project="$(RepositoryPropsRoot)/SignEnable.targets" />-->
+  <Import Project="$(RepositoryPropsRoot)/SignEnable.targets" />
   <Import Project="$(RepositoryPropsRoot)/TrimmingEnable.targets" />
 </Project>

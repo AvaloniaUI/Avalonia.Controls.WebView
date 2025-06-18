@@ -16,7 +16,7 @@ using Avalonia.Threading;
 namespace Avalonia.Controls.Win.WebView2;
 
 [SupportedOSPlatform("windows6.1")] // win7
-internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieManager, IWindowsWebView2PlatformHandle
+internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieManager, IWebViewAdapterWithFocus, IWindowsWebView2PlatformHandle
 {
     private EventHandler<WebResourceRequestedEventArgs>? _webResourceRequested;
     private ICoreWebView2Controller? _controller;
@@ -80,6 +80,8 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
         }
     }
 
+    public event EventHandler? GotFocus;
+    public event EventHandler<IWebViewAdapterWithFocus.LostFocusDirection>? LostFocus;
     public event EventHandler? Initialized;
 
     public Color DefaultBackground
@@ -187,11 +189,23 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
         _controller.SetParentWindow(parent.Handle);
     }
 
+    public bool Focus()
+    {
+        if (_controller is null)
+            return false;
+        _controller.MoveFocus(0 /* Programmatic */);
+        return true;
+    }
+
+    public bool ResignFocus() => false;
+
     internal EventHandler<WebViewNavigationStartingEventArgs>? GetNavigationStarted() => NavigationStarted;
     internal EventHandler<WebViewNavigationCompletedEventArgs>? GetNavigationCompleted() => NavigationCompleted;
     internal EventHandler<WebMessageReceivedEventArgs>? GetWebMessageReceived() => WebMessageReceived;
     internal EventHandler<WebResourceRequestedEventArgs>? GetWebResourceRequested() => _webResourceRequested;
     internal EventHandler<WebViewNewWindowRequestedEventArgs>? GetNewWindowRequested() => NewWindowRequested;
+    internal EventHandler? GetGotFocus() => GotFocus;
+    internal EventHandler<IWebViewAdapterWithFocus.LostFocusDirection>? GetLostFocus() => LostFocus;
 
     private async void Initialize(IPlatformHandle parentHost, WindowsWebView2EnvironmentRequestedEventArgs environmentArgs)
     {
@@ -224,10 +238,9 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
             // }
 
             _controller = controller;
-
             SizeChanged(default);
 
-            _subscriptions = AddHandlers(webView);
+            _subscriptions = AddHandlers(controller, webView);
 
             if (_webResourceRequested is not null)
             {
@@ -247,7 +260,7 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
     protected abstract Task<ICoreWebView2Controller> CreateWebView2Controller(ICoreWebView2Environment env,
         IntPtr handle, WindowsWebView2EnvironmentRequestedEventArgs environmentArgs);
 
-    private Action AddHandlers(ICoreWebView2 webView)
+    private Action AddHandlers(ICoreWebView2Controller controller, ICoreWebView2 webView)
     {
         var callbacks = new WebViewCallbacks(new WeakReference<WebView2BaseAdapter>(this));
         webView.add_NavigationStarting(callbacks, out var token1);
@@ -255,6 +268,8 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
         webView.add_WebMessageReceived(callbacks, out var token3);
         webView.add_WebResourceRequested(callbacks, out var token5);
         webView.add_NewWindowRequested(callbacks, out var token4);
+        controller.add_MoveFocusRequested(callbacks, out var token6);
+        controller.add_GotFocus(callbacks, out var token7);
 
         return () =>
         {
@@ -263,6 +278,8 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
             webView.remove_WebMessageReceived(token3);
             webView.remove_NewWindowRequested(token5);
             webView.remove_NewWindowRequested(token4);
+            controller.remove_MoveFocusRequested(token6);
+            controller.remove_MoveFocusRequested(token7);
         };
     }
 

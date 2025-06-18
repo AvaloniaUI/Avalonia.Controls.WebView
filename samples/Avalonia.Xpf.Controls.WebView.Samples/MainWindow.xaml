@@ -3,29 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:controls="clr-namespace:Avalonia.Xpf.Controls;assembly=Avalonia.Xpf.Controls.WebView"
+        xmlns:samples="clr-namespace:Avalonia.Xpf.Controls.WebView.Samples"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800"
-        KeyDown="MainWindow_OnKeyDown">
-  <TabControl x:Name="TabControl">
-    <TabItem Header="XPF">
-      <Grid x:Name="GridContainer">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="3*" />
-          <RowDefinition Height="1*" />
-        </Grid.RowDefinitions>
-        <controls:NativeWebView x:Name="WebView"
-                           Source="https://google.com/"
-                           NavigationCompleted="NativeWebView_OnNavigationCompleted"
-                           NavigationStarted="NativeWebView_OnNavigationStarted"
-                           WebMessageReceived="NativeWebView_OnWebMessageReceived"
-                           PreviewKeyDown="WebView_OnPreviewKeyDown"
-                           PreviewKeyUp="WebView_OnPreviewKeyUp"
-                           TextInput="WebView_OnTextInput"
-                           KeyDown="WebView_OnKeyDown"
-                           KeyUp="WebView_OnKeyUp"/>
-        <TextBox IsReadOnly="True" Grid.Row="1" x:Name="LogList" />
-      </Grid>
-    </TabItem>
-  </TabControl>
+        Title="MainWindow" Height="450" Width="800">
+  <samples:MainView />
 </Window>

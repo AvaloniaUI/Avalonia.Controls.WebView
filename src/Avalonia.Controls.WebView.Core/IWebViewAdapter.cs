@@ -347,7 +347,14 @@ internal interface IWebViewAdapterWithFocus : IWebViewAdapter
     bool Focus();
     bool ResignFocus();
     event EventHandler? GotFocus;
-    event EventHandler? LostFocus;
+    event EventHandler<LostFocusDirection>? LostFocus;
+
+    public enum LostFocusDirection
+    {
+        Unknown,
+        Next,
+        Previous,
+    }
 }
 
 internal interface IWebViewAdapterWithInputRedirect : IWebViewAdapter

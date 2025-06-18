@@ -35,15 +35,15 @@ internal partial interface ICoreWebView2Controller
     void remove_ZoomFactorChanged(EventRegistrationToken token);
 
     void SetBoundsAndZoomFactor(tagRECT Bounds, double ZoomFactor);
-    void MoveFocus(int reason);
+    void MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON reason);
 
-    void add_MoveFocusRequested([MarshalAs(UnmanagedType.Interface)] IntPtr eventHandler, out EventRegistrationToken token);
+    void add_MoveFocusRequested([MarshalAs(UnmanagedType.Interface)] ICoreWebView2MoveFocusRequestedEventHandler eventHandler, out EventRegistrationToken token);
     void remove_MoveFocusRequested(EventRegistrationToken token);
 
-    void add_GotFocus([MarshalAs(UnmanagedType.Interface)] IntPtr eventHandler, out EventRegistrationToken token);
+    void add_GotFocus([MarshalAs(UnmanagedType.Interface)] ICoreWebView2FocusChangedEventHandler eventHandler, out EventRegistrationToken token);
     void remove_GotFocus(EventRegistrationToken token);
 
-    void add_LostFocus([MarshalAs(UnmanagedType.Interface)] IntPtr eventHandler, out EventRegistrationToken token);
+    void add_LostFocus([MarshalAs(UnmanagedType.Interface)] ICoreWebView2FocusChangedEventHandler eventHandler, out EventRegistrationToken token);
     void remove_LostFocus(EventRegistrationToken token);
 
     void add_AcceleratorKeyPressed([MarshalAs(UnmanagedType.Interface)] IntPtr eventHandler, out EventRegistrationToken token);

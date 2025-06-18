@@ -117,7 +117,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
     public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
     public event EventHandler<WebResourceRequestedEventArgs>? WebResourceRequested;
     public event EventHandler? GotFocus;
-    public event EventHandler? LostFocus;
+    public event EventHandler<IWebViewAdapterWithFocus.LostFocusDirection>? LostFocus;
     public event Action<RoutedEventArgs>? Input;
     public bool GoBack() => _webView.GoBack() != default;
     public bool GoForward() => _webView.GoForward() != default;
@@ -266,7 +266,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
     private void OnWebViewOnResignFirstResponder(object? o, EventArgs eventArgs)
     {
-        LostFocus?.Invoke(this, EventArgs.Empty);
+        LostFocus?.Invoke(this, IWebViewAdapterWithFocus.LostFocusDirection.Unknown);
     }
 
     private void OnWebViewOnBecomeFirstResponder(object? o, EventArgs eventArgs)

@@ -1,0 +1,93 @@
+﻿<UserControl x:Class="Avalonia.Xpf.Controls.WebView.Samples.MainView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:controls="clr-namespace:Avalonia.Xpf.Controls;assembly=Avalonia.Xpf.Controls.WebView"
+             mc:Ignorable="d"
+             d:DesignHeight="300" d:DesignWidth="300"
+             KeyDown="View_OnKeyDown"
+             KeyUp="View_OnKeyUp">
+
+    <TabControl x:Name="TabControl">
+        <TabItem Header="AvaloniaUI">
+            <Grid x:Name="GridContainer">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="3*" />
+                <RowDefinition Height="*" />
+              </Grid.RowDefinitions>
+              <controls:NativeWebView x:Name="WebView"
+                                      Source="https://google.com/"
+                                      EnvironmentRequested="NativeWebView_OnEnvironmentRequested"
+                                      NavigationCompleted="NativeWebView_OnNavigationCompleted"
+                                      NavigationStarted="NativeWebView_OnNavigationStarted"
+                                      WebMessageReceived="NativeWebView_OnWebMessageReceived"
+                                      WebResourceRequested="NativeWebView_OnWebResourceRequested"
+                                      NewWindowRequested="NativeWebView_OnNewWindowRequested"
+                                      AdapterCreated="NativeWebView_OnAdapterCreated"
+                                      AdapterDestroyed="NativeWebView_OnAdapterDestroyed"
+                                      KeyDown="InputElement_OnKeyDown"
+                                      KeyUp="InputElement_OnKeyUp" />
+                <TextBox IsReadOnly="True" Grid.Row="1" x:Name="LogList" />
+            </Grid>
+        </TabItem>
+        <TabItem Header="Input types">
+            <controls:NativeWebView Source="https://www.w3schools.com/tags/att_input_type.asp"
+                           NewWindowRequested="NativeWebView_OnNewWindowRequested" />
+        </TabItem>
+        <TabItem Header="GetUserMedia">
+            <controls:NativeWebView Source="https://webrtc.github.io/samples/"
+                           NewWindowRequested="NativeWebView_OnNewWindowRequested" />
+        </TabItem>
+        <TabItem Header="Transparent">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top"
+                            Orientation="Horizontal"
+                            Margin="10">
+                    <Button Content="Transparent" Click="Make_Transparent_Clicked" />
+                    <Button Content="Solid" Click="Make_Solid_Background_Clicked" />
+                    <Button Content="Default" Click="Make_Default_Background_Clicked" />
+                    <Button Content="Gradient" Click="Make_Gradient_Background_Clicked" />
+                </StackPanel>
+                <Border Background="Yellow">
+                    <controls:NativeWebView x:Name="TransparentWebView"
+                                            Loaded="TransparentWebView_OnLoaded" />
+                </Border>
+            </DockPanel>
+        </TabItem>
+        <TabItem Header="Grid">
+            <Grid>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="GridWebViewSource"
+                         Grid.Row="0" Grid.Column="0" />
+                <Button x:Name="GridWebViewButton"
+                        Content="GO"
+                        Click="GridWebViewButton_OnClick"
+                        Grid.Row="0" Grid.Column="1" />
+                <StackPanel Grid.Row="1" Grid.Column="1">
+                    <TextBlock Text="Another panel" />
+                </StackPanel>
+                <controls:NativeWebView x:Name="GridWebView"
+                               Source="https://avaloniaui.net"
+                               Grid.Row="1" Grid.Column="0"/>
+            </Grid>
+        </TabItem>
+        <TabItem Header="WebAuthenticationBroker">
+            <StackPanel>
+                <TextBox x:Name="RequestUri" />
+                <TextBox x:Name="RedirectUri" />
+                <Button Content="Go" Click="WebAuthenticationBrokerButton_OnClick" />
+                <TextBox x:Name="CallbackUri"
+                         AcceptsReturn="True" />
+            </StackPanel>
+        </TabItem>
+    </TabControl>
+</UserControl>
+

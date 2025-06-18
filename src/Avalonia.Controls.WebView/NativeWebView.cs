@@ -48,9 +48,6 @@ namespace Avalonia.Xpf.Controls
         public static readonly DependencyProperty SourceProperty = DependencyProperty.Register(
             nameof(Source), typeof(Uri), typeof(NativeWebView),
             new PropertyMetadata(new Uri("about:blank"), SourcePropertyChangedCallback));
-        public new static readonly DependencyProperty BackgroundProperty =
-            Control.BackgroundProperty.AddOwner(typeof(NativeWebView),
-                new PropertyMetadata(null, DefaultBackgroundPropertyChangedCallback));
 #elif AVALONIA
         public static readonly StyledProperty<Uri> SourceProperty = AvaloniaProperty.Register<NativeWebView, Uri>(
             nameof(Source), new Uri("about:blank"));
@@ -63,7 +60,8 @@ namespace Avalonia.Xpf.Controls
         static NativeWebView()
         {
 #if WPF
-            FocusableProperty.OverrideMetadata(typeof(NativeWebView), new UIPropertyMetadata(true));
+            FocusableProperty.OverrideMetadata(typeof(NativeWebView), new FrameworkPropertyMetadata(true));
+            BackgroundProperty.OverrideMetadata(typeof(NativeWebView), new FrameworkPropertyMetadata(BackgroundPropertyChangedCallback));
 #elif AVALONIA
             FocusableProperty.OverrideDefaultValue<NativeWebView>(true);
 #endif
@@ -71,7 +69,11 @@ namespace Avalonia.Xpf.Controls
 
         public NativeWebView()
         {
+            // XPF customers don't need a special license to use XPF controls.
+#if !WPF
             Core.Licensing.ValidateWebView();
+#endif
+            
             Initialized += OnInitialized;
             _navigationCompleted += (_, e) =>
             {
@@ -351,6 +353,11 @@ namespace Avalonia.Xpf.Controls
         }
 
         private void OnInitialized(object? sender, EventArgs e)
+#if WPF
+            // Due to differences in initialization order between Avalonia and WPF, we delay adapter creation on WPF,
+            // because it's happening way too early there, even before subscribers were ready  
+            => Dispatcher.CurrentDispatcher.InvokeAsync(() =>
+#endif
         {
             var adapterFactory = Core.WebViewAdapter.CreateFactory(args => EnvironmentRequested?.Invoke(this, args));
             INativeWebViewControlImpl controlHostImpl = adapterFactory switch
@@ -374,6 +381,9 @@ namespace Avalonia.Xpf.Controls
 
             _controlHostImplTcs.TrySetResult(controlHostImpl);
         }
+#if WPF
+        );
+#endif
 
         private void WithFocusOnGotFocus(object? sender, EventArgs e)
         {
@@ -381,11 +391,12 @@ namespace Avalonia.Xpf.Controls
             try
             {
 #if WPF
+                RaiseEvent(new RoutedEventArgs(GotFocusEvent));
                 (s_getXpfHostDelegate(this) as Avalonia.Input.IInputElement)?.Focus();
                 Keyboard.Focus(this);
 #elif AVALONIA
                 var focusManager = TopLevel.GetTopLevel(this)?.FocusManager;
-                if (focusManager != this)
+                if (!ReferenceEquals(focusManager?.GetFocusedElement(), this))
                 {
                     Focus();
                 }
@@ -397,9 +408,21 @@ namespace Avalonia.Xpf.Controls
             }
         }
 
-        private void WithFocusOnLostFocus(object? sender, EventArgs e)
+        private void WithFocusOnLostFocus(object? sender, Core.IWebViewAdapterWithFocus.LostFocusDirection e)
         {
-            // no-op?
+            // TODO: add avalonia APIs once possible
+#if WPF
+            switch (e)
+            {
+                case Core.IWebViewAdapterWithFocus.LostFocusDirection.Next:
+                    MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+                    break;
+                case Core.IWebViewAdapterWithFocus.LostFocusDirection.Previous:
+                    MoveFocus(new TraversalRequest(FocusNavigationDirection.Previous));
+                    break;
+            }
+            RaiseEvent(new RoutedEventArgs(LostFocusEvent));
+#endif
         }
 
         private void WithInputOnInput(global::Avalonia.Interactivity.RoutedEventArgs obj)
@@ -485,7 +508,7 @@ namespace Avalonia.Xpf.Controls
             }
         }
 
-        private static void DefaultBackgroundPropertyChangedCallback(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private static void BackgroundPropertyChangedCallback(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var @this = (NativeWebView)d;
             if (e.NewValue is Brush background)

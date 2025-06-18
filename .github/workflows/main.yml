@@ -20,17 +20,23 @@ jobs:
     - name: CreateNugetPackages
       run: dotnet run --project ${{github.workspace}}/build/_build.csproj --target CreateNugetPackages --configuration Release --output ${{github.workspace}}/artifacts/packages/
 
-    - name: Upload nupkg artifact
+    - name: Upload Avalonia nupkg artifact
       uses: actions/upload-artifact@v4
       with:
         name: nupkgs
-        path: ${{github.workspace}}/artifacts/**/*.nupkg
+        path: ${{github.workspace}}/artifacts/**/Avalonia.Controls.WebView.nupkg
         retention-days: 1
+    - name: Upload XPF nupkg artifact
+      uses: actions/upload-artifact@v4
+      with:
+          name: nupkgs
+          path: ${{github.workspace}}/artifacts/**/Avalonia.Xpf.Controls.WebView.nupkg
+          retention-days: 1
 
-  publish-nightly:
+  publish-xpf-release:
     runs-on: [self-hosted, Linux]
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: startsWith(github.ref, 'refs/heads/release/')
     steps:
 
     - uses: actions/download-artifact@v4
@@ -38,14 +44,14 @@ jobs:
         name: nupkgs
         path: ./nupkgs
 
-    - name: Publish release
-      run: dotnet nuget push ./nupkgs/**/*.nupkg  --api-key ${{secrets.baget_api_key}} --source ${{ vars.BAGET_API_URL }}
+    - name: Publish XPF release
+      run: dotnet nuget push ./nupkgs/**/Avalonia.Xpf.Controls.WebView.nupkg  --api-key ${{secrets.baget_api_key}} --source ${{ vars.BAGET_API_URL }}
 
     - name: Clean packages
       if: always()
       run: rm -rf ./nupkgs
 
-  publish-release:
+  publish-accelerate-release:
     runs-on: [self-hosted, Linux]
     needs: build
     if: startsWith(github.ref, 'refs/heads/release/')
@@ -57,7 +63,7 @@ jobs:
         path: ./nupkgs
 
     - name: Publish release
-      run: dotnet nuget push ./nupkgs/**/*.nupkg --api-key ${{secrets.PROPACK_FEED_API_KEY}} --source ${{ vars.PROPACK_FEED_UPLOAD_URL }}
+      run: dotnet nuget push ./nupkgs/**/Avalonia.Controls.WebView.nupkg --api-key ${{secrets.PROPACK_FEED_API_KEY}} --source ${{ vars.PROPACK_FEED_UPLOAD_URL }}
 
     - name: Clean packages
       if: always()
