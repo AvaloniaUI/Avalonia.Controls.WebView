@@ -391,11 +391,12 @@ namespace Avalonia.Xpf.Controls
             try
             {
 #if WPF
+                RaiseEvent(new RoutedEventArgs(GotFocusEvent));
                 (s_getXpfHostDelegate(this) as Avalonia.Input.IInputElement)?.Focus();
                 Keyboard.Focus(this);
 #elif AVALONIA
                 var focusManager = TopLevel.GetTopLevel(this)?.FocusManager;
-                if (focusManager != this)
+                if (!ReferenceEquals(focusManager?.GetFocusedElement(), this))
                 {
                     Focus();
                 }
@@ -407,9 +408,21 @@ namespace Avalonia.Xpf.Controls
             }
         }
 
-        private void WithFocusOnLostFocus(object? sender, EventArgs e)
+        private void WithFocusOnLostFocus(object? sender, Core.IWebViewAdapterWithFocus.LostFocusDirection e)
         {
-            // no-op?
+            // TODO: add avalonia APIs once possible
+#if WPF
+            switch (e)
+            {
+                case Core.IWebViewAdapterWithFocus.LostFocusDirection.Next:
+                    MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+                    break;
+                case Core.IWebViewAdapterWithFocus.LostFocusDirection.Previous:
+                    MoveFocus(new TraversalRequest(FocusNavigationDirection.Previous));
+                    break;
+            }
+            RaiseEvent(new RoutedEventArgs(LostFocusEvent));
+#endif
         }
 
         private void WithInputOnInput(global::Avalonia.Interactivity.RoutedEventArgs obj)

@@ -13,7 +13,8 @@ namespace Avalonia.Controls.Win.WebView2;
 [SupportedOSPlatform("windows6.1")]
 internal partial class WebViewCallbacks(WeakReference<WebView2BaseAdapter> weakAdapter) : ICoreWebView2NavigationStartingEventHandler,
     ICoreWebView2NavigationCompletedEventHandler, ICoreWebView2WebMessageReceivedEventHandler,
-    ICoreWebView2NewWindowRequestedEventHandler, ICoreWebView2WebResourceRequestedEventHandler
+    ICoreWebView2NewWindowRequestedEventHandler, ICoreWebView2WebResourceRequestedEventHandler,
+    ICoreWebView2MoveFocusRequestedEventHandler, ICoreWebView2FocusChangedEventHandler
 {
     public void Invoke(ICoreWebView2 sender, ICoreWebView2NavigationStartingEventArgs e)
     {
@@ -87,6 +88,30 @@ internal partial class WebViewCallbacks(WeakReference<WebView2BaseAdapter> weakA
                 handler.Invoke(adapter, args);
                 headersWrapper.Dispose();
             }
+        }
+    }
+
+    public void Invoke(ICoreWebView2Controller sender, ICoreWebView2MoveFocusRequestedEventArgs e)
+    {
+        if (weakAdapter.TryGetTarget(out var adapter)
+            && adapter.GetLostFocus() is { } handler)
+        {
+            var reason = e.GetReason();
+            handler.Invoke(adapter, reason switch
+            {
+                COREWEBVIEW2_MOVE_FOCUS_REASON.COREWEBVIEW2_MOVE_FOCUS_REASON_NEXT => IWebViewAdapterWithFocus.LostFocusDirection.Next,
+                COREWEBVIEW2_MOVE_FOCUS_REASON.COREWEBVIEW2_MOVE_FOCUS_REASON_PREVIOUS => IWebViewAdapterWithFocus.LostFocusDirection.Previous,
+                _ => IWebViewAdapterWithFocus.LostFocusDirection.Unknown
+            });
+        }
+    }
+
+    void ICoreWebView2FocusChangedEventHandler.Invoke(ICoreWebView2Controller sender, IntPtr args)
+    {
+        if (weakAdapter.TryGetTarget(out var adapter)
+            && adapter.GetGotFocus() is { } handler)
+        {
+            handler.Invoke(adapter, EventArgs.Empty);
         }
     }
 }

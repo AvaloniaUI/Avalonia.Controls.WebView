@@ -92,7 +92,7 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
     public event EventHandler? Initialized;
 
     public event EventHandler? GotFocus;
-    public event EventHandler? LostFocus;
+    public event EventHandler<IWebViewAdapterWithFocus.LostFocusDirection>? LostFocus;
 
     public bool Focus() => RunOnGlibThread(() =>
     {
@@ -427,7 +427,7 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
 
         Dispatcher.UIThread.InvokeAsync(() =>
         {
-            adapter.LostFocus?.Invoke(adapter, EventArgs.Empty);
+            adapter.LostFocus?.Invoke(adapter, IWebViewAdapterWithFocus.LostFocusDirection.Unknown);
         });
         return false;
     }
