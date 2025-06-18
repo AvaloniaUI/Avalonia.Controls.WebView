@@ -41,7 +41,10 @@ namespace Avalonia.Xpf.Controls
 
         public NativeWebDialog()
         {
+            // XPF customers don't need a special license to use XPF controls.
+#if !WPF
             Core.Licensing.ValidateWebView();
+#endif
         }
 
         private Core.IWebViewAdapter? TryGetAdapter() => TryGetImpl()?.TryGetAdapter();

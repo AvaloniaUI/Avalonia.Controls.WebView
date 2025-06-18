@@ -71,7 +71,10 @@ namespace Avalonia.Xpf.Controls
 
         public NativeWebView()
         {
+            // XPF customers don't need a special license to use XPF controls.
+#if !WPF
             Core.Licensing.ValidateWebView();
+#endif
             Initialized += OnInitialized;
             _navigationCompleted += (_, e) =>
             {
