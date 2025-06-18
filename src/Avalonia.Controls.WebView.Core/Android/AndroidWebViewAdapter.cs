@@ -85,7 +85,7 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
     public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
     public event EventHandler<WebResourceRequestedEventArgs>? WebResourceRequested;
     public event EventHandler? GotFocus;
-    public event EventHandler? LostFocus;
+    public event EventHandler<IWebViewAdapterWithFocus.LostFocusDirection>? LostFocus;
     public event Action<RoutedEventArgs>? Input;
 
     public bool GoBack()
