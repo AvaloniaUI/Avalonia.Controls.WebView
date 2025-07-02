@@ -377,7 +377,7 @@ namespace Avalonia.Xpf.Controls
             Core.INativeWebViewDialog dialogImpl;
 
             // Special case for GTK, as we want to use GTK window instead of Avalonia window there.
-            if (Core.OperatingSystemEx.IsLinux())
+            if (Core.OperatingSystemEx.IsLinux() && !Core.WebViewAdapter.UseHeadless)
             {
                 var args = new GtkWebViewEnvironmentRequestedEventArgs();
                 EnvironmentRequested?.Invoke(this, args);
