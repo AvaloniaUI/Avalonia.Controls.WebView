@@ -109,7 +109,7 @@ class Build : NukeBuild
                         .Where(f => Array.IndexOf(depNamesToMerge, f.Name) >= 0);
 
                     var dependenciesArg = string.Join(" ", dependenciesToMerge.Select(dll => '"' + dll + '"'));
-                    var signParams = "";// $"/keyfile:{RootDirectory / "build" / "avalonia.snk"}";
+                    var signParams = $"/keyfile:{RootDirectory / "build" / "avalonia.snk"}";
 
                     IlRepackTool.Invoke(
                         $"""/internalize:{coreProjectPublicApi} /renameinternalized /parallel /ndebug {libs:nq} {signParams} /out:"{mergeRootDll}" "{mergeRootDll}" {dependenciesArg} """,
@@ -121,7 +121,6 @@ class Build : NukeBuild
     Target Obfuscate => _ => _
         .DependsOn(Compile)
         .DependsOn(IlMerge)
-        .OnlyWhenStatic(() => OperatingSystem.IsWindows() || !IsLocalBuild)
         .Executes(() =>
         {
             string[] projectsToObfuscate =
@@ -144,7 +143,15 @@ class Build : NukeBuild
             }
             else
             {
-                throw new Exception("Babel license is missing");
+                if (IsLocalBuild)
+                {
+                    licenseFile = null;
+                    Log.Warning("LocalBuild obfuscation is skipped - no license key was set via BABEL_LICENSE env");
+                }
+                else
+                {
+                    throw new Exception("Babel license is missing");
+                }
             }
 
             try

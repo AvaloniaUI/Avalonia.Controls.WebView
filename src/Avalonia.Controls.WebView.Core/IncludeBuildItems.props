@@ -11,7 +11,7 @@
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
   </ItemGroup>
 
-  <ItemGroup Label="Android Group" Condition=" '$(TargetPlatformIdentifier)' == 'android' ">
+  <ItemGroup Label="Android Group" Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' ">
     <PackageReference Include="Avalonia.Android" Version="$(AvaloniaVersion)" />
   </ItemGroup>
 

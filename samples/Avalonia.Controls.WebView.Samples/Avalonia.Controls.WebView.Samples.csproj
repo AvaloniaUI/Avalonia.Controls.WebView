@@ -9,7 +9,7 @@
     <ItemGroup>
         <PackageReference Include="Avalonia" Version="$(AvaloniaSampleVersion)"/>
         <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaSampleVersion)"/>
-        <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.0.3" />
+        <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.0.4" />
     </ItemGroup>
     <ItemGroup>
 <!--      <PackageReference Include="Avalonia.Controls.WebView" Version="9999.0.0-localbuild" />-->
@@ -17,4 +17,6 @@
         <ProjectReference Include="..\..\src\Avalonia.Controls.WebView.Core\Avalonia.Controls.WebView.Core.csproj" />
     </ItemGroup>
 
+    <Import Project="$(RepositoryPropsRoot)/NullableEnable.targets" />
+    <Import Project="$(RepositoryPropsRoot)/TrimmingEnable.targets" />
 </Project>

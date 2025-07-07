@@ -3,6 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
     <PublishAot Condition="'$(Configuration)' == 'Release'">true</PublishAot>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -16,4 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Avalonia.Controls.WebView.Samples\Avalonia.Controls.WebView.Samples.csproj" />
   </ItemGroup>
+
+  <Import Project="$(RepositoryPropsRoot)/NullableEnable.targets" />
+  <Import Project="$(RepositoryPropsRoot)/TrimmingEnable.targets" />
 </Project>
