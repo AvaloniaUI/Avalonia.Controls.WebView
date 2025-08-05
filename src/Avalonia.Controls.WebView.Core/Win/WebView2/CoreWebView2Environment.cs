@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
@@ -55,7 +56,7 @@ internal static partial class CoreWebView2Environment
                 }
                 else if (res != 0)
                 {
-                    envCallback.Result.TrySetException(new Win32Exception((int)res));
+                    envCallback.Result.TrySetException(Marshal.GetExceptionForHR((int)res) ?? new Win32Exception((int)res));
                 }
                 tcs = envCallback.Result;
             }

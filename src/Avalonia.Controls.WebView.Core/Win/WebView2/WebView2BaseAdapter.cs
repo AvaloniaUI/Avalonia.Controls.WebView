@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
@@ -16,7 +17,7 @@ using Avalonia.Threading;
 namespace Avalonia.Controls.Win.WebView2;
 
 [SupportedOSPlatform("windows6.1")] // win7
-internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieManager, IWebViewAdapterWithFocus, IWindowsWebView2PlatformHandle
+internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieManager, IWebViewAdapterWithFocus, IWebViewWithPrintToPdf, IWindowsWebView2PlatformHandle
 {
     private EventHandler<WebResourceRequestedEventArgs>? _webResourceRequested;
     private ICoreWebView2Controller? _controller;
@@ -187,6 +188,22 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
             throw new InvalidOperationException("IPlatformHandle.HandleDescriptor must be HWND");
 
         _controller.SetParentWindow(parent.Handle);
+    }
+
+    public Task<Stream> PrintToPdfStreamAsync()
+    {
+        if (TryGetWebView2() is not ICoreWebView2_16 webView)
+        {
+            return Task.FromException<Stream>(new InvalidOperationException("WebView Adapter is not initialized"));
+        }
+
+        var printSettings = ((ICoreWebView2Environment6)webView.Environment()).CreatePrintSettings();
+        // printSettings.put_ShouldPrintBackgrounds(false);
+        printSettings.put_ShouldPrintHeaderAndFooter(false);
+
+        var handler = new WebView2PrintToPdfStreamCompletedHandler();
+        webView.PrintToPdfStream(printSettings, handler);
+        return handler.Result.Task;
     }
 
     public bool Focus()

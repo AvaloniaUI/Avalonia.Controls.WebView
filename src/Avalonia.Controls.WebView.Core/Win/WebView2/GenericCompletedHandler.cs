@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace Avalonia.Controls.Win.WebView2;
@@ -10,7 +11,7 @@ internal abstract class GenericCompletedHandler<TResult> : CallbackBase
     public void Invoke(int errorCode, TResult result)
     {
         if (errorCode != 0)
-            Result?.TrySetException(new Win32Exception(errorCode));
+            Result.SetException(Marshal.GetExceptionForHR(errorCode) ?? new Win32Exception(errorCode));
         else
             Result?.TrySetResult(result);
     }
