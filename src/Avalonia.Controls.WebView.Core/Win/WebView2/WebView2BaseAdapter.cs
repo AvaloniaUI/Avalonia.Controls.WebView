@@ -214,8 +214,13 @@ internal abstract partial class WebView2BaseAdapter : IWebViewAdapterWithCookieM
         }
 
         var printSettings = ((ICoreWebView2Environment6)webView.Environment()).CreatePrintSettings();
-        // printSettings.put_ShouldPrintBackgrounds(false);
+        // remove margins to match GTK and Apple implementations
+        printSettings.put_MarginLeft(0);
+        printSettings.put_MarginRight(0);
+        printSettings.put_MarginTop(0);
+        printSettings.put_MarginBottom(0);
         printSettings.put_ShouldPrintHeaderAndFooter(false);
+        // printSettings.put_ShouldPrintBackgrounds(false);
 
         var handler = new WebView2PrintToPdfStreamCompletedHandler();
         webView.PrintToPdfStream(printSettings, handler);
