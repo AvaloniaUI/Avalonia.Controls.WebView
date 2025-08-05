@@ -291,7 +291,7 @@ internal unsafe class GtkOffscreenWebViewAdapter(GtkWebViewEnvironmentRequestedE
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static unsafe bool DrawCallback(IntPtr widget, IntPtr* cairoTex, IntPtr data)
     {
-        if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkOffscreenWebViewAdapter adapter)
+        if (!GtkSignal.TryGetState<GtkOffscreenWebViewAdapter>(data, out var adapter))
         {
             return false;
         }

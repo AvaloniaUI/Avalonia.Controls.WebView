@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -31,6 +32,18 @@ internal sealed class GtkSignal
     private static void OnDestroy(IntPtr data, IntPtr closure)
     {
         GCHandle.FromIntPtr(data).Free();
+    }
+
+    public static bool TryGetState<TState>(IntPtr statePtr, [NotNullWhen(true)] out TState? state) where TState : class
+    {
+        if (statePtr != IntPtr.Zero && GCHandle.FromIntPtr(statePtr).Target is TState s)
+        {
+            state = s;
+            return true;
+        }
+
+        state = null;
+        return false;
     }
 
     public void Dispose()

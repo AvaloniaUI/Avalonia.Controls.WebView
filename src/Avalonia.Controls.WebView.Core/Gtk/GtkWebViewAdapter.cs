@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -14,7 +15,7 @@ using static Avalonia.Controls.Gtk.AvaloniaGtk;
 
 namespace Avalonia.Controls.Gtk;
 
-internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatformHandle
+internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatformHandle, IWebViewWithPrintToPdf
 {
     private const string PostAvWebViewMessageName = "postAvWebViewMessage";
 
@@ -42,7 +43,7 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
         new((delegate* unmanaged[Cdecl]<IntPtr, GdkEvent*, IntPtr, bool>)&FocusOutCallback);
 
     private static readonly unsafe IntPtr s_scriptMessageReceivedCallback =
-        new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void>)&ScriptMessagReceivedCallback);
+        new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void>)&ScriptMessageReceivedCallback);
 
     private static readonly unsafe IntPtr s_resourceLoadStartedCallback =
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, IntPtr, void>)&ResourceLoadStartedCallback);
@@ -168,6 +169,42 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
 
     public void SetParent(IPlatformHandle parent)
     {
+    }
+
+    public async Task<Stream> PrintToPdfStreamAsync()
+    {
+        var tempFile = Path.GetTempFileName();
+        GtkPrintOperation? operation = null; 
+        try
+        {
+            await RunOnGlibThreadAsync(() =>
+            {
+                operation = new GtkPrintOperation(WebViewHandle, tempFile);
+                operation.Print();
+            }).ConfigureAwait(false);
+
+            await operation!.Task.ConfigureAwait(false);
+
+#if NET6_0_OR_GREATER
+            await
+#endif
+                using var stream = File.OpenRead(tempFile);
+            var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            memoryStream.Seek(0, SeekOrigin.Begin);
+            return memoryStream;
+        }
+        finally
+        {
+            File.Delete(tempFile);
+            if (operation is not null)
+            {
+                await RunOnGlibThreadAsync(() =>
+                {
+                    operation.Dispose();
+                });
+            }
+        }
     }
 
     public virtual Color DefaultBackground
@@ -300,7 +337,7 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static bool DecidePolicy(IntPtr webView, IntPtr decision, int type, IntPtr data)
     {
-        if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkWebViewAdapter adapter)
+        if (!GtkSignal.TryGetState<GtkWebViewAdapter>(data, out var adapter))
         {
             return false;
         }
@@ -360,7 +397,7 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void LoadChanged(IntPtr webView, WebKitLoadEvent loadEvent, IntPtr data)
     {
-        if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkWebViewAdapter adapter)
+        if (!GtkSignal.TryGetState<GtkWebViewAdapter>(data, out var adapter))
         {
             return;
         }
@@ -420,7 +457,7 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static unsafe bool FocusOutCallback(IntPtr widget, GdkEvent* gdkEvent, IntPtr data)
     {
-        if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkWebViewAdapter adapter)
+        if (!GtkSignal.TryGetState<GtkWebViewAdapter>(data, out var adapter))
         {
             return false;
         }
@@ -435,7 +472,7 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static unsafe bool FocusInCallback(IntPtr widget, GdkEvent* gdkEvent, IntPtr data)
     {
-        if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkWebViewAdapter adapter)
+        if (!GtkSignal.TryGetState<GtkWebViewAdapter>(data, out var adapter))
         {
             return false;
         }
@@ -448,10 +485,9 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static void ScriptMessagReceivedCallback(IntPtr widget, IntPtr jsResult, IntPtr data)
+    private static void ScriptMessageReceivedCallback(IntPtr widget, IntPtr jsResult, IntPtr data)
     {
-        if (data == IntPtr.Zero
-            || GCHandle.FromIntPtr(data).Target is not GtkWebViewAdapter adapter
+        if (!GtkSignal.TryGetState<GtkWebViewAdapter>(data, out var adapter)
             || adapter.WebMessageReceived is null)
         {
             return;
@@ -469,8 +505,7 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void ResourceLoadStartedCallback(IntPtr widget, IntPtr resource, IntPtr request, IntPtr data)
     {
-        if (data == IntPtr.Zero
-            || GCHandle.FromIntPtr(data).Target is not GtkWebViewAdapter adapter
+        if (!GtkSignal.TryGetState<GtkWebViewAdapter>(data, out var adapter)
             || adapter.WebResourceRequested is null)
         {
             return;

@@ -170,6 +170,26 @@ internal static unsafe partial class GtkInterop
     [DllImport(LibWebKit)]
     public static extern nint webkit_user_message_get_parameters(IntPtr message);
 
+    [DllImport(LibWebKit)]
+    public static extern IntPtr webkit_print_operation_new(IntPtr webView);
+
+    [DllImport(LibWebKit)]
+    public static extern void webkit_print_operation_print(IntPtr operation);
+
+    [DllImport(LibWebKit)]
+    public static extern void webkit_print_operation_set_print_settings(IntPtr operation, IntPtr settings);
+
+    [DllImport(LibWebKit)]
+    public static extern IntPtr gtk_print_settings_new();
+
+#if NET7_0_OR_GREATER
+    [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial void gtk_print_settings_set(IntPtr settings, string key, string value);
+#else
+    [DllImport(LibWebKit)]
+    internal static extern void gtk_print_settings_set(IntPtr webView, string key, string value);
+#endif
+
     [DllImport(LibGtk)]
     internal static extern IntPtr gtk_scrolled_window_new(IntPtr hadjustment, IntPtr vadjustment);
 
