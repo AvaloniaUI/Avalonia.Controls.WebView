@@ -3,19 +3,22 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using Android.Webkit;
-using Java.Interop;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Android.Content;
+
+using Android.Graphics;
+using Android.Runtime;
+using Android.Views;
+using Android.Webkit;
+
 using Avalonia.Android;
-using Avalonia.Controls.Macios;
 using Avalonia.Controls.Utils;
 using Avalonia.Interactivity;
-using Avalonia.Media;
 using Avalonia.Platform;
-using Avalonia.Threading;
+
+using Java.Interop;
+
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
 
 namespace Avalonia.Controls.Android;
@@ -36,10 +39,26 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
 
         _webView.Settings.JavaScriptEnabled = true;
         _webView.Settings.DomStorageEnabled = true;
+        if (environmentArgs.BuiltInZoomControls)
+        {
+            _webView.Settings.BuiltInZoomControls = true;
+            _webView.Settings.DisplayZoomControls = false;
+            _webView.Settings.SetSupportZoom(true);
+            _webView.Settings.LoadWithOverviewMode = true;
+            _webView.Settings.UseWideViewPort = true;
+        }
         _webView.AddJavascriptInterface(_jsInterface, PostAvWebViewMessageName);
         _webView.SetWebViewClient(new AvaloniaWebViewClient(this));
         _webView.SetWebChromeClient(new WebChromeClient());
 
+        _webView.LayoutParameters = new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MatchParent,
+            ViewGroup.LayoutParams.MatchParent);
+
+        if (global::Android.OS.Build.VERSION.SdkInt >= global::Android.OS.BuildVersionCodes.Lollipop)
+        {
+            global::Android.Webkit.CookieManager.Instance?.SetAcceptThirdPartyCookies(_webView, true);
+        }
         if (environmentArgs.EnableDevTools)
         {
             WebView.SetWebContentsDebuggingEnabled(true);
@@ -51,11 +70,11 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
     public bool IsInitialized => true;
     public event EventHandler? Initialized;
 
-    public Color DefaultBackground
+    public Media.Color DefaultBackground
     {
         set
         {
-            _webView.SetBackgroundColor(new global::Android.Graphics.Color(
+            _webView.SetBackgroundColor(new Color(
                 value.R, value.G, value.B, value.A));
         }
     }
@@ -155,14 +174,14 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
 
     public void AddOrUpdateCookie(Cookie cookie)
     {
-        var androidCookie = global::Android.Webkit.CookieManager.Instance;
+        var androidCookie = CookieManager.Instance;
         androidCookie?.SetAcceptCookie(true);
         androidCookie?.SetCookie(cookie.Domain, $"{cookie.Name}={cookie.Value}");
     }
 
     public void DeleteCookie(string name, string domain, string path)
     {
-        var androidCookie = global::Android.Webkit.CookieManager.Instance;
+        var androidCookie = CookieManager.Instance;
         if (androidCookie != null)
         {
             // Set an expired cookie with the same name to delete it
@@ -178,7 +197,7 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
     public Task<IReadOnlyList<Cookie>> GetCookiesAsync()
     {
         var cookies = new List<Cookie>();
-        var androidCookie = global::Android.Webkit.CookieManager.Instance;
+        var androidCookie = CookieManager.Instance;
         var cookieStr = androidCookie?.GetCookie(Source.ToString());
 
         if (!string.IsNullOrEmpty(cookieStr))
@@ -202,16 +221,76 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
         [JavascriptInterface]
         public void PostMessage(string message)
         {
-            _ = Dispatcher.UIThread.InvokeAsync(() =>
+            WebViewDispatcher.InvokeAsync(() =>
                 adapter.WebMessageReceived?.Invoke(adapter, new WebMessageReceivedEventArgs { Body = message }));
         }
     }
 
+#pragma warning disable CS9113 // Parameter is unread.
     private class AvaloniaWebViewClient(AndroidWebViewAdapter adapter) : WebViewClient
+#pragma warning restore CS9113 // Parameter is unread.
     {
+        private Uri? _lastNavigationUrl;
+        private bool _lastNavigationCompleted;
+        private bool _lastNavigationSuccess = true;
+
+        public override void DoUpdateVisitedHistory(WebView? view, string? url, bool isReload)
+        {
+            base.DoUpdateVisitedHistory(view, url, isReload);
+
+            if (!string.IsNullOrEmpty(url))
+            {
+                var uri = new Uri(url);
+                if (!WebViewHelper.IsAnchorNavigation(_lastNavigationUrl, uri) && !_lastNavigationCompleted)
+                {
+                    adapter.NavigationCompleted?.Invoke(adapter,
+                        new WebViewNavigationCompletedEventArgs { Request = uri, IsSuccess = true });
+                    _lastNavigationCompleted = true;
+                    _lastNavigationUrl = uri;
+                }
+            }
+        }
+
+#pragma warning disable CS0672 // Member overrides obsolete member
+        public override bool ShouldOverrideUrlLoading(WebView? view, string? url)
+#pragma warning restore CS0672 // Member overrides obsolete member
+        {
+            return ShouldOverrideUrlLoading(url!, null);
+        }
+
         public override bool ShouldOverrideUrlLoading(WebView? view, IWebResourceRequest? request)
         {
-            var url = new Uri(request!.Url!.ToString()!);
+            return ShouldOverrideUrlLoading(request!.Url!.ToString()!, request);
+        }
+
+        private bool ShouldOverrideUrlLoading(string urlStr, IWebResourceRequest? request)
+        {
+            Uri? url = null;
+            if (urlStr.StartsWith("data:text/html;charset=utf-8;base64,", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var base64 = urlStr.Substring("data:text/html;charset=utf-8;base64,".Length);
+                    var content = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(base64));
+
+                    // If the decoded content looks like a file URI, use it instead
+                    if (content.StartsWith("file:///", StringComparison.OrdinalIgnoreCase))
+                    {
+                        url = new Uri(content);
+                    }
+                }
+                catch
+                {
+                    // Fallback to using the original URL if decoding fails
+                }
+            }
+
+            url ??= new Uri(urlStr);
+
+            if (WebViewHelper.IsAnchorNavigation(_lastNavigationUrl, url))
+            {
+                return false;
+            }
 
             if (adapter.WebResourceRequested is { } webResourceRequested)
             {
@@ -219,10 +298,10 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
                 {
                     Request = new WebViewWebResourceRequest
                     {
-                        Method = new HttpMethod(request.Method!),
+                        Method = request is null ? HttpMethod.Get : new HttpMethod(request.Method!),
                         Uri = url,
                         Headers = new NativeHeadersCollection(new DictionaryNativeHttpRequestHeaders(
-                            request.RequestHeaders?.AsReadOnly() ?? new ReadOnlyDictionary<string, string>(
+                            request?.RequestHeaders?.AsReadOnly() ?? new ReadOnlyDictionary<string, string>(
                                 new Dictionary<string, string>()))),
                     }
                 };
@@ -243,7 +322,24 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
                 return args.Cancel;
             }
         }
-        
+
+        public override void OnPageStarted(WebView? view, string? url, Bitmap? favicon)
+        {
+            base.OnPageStarted(view, url, favicon);
+            _lastNavigationSuccess = true;
+            _lastNavigationCompleted = false;
+        }
+
+#pragma warning disable CS0672 // Member overrides obsolete member
+        public override void OnReceivedError(WebView? view, [GeneratedEnum] ClientError errorCode, string? description, string? failingUrl)
+#pragma warning restore CS0672 // Member overrides obsolete member
+        {
+            _lastNavigationSuccess = false;
+#pragma warning disable CA1422 // Validate platform compatibility
+            base.OnReceivedError(view, errorCode, description, failingUrl);
+#pragma warning restore CA1422 // Validate platform compatibility
+        }
+
         public override void OnPageFinished(WebView? view, string? url)
         {
             base.OnPageFinished(view, url);
@@ -258,9 +354,12 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
                  """
                 , null);
 
-            var uri = Uri.TryCreate(url, UriKind.Absolute, out var result) ? result : null;
-            adapter.NavigationCompleted?.Invoke(adapter,
-                new WebViewNavigationCompletedEventArgs { Request = uri, IsSuccess = true });
+            if (!_lastNavigationCompleted)
+            {
+                var uri = Uri.TryCreate(url, UriKind.Absolute, out var result) ? result : null;
+                adapter.NavigationCompleted?.Invoke(adapter,
+                    new WebViewNavigationCompletedEventArgs { Request = uri, IsSuccess = _lastNavigationSuccess });
+            }
         }
     }
 
