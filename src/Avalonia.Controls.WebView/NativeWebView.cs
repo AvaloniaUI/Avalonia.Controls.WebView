@@ -345,26 +345,31 @@ namespace Avalonia.Xpf.Controls
 
         private void WebViewAdapterOnWebMessageReceived(object? sender, Core.WebMessageReceivedEventArgs e)
         {
+            Core.WebViewDispatcher.CheckAccess();
             _webMessageReceived?.Invoke(this, e);
         }
 
         private void WebViewAdapterOnWebResourceRequested(object? sender, Core.WebResourceRequestedEventArgs e)
         {
+            Core.WebViewDispatcher.CheckAccess();
             _webResourceRequested?.Invoke(this, e);
         }
 
         private void WebViewAdapterOnNavigationStarted(object? sender, Core.WebViewNavigationStartingEventArgs e)
         {
+            Core.WebViewDispatcher.CheckAccess();
             _navigationStarted?.Invoke(this, e);
         }
 
         private void WebViewAdapterOnNavigationCompleted(object? sender, Core.WebViewNavigationCompletedEventArgs e)
         {
+            Core.WebViewDispatcher.CheckAccess();
             _navigationCompleted?.Invoke(this, e);
         }
 
         private void WebViewAdapterOnNewWindowRequested(object? sender, Core.WebViewNewWindowRequestedEventArgs e)
         {
+            Core.WebViewDispatcher.CheckAccess();
             _newWindowRequested?.Invoke(this, e);
         }
 
@@ -406,6 +411,7 @@ namespace Avalonia.Xpf.Controls
 
         private void WithFocusOnGotFocus(object? sender, EventArgs e)
         {
+            Core.WebViewDispatcher.CheckAccess();
             _ignoreFocusChanges = true;
             try
             {
@@ -447,6 +453,7 @@ namespace Avalonia.Xpf.Controls
 
         private void WithFocusOnLostFocus(object? sender, Core.IWebViewAdapterWithFocus.LostFocusDirection e)
         {
+            Core.WebViewDispatcher.CheckAccess();
             // TODO: add avalonia APIs once possible
 #if WPF
             switch (e)
@@ -464,6 +471,7 @@ namespace Avalonia.Xpf.Controls
 
         private void WithInputOnInput(global::Avalonia.Interactivity.RoutedEventArgs obj)
         {
+            Core.WebViewDispatcher.CheckAccess();
             AvInput.IInputElement? element;
 #if AVALONIA
             element = this;

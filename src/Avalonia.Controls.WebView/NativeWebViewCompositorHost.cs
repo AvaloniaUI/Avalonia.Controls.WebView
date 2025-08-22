@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Avalonia.Controls.Gtk;
 using Avalonia.Controls.Rendering;
-using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Rendering.Composition;
-using Avalonia.Threading;
+using Core = Avalonia.Controls;
 
 #if AVALONIA
 namespace Avalonia.Controls;
@@ -103,6 +101,7 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
 
     private void WebViewAdapterOnInitialized(object? sender, EventArgs e)
     {
+        Core.WebViewDispatcher.CheckAccess();
         var adapter = (IWebViewAdapterWithOffscreenBuffer)sender!;
         _webViewReadyCompletion?.TrySetResult(adapter);
         AdapterCreated?.Invoke(this, adapter);

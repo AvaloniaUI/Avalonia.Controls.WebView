@@ -3,6 +3,7 @@ using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
+using Core = Avalonia.Controls;
 #if WPF
 using Avalonia.Controls;
 using System.Windows;
@@ -81,6 +82,7 @@ namespace Avalonia.Xpf.Controls
 
         private void WebViewAdapterOnInitialized(object? sender, EventArgs e)
         {
+            Core.WebViewDispatcher.CheckAccess();
             var adapter = (IWebViewAdapter)sender!;
             _webViewReadyCompletion?.TrySetResult(adapter);
             AdapterCreated?.Invoke(this, adapter);
@@ -112,13 +114,7 @@ namespace Avalonia.Xpf.Controls
                 var task = DisposeAsync().AsTask();
                 if (!task.IsCompleted)
                 {
-                    var frame = new DispatcherFrame();
-                    _ = task.ContinueWith(static (_, s) => ((DispatcherFrame)s!).Continue = false, frame);
-#if WPF
-                    Dispatcher.PushFrame(frame);
-#elif AVALONIA
-                    Dispatcher.UIThread.PushFrame(frame);
-#endif
+                    Core.WebViewDispatcher.PushFrameForTask(task);
                 }
 
                 task.GetAwaiter().GetResult();
