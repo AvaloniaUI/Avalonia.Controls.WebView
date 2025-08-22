@@ -26,7 +26,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     }
 
     private static readonly unsafe IntPtr s_decidePolicyCallback =
-        new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, int, IntPtr, bool>)&DecidePolicy);
+        new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, int, IntPtr, int>)&DecidePolicy);
 
     private static readonly unsafe IntPtr s_loadChangedCallback =
         new((delegate* unmanaged[Cdecl]<IntPtr, WebKitLoadEvent, IntPtr, void>)&LoadChanged);
@@ -35,10 +35,10 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void>)&InvokeScriptCallback);
 
     private static readonly unsafe IntPtr s_focusInCallback =
-        new((delegate* unmanaged[Cdecl]<IntPtr, GdkEvent*, IntPtr, bool>)&FocusInCallback);
+        new((delegate* unmanaged[Cdecl]<IntPtr, GdkEvent*, IntPtr, int>)&FocusInCallback);
 
     private static readonly unsafe IntPtr s_focusOutCallback =
-        new((delegate* unmanaged[Cdecl]<IntPtr, GdkEvent*, IntPtr, bool>)&FocusOutCallback);
+        new((delegate* unmanaged[Cdecl]<IntPtr, GdkEvent*, IntPtr, int>)&FocusOutCallback);
 
     private static readonly unsafe IntPtr s_scriptMessageReceivedCallback =
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void>)&ScriptMessagReceivedCallback);
@@ -276,11 +276,11 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static bool DecidePolicy(IntPtr webView, IntPtr decision, int type, IntPtr data)
+    private static int DecidePolicy(IntPtr webView, IntPtr decision, int type, IntPtr data)
     {
         if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkWebViewAdapter adapter)
         {
-            return false;
+            return False;
         }
 
         switch (type)
@@ -293,10 +293,10 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
                 {
                     var args = new WebViewNavigationStartingEventArgs { Request = url };
                     WebViewDispatcher.Invoke(() => startedHandler.Invoke(adapter, args));
-                    return args.Cancel;
+                    return args.Cancel ? True : False;
                 }
 
-                return false;
+                return False;
             // WEBKIT_POLICY_DECISION_TYPE_NEW_WINDOW_ACTION
             case 1:
                 if (adapter.NewWindowRequested is { } windowHandler &&
@@ -305,12 +305,12 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
                 {
                     var args = new WebViewNewWindowRequestedEventArgs { Request = winUrl };
                     WebViewDispatcher.Invoke(() => windowHandler.Invoke(adapter, args));
-                    return args.Handled;
+                    return args.Handled ? True : False;
                 }
 
-                return false;
+                return False;
             default:
-                return true;
+                return True;
         }
 
         static string? GetUrlFromPolicyDecision(IntPtr decision)
@@ -395,35 +395,35 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static unsafe bool FocusOutCallback(IntPtr widget, GdkEvent* gdkEvent, IntPtr data)
+    private static unsafe int FocusOutCallback(IntPtr widget, GdkEvent* gdkEvent, IntPtr data)
     {
         if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkWebViewAdapter adapter
             || adapter.LostFocus is not { } handler)
         {
-            return false;
+            return False;
         }
 
         WebViewDispatcher.InvokeAsync(() =>
         {
             handler.Invoke(adapter, IWebViewAdapterWithFocus.LostFocusDirection.Unknown);
         });
-        return false;
+        return False;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static unsafe bool FocusInCallback(IntPtr widget, GdkEvent* gdkEvent, IntPtr data)
+    private static unsafe int FocusInCallback(IntPtr widget, GdkEvent* gdkEvent, IntPtr data)
     {
         if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkWebViewAdapter adapter
             || adapter.GotFocus is not { } handler)
         {
-            return false;
+            return False;
         }
 
         WebViewDispatcher.InvokeAsync(() =>
         {
             handler.Invoke(adapter, EventArgs.Empty);
         });
-        return false;
+        return False;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]

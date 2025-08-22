@@ -16,7 +16,7 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
         IWebViewAdapterWithOffscreenBuffer, IWebViewAdapterWithOffscreenInput
 {
     private static readonly IntPtr s_drawCallback =
-        new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr*, IntPtr, bool>)&DrawCallback);
+        new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr*, IntPtr, int>)&DrawCallback);
 
     private readonly bool _experimentalOffscreen;
     private IntPtr _windowHandle;
@@ -286,15 +286,15 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static unsafe bool DrawCallback(IntPtr widget, IntPtr* cairoTex, IntPtr data)
+    private static unsafe int DrawCallback(IntPtr widget, IntPtr* cairoTex, IntPtr data)
     {
         if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkOffscreenWebViewAdapter adapter)
         {
-            return false;
+            return False;
         }
 
         WebViewDispatcher.InvokeAsync(() => adapter.DrawRequested?.Invoke());
-        return false;
+        return False;
     }
 
     private readonly ref struct EventSendState : IDisposable

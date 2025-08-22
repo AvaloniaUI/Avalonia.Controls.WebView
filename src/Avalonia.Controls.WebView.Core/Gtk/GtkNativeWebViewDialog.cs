@@ -13,7 +13,7 @@ namespace Avalonia.Controls.Gtk;
 
 internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebViewPlatformHandle
 {
-    private static readonly unsafe IntPtr s_deleteEventCallback = new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, bool>)&DeleteEvent);
+    private static readonly unsafe IntPtr s_deleteEventCallback = new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, int>)&DeleteEvent);
     private GtkWebViewAdapter? _nativeWebView;
     private IntPtr _windowHandle;
     private bool _disposed;
@@ -206,17 +206,17 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebView
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static bool DeleteEvent(IntPtr windowHandle, IntPtr gdkEvent, IntPtr data)
+    private static int DeleteEvent(IntPtr windowHandle, IntPtr gdkEvent, IntPtr data)
     {
         if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkNativeWebViewDialog dialog
             || dialog._disposed)
         {
-            return false;
+            return False;
         }
 
         var cancel = new CancelEventArgs();
         WebViewDispatcher.Invoke(() => dialog.Closing?.Invoke(dialog, cancel));
-        return cancel.Cancel;
+        return cancel.Cancel ? True : False;
     }
 
     IntPtr IGtkWebViewPlatformHandle.WebKitWebView => _nativeWebView?.WebViewHandle ?? IntPtr.Zero;

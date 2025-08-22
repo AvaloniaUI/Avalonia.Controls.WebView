@@ -15,6 +15,9 @@ internal static unsafe partial class GtkInterop
     internal const string LibGdk = "libgdk";
     internal const string LibSoup = "libsoup";
 
+    public const int True = 1;
+    public const int False = 0;
+
 #if NET7_0_OR_GREATER
     [LibraryImport(LibGLib, StringMarshalling = StringMarshalling.Utf8)]
     internal static partial uint g_log_set_handler(string? logDomain, uint logLevels, IntPtr callback, IntPtr userData);

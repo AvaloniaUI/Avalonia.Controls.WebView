@@ -14,9 +14,9 @@ namespace Avalonia.Controls.Gtk;
 internal sealed class GtkOffscreenAvaloniaWebViewAdapter : GtkOffscreenWebViewAdapter
 {
     private static readonly unsafe IntPtr s_showOptionMenuCallback =
-        new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, GdkEvent*, GdkRectangle*, IntPtr, bool>)&ShowOptionMenuCallback);
+        new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, GdkEvent*, GdkRectangle*, IntPtr, int>)&ShowOptionMenuCallback);
     private static readonly unsafe IntPtr s_contextMenuCallback =
-        new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, GdkEvent*, IntPtr, IntPtr, bool>)&ContextMenuCallback);
+        new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, GdkEvent*, IntPtr, IntPtr, int>)&ContextMenuCallback);
     private static readonly unsafe IntPtr s_optionsMenuClosedCallback =
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, void>)&MenuClosedCallback);
 
@@ -60,29 +60,29 @@ internal sealed class GtkOffscreenAvaloniaWebViewAdapter : GtkOffscreenWebViewAd
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static unsafe bool ContextMenuCallback(IntPtr webview, IntPtr menu, GdkEvent* sourceEvent, IntPtr hitTest, IntPtr data)
+    private static unsafe int ContextMenuCallback(IntPtr webview, IntPtr menu, GdkEvent* sourceEvent, IntPtr hitTest, IntPtr data)
     {
         if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkOffscreenAvaloniaWebViewAdapter adapter)
         {
-            return false;
+            return False;
         }
 
-        return false;
+        return False;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static unsafe bool ShowOptionMenuCallback(IntPtr webview, IntPtr menu, GdkEvent* sourceEvent, GdkRectangle* rect, IntPtr data)
+    private static unsafe int ShowOptionMenuCallback(IntPtr webview, IntPtr menu, GdkEvent* sourceEvent, GdkRectangle* rect, IntPtr data)
     {
         if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkOffscreenAvaloniaWebViewAdapter adapter)
         {
-            return false;
+            return False;
         }
 
         var isMouseRequest = sourceEvent is not null && sourceEvent->Type == GdkEventType.GDK_BUTTON_PRESS;
         var openMenuState = new GtkOptionsMenuState(menu, isMouseRequest, *rect, adapter);
         openMenuState.Open();
 
-        return true;
+        return True;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
