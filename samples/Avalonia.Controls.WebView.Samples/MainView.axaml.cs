@@ -333,6 +333,7 @@ public partial class MainView : UserControl
         GridWebView.Source = Uri.TryCreate(GridWebViewSource.Text, UriKind.Absolute, out var source) ?
             source :
             new Uri("about:blank");
+    }
 
     private void GridWebViewDialogButton_OnClick(object? sender, RoutedEventArgs e)
     {
