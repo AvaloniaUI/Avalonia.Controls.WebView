@@ -114,7 +114,7 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebView
         set => RunOnGlibThread(() => gtk_window_set_title(_windowHandle, value ?? string.Empty));
     }
 
-    public void Show() => RunOnGlibThread(() =>
+    public void Show() => RunOnGlibThreadAsync(() =>
     {
         gtk_widget_show_all(_windowHandle);
         gtk_window_present(_windowHandle);
@@ -182,7 +182,7 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebView
             if (Interlocked.Exchange(ref _windowHandle, IntPtr.Zero) is var windowHandle
                 && windowHandle != IntPtr.Zero)
             {
-                RunOnGlibThread(() => gtk_widget_destroy(windowHandle));
+                RunOnGlibThreadAsync(() => gtk_widget_destroy(windowHandle));
             }
 
             Interlocked.Exchange(ref _signal, null)?.Dispose();
@@ -212,13 +212,14 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebView
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static bool DeleteEvent(IntPtr windowHandle, IntPtr gdkEvent, IntPtr data)
     {
-        if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkNativeWebViewDialog dialog)
+        if (data == IntPtr.Zero || GCHandle.FromIntPtr(data).Target is not GtkNativeWebViewDialog dialog
+            || dialog._disposed)
         {
             return false;
         }
 
         var cancel = new CancelEventArgs();
-        dialog.Closing?.Invoke(dialog, cancel);
+        WebViewDispatcher.Invoke(() => dialog.Closing?.Invoke(dialog, cancel));
         return cancel.Cancel;
     }
 

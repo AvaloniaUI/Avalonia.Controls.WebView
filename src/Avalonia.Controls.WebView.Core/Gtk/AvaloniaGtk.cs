@@ -61,7 +61,8 @@ internal static class AvaloniaGtk
 
     public static Task<T> RunOnGlibThreadAsync<T>(Func<T> callback,
         [CallerMemberName] string? callerMethod = null,
-        [CallerArgumentExpression(nameof(callback))] string? callerExpression = null)
+        [CallerArgumentExpression(nameof(callback))]
+        string? callerExpression = null)
     {
         LogDebug(callerMethod, callerExpression);
 
@@ -70,7 +71,8 @@ internal static class AvaloniaGtk
 
     public static Task RunOnGlibThreadAsync(Action callback,
         [CallerMemberName] string? callerMethod = null,
-        [CallerArgumentExpression(nameof(callback))] string? callerExpression = null)
+        [CallerArgumentExpression(nameof(callback))]
+        string? callerExpression = null)
     {
         LogDebug(callerMethod, callerExpression);
 
@@ -79,7 +81,8 @@ internal static class AvaloniaGtk
 
     public static T RunOnGlibThread<T>(Func<T> callback,
         [CallerMemberName] string? callerMethod = null,
-        [CallerArgumentExpression(nameof(callback))] string? callerExpression = null)
+        [CallerArgumentExpression(nameof(callback))]
+        string? callerExpression = null)
     {
         LogDebug(callerMethod, callerExpression);
 
@@ -89,7 +92,8 @@ internal static class AvaloniaGtk
 
     public static void RunOnGlibThread(Action callback,
         [CallerMemberName] string? callerMethod = null,
-        [CallerArgumentExpression(nameof(callback))] string? callerExpression = null)
+        [CallerArgumentExpression(nameof(callback))]
+        string? callerExpression = null)
     {
         LogDebug(callerMethod, callerExpression);
 
@@ -99,7 +103,8 @@ internal static class AvaloniaGtk
 
     public static T RunOnGlibThreadFrame<T>(Func<T> callback,
         [CallerMemberName] string? callerMethod = null,
-        [CallerArgumentExpression(nameof(callback))] string? callerExpression = null)
+        [CallerArgumentExpression(nameof(callback))]
+        string? callerExpression = null)
     {
         LogDebug(callerMethod, callerExpression);
 
@@ -108,12 +113,14 @@ internal static class AvaloniaGtk
         {
             WebViewDispatcher.PushFrameForTask(task);
         }
+
         return task.GetAwaiter().GetResult();
     }
 
     public static void RunOnGlibThreadFrame(Action callback,
         [CallerMemberName] string? callerMethod = null,
-        [CallerArgumentExpression(nameof(callback))] string? callerExpression = null)
+        [CallerArgumentExpression(nameof(callback))]
+        string? callerExpression = null)
     {
         LogDebug(callerMethod, callerExpression);
 
@@ -122,11 +129,13 @@ internal static class AvaloniaGtk
         {
             WebViewDispatcher.PushFrameForTask(task);
         }
+
         task.GetAwaiter().GetResult();
     }
 
     [Conditional("DEBUG")]
-    private static void LogDebug(string? callerMethod, string? callerExpression, [CallerMemberName] string? runMethod = null)
+    private static void LogDebug(string? callerMethod, string? callerExpression,
+        [CallerMemberName] string? runMethod = null)
     {
 #if DEBUG
         Debug.WriteLine($"[{runMethod}]: [{callerMethod}] {callerExpression}");
@@ -141,13 +150,31 @@ internal static class AvaloniaGtk
         private static readonly Func<Func<T>, Task<T>>? s_runOnGlibThread = Type
             .GetType("Avalonia.X11.Interop.GtkInteropHelper, Avalonia.X11")?
             .GetMethod("RunOnGlibThread", BindingFlags.Public | BindingFlags.Static)?
-            .MakeGenericMethod(typeof(T)) is not { } method
-            ? null : (Func<Func<T>, Task<T>>?)Delegate.CreateDelegate(typeof(Func<Func<T>, Task<T>>), method);
+            .MakeGenericMethod(typeof(T)) is not { } method ?
+            null :
+            (Func<Func<T>, Task<T>>?)Delegate.CreateDelegate(typeof(Func<Func<T>, Task<T>>), method);
 
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicMethods, "Avalonia.X11.Interop.GtkInteropHelper",
             "Avalonia.X11")]
-        public static Task<T> Run(Func<T> callback) => s_runOnGlibThread?.Invoke(callback)
-                                                       ?? throw new InvalidOperationException("Avalonia.X11 is not referenced");
+        public static async Task<T> Run(Func<T> callback)
+        {
+            if (s_runOnGlibThread is null)
+                throw new InvalidOperationException("Avalonia.X11 is not referenced");
+#if DEBUG
+            try
+            {
+                return await s_runOnGlibThread(callback).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+                Debugger.Break();
+                throw;
+            }
+#else
+            return await s_runOnGlibThread(callback).ConfigureAwait(false);
+#endif
+        }
     }
 
     private static class CachedDelegate

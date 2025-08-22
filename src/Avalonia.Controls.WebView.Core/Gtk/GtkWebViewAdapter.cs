@@ -57,16 +57,16 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
     public GtkWebViewAdapter(GtkWebViewEnvironmentRequestedEventArgs environmentArgs)
     {
         EnvironmentArgs = environmentArgs;
+
         // Blocking initialization of WebView on the GTK thread
-        RunOnGlibThreadFrame(() =>
+        RunOnGlibThread(InitializeSafe);
+        CompleteInitialization();
+        async void CompleteInitialization()
         {
-            InitializeSafe();
-            IsInitialized = true;
-        });
-        // Async initialization of signals on the GTK thread, avoids threadlock, if signal calls back too soon. 
-        RunOnGlibThreadAsync(InitializeSignals);
-        // ReSharper disable once VirtualMemberCallInConstructor
-        OnInitialized();
+            //Async initialization of signals on the GTK thread, avoids threadlock, if signal calls back too soon. 
+            await RunOnGlibThreadAsync(InitializeSignals);
+            OnInitialized();
+        }
     }
 
     internal GtkWebViewEnvironmentRequestedEventArgs EnvironmentArgs { get; }
@@ -137,8 +137,9 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
                 script,
                 IntPtr.Zero,
                 s_scriptCallback,
-                GCHandle.ToIntPtr(gcHandle)));
-            return await tcs.Task;
+                GCHandle.ToIntPtr(gcHandle)))
+                .ConfigureAwait(false);
+            return await tcs.Task.ConfigureAwait(false);
         }
         finally
         {
@@ -148,12 +149,12 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
 
     public async void Navigate(Uri url)
     {
-        await RunOnGlibThreadAsync(() => webkit_web_view_load_uri(WebViewHandle, url.ToString()));
+        await RunOnGlibThreadAsync(() => webkit_web_view_load_uri(WebViewHandle, url.ToString())).ConfigureAwait(false);
     }
 
     public async void NavigateToString(string text)
     {
-        await RunOnGlibThreadAsync(() => webkit_web_view_load_html(WebViewHandle, text, null));
+        await RunOnGlibThreadAsync(() => webkit_web_view_load_html(WebViewHandle, text, null)).ConfigureAwait(false);
     }
 
     public bool Refresh()
@@ -282,6 +283,7 @@ internal class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatform
 
     protected virtual void OnInitialized()
     {
+        IsInitialized = true;
         Initialized?.Invoke(this, EventArgs.Empty);
     }
 

@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using System.Windows.Threading;
 using Avalonia.Controls;
+using AvaloniaUI.Xpf.WpfAbstractions;
 
 namespace Avalonia.Xpf.Controls;
 
@@ -12,8 +13,8 @@ internal sealed class WpfWebViewDispatcher : WebViewDispatcher
     public override void CheckAccessHandler() =>
         Dispatcher.CurrentDispatcher.CheckAccess();
 
-    public override void InvokeAsyncHandler(Action a) =>
-        Dispatcher.CurrentDispatcher.InvokeAsync(a);
+    public override Task InvokeAsyncHandler(Action a) =>
+        Dispatcher.CurrentDispatcher.InvokeAsync(a).Task;
 
     public override void InvokeHandler(Action a) =>
         Dispatcher.CurrentDispatcher.Invoke(a);
@@ -34,6 +35,9 @@ internal sealed class WpfWebViewDispatcher : WebViewDispatcher
             return;
         s_setupCompleted = true;
 
-        Current = new WpfWebViewDispatcher();
+        if (!XpfWpfAbstraction.IsRunningOnXpf)
+        {
+            Current = new WpfWebViewDispatcher();
+        }
     }
 }
