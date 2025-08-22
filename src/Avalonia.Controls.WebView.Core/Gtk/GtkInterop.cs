@@ -23,6 +23,9 @@ internal static unsafe partial class GtkInterop
     internal static extern uint g_log_set_handler(string? logDomain, uint logLevels, IntPtr callback, IntPtr userData);
 #endif
 
+    [DllImport(LibGLib)]
+    internal static extern uint g_timeout_add_once(uint interval, IntPtr callback, IntPtr userData);
+
 #if NET7_0_OR_GREATER
     [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
     internal static partial IntPtr webkit_website_data_manager_new(
@@ -91,6 +94,19 @@ internal static unsafe partial class GtkInterop
 
     [DllImport(LibGio)]
     internal static extern IntPtr g_application_get_default();
+
+    [DllImport(LibGLib)]
+    internal static extern IntPtr g_main_context_default();
+
+#if NET7_0_OR_GREATER
+    [LibraryImport(LibGLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    internal static partial bool g_main_context_is_owner(IntPtr context);
+#else
+    [DllImport(LibGLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    internal static extern bool g_main_context_is_owner(IntPtr context);
+#endif
 
     [DllImport(LibWebKit)]
     internal static extern IntPtr webkit_web_view_get_user_content_manager(IntPtr webView);

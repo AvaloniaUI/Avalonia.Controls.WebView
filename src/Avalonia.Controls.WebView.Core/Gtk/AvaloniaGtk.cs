@@ -59,6 +59,9 @@ internal static class AvaloniaGtk
 #endif
     }
 
+    public static bool CheckAccess() => GtkInterop.g_main_context_default() is var context && context != IntPtr.Zero &&
+                                        GtkInterop.g_main_context_is_owner(context);
+    
     public static Task<T> RunOnGlibThreadAsync<T>(Func<T> callback,
         [CallerMemberName] string? callerMethod = null,
         [CallerArgumentExpression(nameof(callback))]
@@ -66,7 +69,7 @@ internal static class AvaloniaGtk
     {
         LogDebug(callerMethod, callerExpression);
 
-        return CachedDelegate<T>.Run(callback);
+        return RunTask(callback);
     }
 
     public static Task RunOnGlibThreadAsync(Action callback,
@@ -76,7 +79,7 @@ internal static class AvaloniaGtk
     {
         LogDebug(callerMethod, callerExpression);
 
-        return CachedDelegate.Run(callback);
+        return RunTask(callback);
     }
 
     public static T RunOnGlibThread<T>(Func<T> callback,
@@ -86,8 +89,15 @@ internal static class AvaloniaGtk
     {
         LogDebug(callerMethod, callerExpression);
 
-        var task = CachedDelegate<T>.Run(callback);
-        return task.GetAwaiter().GetResult();
+        if (CheckAccess())
+        {
+            return callback();
+        }
+        else
+        {
+            var task = RunTask(callback);
+            return task.GetAwaiter().GetResult();
+        }
     }
 
     public static void RunOnGlibThread(Action callback,
@@ -97,40 +107,15 @@ internal static class AvaloniaGtk
     {
         LogDebug(callerMethod, callerExpression);
 
-        var task = CachedDelegate.Run(callback);
-        task.GetAwaiter().GetResult();
-    }
-
-    public static T RunOnGlibThreadFrame<T>(Func<T> callback,
-        [CallerMemberName] string? callerMethod = null,
-        [CallerArgumentExpression(nameof(callback))]
-        string? callerExpression = null)
-    {
-        LogDebug(callerMethod, callerExpression);
-
-        var task = CachedDelegate<T>.Run(callback);
-        if (!task.IsCompleted)
+        if (CheckAccess())
         {
-            WebViewDispatcher.PushFrameForTask(task);
+            callback();
         }
-
-        return task.GetAwaiter().GetResult();
-    }
-
-    public static void RunOnGlibThreadFrame(Action callback,
-        [CallerMemberName] string? callerMethod = null,
-        [CallerArgumentExpression(nameof(callback))]
-        string? callerExpression = null)
-    {
-        LogDebug(callerMethod, callerExpression);
-
-        var task = CachedDelegate.Run(callback);
-        if (!task.IsCompleted)
+        else
         {
-            WebViewDispatcher.PushFrameForTask(task);
+            var task = RunTask(callback);
+            task.GetAwaiter().GetResult();
         }
-
-        task.GetAwaiter().GetResult();
     }
 
     [Conditional("DEBUG")]
@@ -141,6 +126,79 @@ internal static class AvaloniaGtk
         Debug.WriteLine($"[{runMethod}]: [{callerMethod}] {callerExpression}");
         Debug.WriteLine("");
 #endif
+    }
+
+    public static Task RunTask(Action callback) => RunTask<object?>(() =>
+    {
+        callback();
+        return null;
+    });
+    
+    public static Task<T> RunTask<T>(Func<T> callback)
+    {
+        if (s_startGtk is { } startGtk)
+            return PrivateApi(startGtk(), callback);
+        else
+            return PublicApi(callback);
+
+        static async Task<T> PrivateApi(Task<bool> startGtk, Func<T> callback)
+        {
+            if (!await startGtk.ConfigureAwait(false))
+                throw new InvalidOperationException("Unable to initialize GTK");
+
+            var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+            StartCallback(() =>
+            {
+                try
+                {
+                    tcs.SetResult(callback());
+                }
+                catch (Exception ex)
+                {
+                    Debugger.Break();
+                    tcs.TrySetException(ex);
+                }
+            });
+            return await tcs.Task.ConfigureAwait(false);
+        }
+
+        static unsafe void StartCallback(Action callback)
+        {
+            var data = GCHandle.ToIntPtr(GCHandle.Alloc(callback));
+            GtkInterop.g_timeout_add_once(0U, new((delegate* unmanaged[Cdecl]<IntPtr, void>)&SourceOnceFunc), data);
+        }
+
+        static async Task<T> PublicApi(Func<T> callback)
+        {
+            try
+            {
+                return await CachedDelegate<T>.Run(callback).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                Debugger.Break();
+                throw;
+            }
+        }
+    }
+    
+    
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.NonPublicMethods,
+        "Avalonia.X11.NativeDialogs.Gtk", "Avalonia.X11")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Should be fine for generic ref types")]
+    private static readonly Func<Task<bool>>? s_startGtk = Type
+        .GetType("Avalonia.X11.NativeDialogs.Gtk, Avalonia.X11")?
+        .GetMethod("StartGtk", BindingFlags.Public | BindingFlags.Static) is not { } method ?
+        null :
+        (Func<Task<bool>>?)Delegate.CreateDelegate(typeof(Func<Task<bool>>), method);
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void SourceOnceFunc(IntPtr userData)
+    {
+        var gcHandle = GCHandle.FromIntPtr(userData);
+        var target = (Action) gcHandle.Target!;
+        gcHandle.Free();
+        target();
     }
 
     private static class CachedDelegate<T>
@@ -156,36 +214,11 @@ internal static class AvaloniaGtk
 
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicMethods, "Avalonia.X11.Interop.GtkInteropHelper",
             "Avalonia.X11")]
-        public static async Task<T> Run(Func<T> callback)
+        public static Task<T> Run(Func<T> callback)
         {
             if (s_runOnGlibThread is null)
                 throw new InvalidOperationException("Avalonia.X11 is not referenced");
-#if DEBUG
-            try
-            {
-                return await s_runOnGlibThread(callback).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex);
-                Debugger.Break();
-                throw;
-            }
-#else
-            return await s_runOnGlibThread(callback).ConfigureAwait(false);
-#endif
-        }
-    }
-
-    private static class CachedDelegate
-    {
-        public static Task Run(Action callback)
-        {
-            return CachedDelegate<object?>.Run(() =>
-            {
-                callback();
-                return null;
-            });
+            return s_runOnGlibThread(callback);
         }
     }
 }
