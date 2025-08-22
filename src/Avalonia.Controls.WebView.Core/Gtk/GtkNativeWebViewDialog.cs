@@ -37,11 +37,13 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebView
         _nativeWebView = nativeWebView;
     }
 
-    public static Task<INativeWebViewDialog> CreateAsync(Action<WebViewEnvironmentRequestedEventArgs> environmentRequested)
+    public static async Task<INativeWebViewDialog> CreateAsync(Action<WebViewEnvironmentRequestedEventArgs> environmentRequested)
     {
         var args = new GtkWebViewEnvironmentRequestedEventArgs();
         environmentRequested(args);
-        return RunOnGlibThreadAsync(INativeWebViewDialog () => new GtkNativeWebViewDialog(args));
+        if (CheckAccess())
+            return new GtkNativeWebViewDialog(args);
+        return await RunOnGlibThreadAsync(() => new GtkNativeWebViewDialog(args));
     }
 
     public bool CanUserResize
@@ -51,7 +53,7 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebView
         {
             if (_isShown)
             {
-                RunOnGlibThread(() => gtk_window_set_resizable(_windowHandle, value));
+                RunOnGlibThreadAsync(() => gtk_window_set_resizable(_windowHandle, value));
             }
             else
             {
@@ -109,7 +111,7 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebView
             return System.Text.Encoding.UTF8.GetString(buffer);
 #endif
         });
-        set => RunOnGlibThread(() => gtk_window_set_title(_windowHandle, value ?? string.Empty));
+        set => RunOnGlibThreadAsync(() => gtk_window_set_title(_windowHandle, value ?? string.Empty));
     }
 
     public void Show() => RunOnGlibThreadAsync(() =>
@@ -126,7 +128,7 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebView
             return false;
         }
 
-        return RunOnGlibThread(() =>
+        RunOnGlibThreadAsync(() =>
         {
             var xid = owner.Handle;
             var parent = gdk_x11_window_foreign_new_for_display(gdk_display_get_default(), xid);
@@ -144,9 +146,8 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebView
                 gtk_window_set_resizable(_windowHandle, false);
             }
             _isShown = true;
-
-            return true;
         });
+        return true;
     }
 
     public void Close()
@@ -156,13 +157,13 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebView
 
     public bool Resize(int width, int height)
     {
-        RunOnGlibThread(() => gtk_window_resize(_windowHandle, width, height));
+        RunOnGlibThreadAsync(() => gtk_window_resize(_windowHandle, width, height));
         return true;
     }
 
     public bool Move(int x, int y)
     {
-        RunOnGlibThread(() => gtk_window_move(_windowHandle, x, y));
+        RunOnGlibThreadAsync(() => gtk_window_move(_windowHandle, x, y));
         return true;
     }
 
