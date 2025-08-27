@@ -321,7 +321,7 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
                     }
                 };
 
-                webResourceRequested.Invoke(this, webResourceArgs);
+                WebViewDispatcher.InvokeAsync(() => webResourceRequested.Invoke(this, webResourceArgs));
             }
 
             return base.ShouldInterceptRequest(view, request);
