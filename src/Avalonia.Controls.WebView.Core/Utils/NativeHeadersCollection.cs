@@ -24,63 +24,12 @@ internal interface INativeHttpHeadersCollectionIterator
     bool MoveNext();
 }
 
-internal class DictionaryNativeHttpRequestHeaders(IReadOnlyDictionary<string, string> headers)
-    : INativeHttpRequestHeaders
-{
-    public bool Immutable => true;
-
-    public bool TryClear() => false;
-
-    public bool TryGetCount(out int count)
-    {
-        count = headers.Count;
-        return true;
-    }
-
-    public string? GetHeader(string name) => headers.TryGetValue(name, out var value) ? value : null;
-
-    public bool Contains(string name) => headers.ContainsKey(name);
-
-    public bool TrySetHeader(string name, string value) => false;
-
-    public bool TryRemoveHeader(string name) => false;
-
-    public INativeHttpHeadersCollectionIterator GetIterator() => new Iterator(headers);
-
-    public class Iterator(IReadOnlyDictionary<string, string> dictionary) : INativeHttpHeadersCollectionIterator
-    {
-        private readonly IEnumerator<KeyValuePair<string, string>> _enumerator = dictionary.GetEnumerator();
-        private bool _initial = true;
-
-        public void GetCurrentHeader(out string name, out string value)
-        {
-            var c = _enumerator.Current;
-            name = c.Key;
-            value = c.Value as string ?? ""; // should always be a string
-        }
-
-        public bool GetHasCurrentHeader()
-        {
-            if (_initial)
-            {
-                _initial = false;
-                return MoveNext();
-            }
-            else
-            {
-                return !string.IsNullOrEmpty(_enumerator.Current.Key);
-            }
-        }
-
-        public bool MoveNext() => _enumerator.MoveNext();
-    }
-}
-
 internal sealed class NativeHeadersCollection(
     INativeHttpRequestHeaders nativeHeaders) :
     WebViewWebRequestHeaders, IDictionary<string, string>
 {
     private INativeHttpRequestHeaders? _nativeHeaders = nativeHeaders;
+    public bool HasChanges { get; private set; }
 
     public void Dispose()
     {
@@ -89,12 +38,16 @@ internal sealed class NativeHeadersCollection(
 
     public override bool TrySet(string name, string value)
     {
-        return _nativeHeaders?.TrySetHeader(name, value) ?? false;
+        var wasSet = _nativeHeaders?.TrySetHeader(name, value) ?? false;
+        HasChanges |= wasSet;
+        return wasSet;
     }
 
     public override bool TryRemove(string name)
     {
-        return _nativeHeaders?.TryRemoveHeader(name) ?? false;
+        var wasRemoved = _nativeHeaders?.TryRemoveHeader(name) ?? false;
+        HasChanges |= wasRemoved;
+        return wasRemoved;
     }
 
     public override IEnumerable<string> Values => ((IDictionary<string, string>)this).Values;
@@ -125,7 +78,8 @@ internal sealed class NativeHeadersCollection(
         if (_nativeHeaders is null)
             throw new ObjectDisposedException(nameof(WebViewWebRequestHeaders));
 
-        _nativeHeaders.TrySetHeader(item.Key, item.Value);
+        var wasSet = _nativeHeaders.TrySetHeader(item.Key, item.Value);
+        HasChanges |= wasSet;
     }
 
     public void Clear()
@@ -135,6 +89,7 @@ internal sealed class NativeHeadersCollection(
 
         if (_nativeHeaders.Immutable)
             return;
+
         if (!_nativeHeaders.TryClear())
         {
             var keys = new List<string>();
@@ -150,6 +105,8 @@ internal sealed class NativeHeadersCollection(
             foreach (var key in keys)
                 _nativeHeaders.TryRemoveHeader(key);
         }
+
+        HasChanges = true;
     }
 
     public bool Contains(KeyValuePair<string, string> item)
@@ -176,7 +133,9 @@ internal sealed class NativeHeadersCollection(
 
         if (Contains(item))
         {
-            return _nativeHeaders.TryRemoveHeader(item.Key);
+            var wasRemoved = _nativeHeaders.TryRemoveHeader(item.Key);
+            HasChanges |= wasRemoved;
+            return wasRemoved;
         }
         return false;
     }
@@ -210,7 +169,8 @@ internal sealed class NativeHeadersCollection(
         if (_nativeHeaders is null)
             throw new ObjectDisposedException(nameof(WebViewWebRequestHeaders));
 
-        _nativeHeaders.TrySetHeader(key, value);
+        var wasSet = _nativeHeaders.TrySetHeader(key, value);
+        HasChanges |= wasSet;
     }
 
     public override bool ContainsKey(string key)
@@ -228,7 +188,9 @@ internal sealed class NativeHeadersCollection(
 
         if (ContainsKey(key))
         {
-            return _nativeHeaders.TryRemoveHeader(key);
+            var wasRemoved = _nativeHeaders.TryRemoveHeader(key);
+            HasChanges |= wasRemoved;
+            return wasRemoved;
         }
         return false;
     }
@@ -261,7 +223,8 @@ internal sealed class NativeHeadersCollection(
             if (_nativeHeaders is null)
                 throw new ObjectDisposedException(nameof(WebViewWebRequestHeaders));
 
-            _nativeHeaders.TrySetHeader(key, value);
+            var wasSet = _nativeHeaders.TrySetHeader(key, value);
+            HasChanges |= wasSet;
         }
     }
 

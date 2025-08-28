@@ -18,7 +18,8 @@ using Avalonia.Interactivity;
 using Avalonia.Platform;
 
 using Java.Interop;
-
+using Java.Net;
+using CookieManager = Android.Webkit.CookieManager;
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
 
 namespace Avalonia.Controls.Android;
@@ -309,19 +310,85 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
         {
             if (adapter.WebResourceRequested is { } webResourceRequested)
             {
+                var headers = request?.RequestHeaders;
+                var canEditHeaders = headers is not null && request?.Method == "GET";
+                var headersWrapper = new NativeHeadersCollection(
+                    headers is not null ?
+                        new DictionaryNativeHttpRequestHeaders(headers, !canEditHeaders) :
+                        new DictionaryNativeHttpRequestHeaders(new Dictionary<string, string>(), true));
                 var webResourceArgs = new WebResourceRequestedEventArgs
                 {
                     Request = new WebViewWebResourceRequest
                     {
                         Method = request is null ? HttpMethod.Get : new HttpMethod(request.Method!),
                         Uri = new Uri(request!.Url!.ToString()!),
-                        Headers = new NativeHeadersCollection(new DictionaryNativeHttpRequestHeaders(
-                            request?.RequestHeaders?.AsReadOnly() ?? new ReadOnlyDictionary<string, string>(
-                                new Dictionary<string, string>()))),
+                        Headers = headersWrapper,
                     }
                 };
 
-                WebViewDispatcher.InvokeAsync(() => webResourceRequested.Invoke(this, webResourceArgs));
+                // This flow is tricky. It's only possible to modify request headers for GET requests.
+                // We also don't want to block thread with sync Invoke if not necessary.
+                if (canEditHeaders)
+                {
+                    WebViewDispatcher.Invoke(() => webResourceRequested.Invoke(this, webResourceArgs));
+
+                    if (headersWrapper.HasChanges)
+                    {
+                        try
+                        {
+                            var url = new URL(request.Url.ToString());
+                            var connection = (HttpURLConnection)url.OpenConnection()!;
+
+                            foreach (var header in request.RequestHeaders!)
+                            {
+                                connection.SetRequestProperty(header.Key, header.Value);
+                            }
+
+                            connection.Connect();
+
+                            var encoding = connection.ContentEncoding ?? "UTF-8";
+                            var mimeType = connection.ContentType?.Split(';')[0] ?? "text/html";
+
+                            var responseHeaders = new Dictionary<string, string>();
+                            foreach (var entry in connection.HeaderFields ?? new Dictionary<string, IList<string>>())
+                            {
+                                if (entry is { Key: { } key, Value: { } value })
+                                {
+                                    responseHeaders[key] = string.Join(",", value);
+                                }
+                            }
+
+                            System.IO.Stream? stream = null;
+                            try
+                            {
+                                stream = connection.InputStream;
+                            }
+                            catch
+                            {
+                                // Don't care.
+                            }
+
+                            return new WebResourceResponse(
+                                mimeType,
+                                encoding,
+                                (int)connection.ResponseCode,
+                                connection.ResponseMessage!,
+                                responseHeaders,
+                                stream
+                            );
+                        }
+                        catch
+                        {
+                            // Don't care.
+                            return null;
+                        }
+                    }
+                }
+                else
+                {
+                    // fallback to base.ShouldInterceptRequest
+                    WebViewDispatcher.InvokeAsync(() => webResourceRequested.Invoke(this, webResourceArgs));
+                }
             }
 
             return base.ShouldInterceptRequest(view, request);

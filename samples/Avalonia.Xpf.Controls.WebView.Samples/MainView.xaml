@@ -35,6 +35,10 @@
             <controls:NativeWebView Source="https://www.w3schools.com/tags/att_input_type.asp"
                            NewWindowRequested="NativeWebView_OnNewWindowRequested" />
         </TabItem>
+        <TabItem Header="Headers">
+            <controls:NativeWebView Source="https://httpbin.io/headers"
+                                    WebResourceRequested="Headers_OnWebResourceRequested" />
+        </TabItem>
         <TabItem Header="GetUserMedia">
             <controls:NativeWebView Source="https://webrtc.github.io/samples/"
                            NewWindowRequested="NativeWebView_OnNewWindowRequested" />
