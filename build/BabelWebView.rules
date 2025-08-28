@@ -6,7 +6,13 @@
 		feature="renaming"
 		exclude="true"
 		applyToMembers="true">
-		<Pattern>*.JavaScriptValueCallback</Pattern>
+		<Pattern>*JavaScriptValueCallback</Pattern>
 	</Rule>
+    <Rule name="DontRenameJavaScriptInterface"
+        feature="renaming"
+        exclude="true"
+        applyToMembers="true">
+        <Pattern>*JavaScriptInterface</Pattern>
+    </Rule>
 
 </Rules>
