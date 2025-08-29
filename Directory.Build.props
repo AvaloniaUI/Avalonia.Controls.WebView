@@ -1,13 +1,12 @@
 ﻿<Project>
+  <Import Project="$(MSBuildThisFileDirectory)/build-common/Common.props" />
 
   <PropertyGroup>
     <LangVersion>preview</LangVersion>
-    <Nullable>enable</Nullable>
     <Features>strict</Features>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <IsPackable>false</IsPackable>
   
     <AvaloniaVersion>11.1.0</AvaloniaVersion>
     <AvaloniaSampleVersion>11.3.1</AvaloniaSampleVersion>
@@ -26,5 +25,4 @@
     <AvaloniaUILicenseKey Include="$(ACCELERATE_LICENSE_KEY)" />
   </ItemGroup>
 
-  <Import Project="$(MSBuildThisFileDirectory)/build-common/Common.props" />
 </Project>

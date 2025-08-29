@@ -37,7 +37,5 @@
   </ItemGroup>
 
   <Import Project="../Avalonia.Controls.WebView.Core/IncludeBuildItems.props" />
-  <Import Project="$(RepositoryTargetsRoot)/NullableEnable.targets" />
   <Import Project="$(RepositoryTargetsRoot)/SignEnable.targets" />
-  <Import Project="$(RepositoryTargetsRoot)/TrimmingEnable.targets" />
 </Project>
