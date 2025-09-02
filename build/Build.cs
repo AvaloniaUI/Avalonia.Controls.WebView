@@ -15,12 +15,14 @@ class Build : NukeBuild
         Execute<Build>(x => x.CopyPackagesToNuGetCache) :
         Execute<Build>(x => x.CreateNugetPackages);
 
-    [NuGetPackage("Babel.Obfuscator.Tool", "babel.dll", Framework = "net9.0")] readonly Tool Babel;
+    [NuGetPackage("Babel.Obfuscator.Tool", "babel.dll", Framework = "net9.0")] readonly Tool Babel = null!;
 
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = Configuration.Release;
     [Parameter]
     readonly AbsolutePath Output = RootDirectory / "artifacts" / "packages";
+    [Parameter]
+    readonly bool? Obfuscate;
 
     readonly AbsolutePath SolutionFile = RootDirectory / "Avalonia.Controls.WebView.ci.slnf";
 
@@ -50,7 +52,8 @@ class Build : NukeBuild
             .SetConfiguration(Configuration)
         ));
 
-    Target Obfuscate => _ => _
+    Target RunObfuscate => _ => _
+        .OnlyWhenStatic(ShouldObfuscate)
         .DependsOn(Compile)
         .Executes(() =>
         {
@@ -86,7 +89,7 @@ class Build : NukeBuild
         .DependsOn(OutputParameters)
         .DependsOn(RunTests)
         .DependsOn(Compile)
-        .DependsOn(Obfuscate)
+        .DependsOn(RunObfuscate)
         .Executes(() =>
         {
             var srcRootDirectory = RootDirectory / "src";
@@ -117,4 +120,5 @@ class Build : NukeBuild
             isPackingToLocalCache: RunningTargets.Concat(ScheduledTargets)
                 .Any(t => t.Name == nameof(CopyPackagesToNuGetCache)))
         .ToString();
+    bool ShouldObfuscate() => Obfuscate ?? (Configuration == Configuration.Release);
 }

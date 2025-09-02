@@ -27,8 +27,8 @@
         "Compile",
         "CopyPackagesToNuGetCache",
         "CreateNugetPackages",
-        "Obfuscate",
         "OutputParameters",
+        "RunObfuscate",
         "RunTests"
       ]
     },
@@ -109,6 +109,12 @@
           "enum": [
             "Debug",
             "Release"
+          ]
+        },
+        "Obfuscate": {
+          "type": [
+            "boolean",
+            "null"
           ]
         },
         "Output": {
