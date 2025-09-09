@@ -13,6 +13,7 @@ namespace Avalonia.Controls.Android;
 [SupportedOSPlatform("android")]
 internal static class AndroidWebAuthenticationBroker
 {
+    internal const string RequestId = "REQUEST_ID";
     private record AuthenticationData(Uri RedirectUri, TaskCompletionSource<Uri> TaskSource);
 
     private static readonly Dictionary<int, AuthenticationData> s_pendingAuthentications = [];
@@ -29,29 +30,23 @@ internal static class AndroidWebAuthenticationBroker
         var requestCode = Random.Shared.Next(10000, 99999);
         var authData = new AuthenticationData(redirectUri, new TaskCompletionSource<Uri>());
         s_pendingAuthentications[requestCode] = authData;
-
-        avActivity.ActivityResult += ActivityResult;
         try
         {
-            var intent = new Intent(Intent.ActionView, null);
-
-            _ = intent.AddFlags(ActivityFlags.SingleTop);
+            var intent = new Intent(activity, typeof(AndroidAuthenticationActivity));
+            _ = intent.PutExtra(RequestId, requestCode);
             _ = intent.SetData(global::Android.Net.Uri.Parse(requestUri.ToString()));
 
-            activity.StartActivityForResult(
-                Intent.CreateChooser(intent, "Select Browser"),
-                requestCode);
+            activity.StartActivity(intent);
 
             return await authData.TaskSource.Task;
         }
         finally
         {
-            avActivity.ActivityResult -= ActivityResult;
             _ = s_pendingAuthentications.Remove(requestCode);
         }
     }
 
-    private static void ActivityResult(int requestCode, Result resultCode, Intent? data)
+    internal static void SetWebAuthenticationResult(int requestCode, Result resultCode, Intent? data)
     {
         if (!s_pendingAuthentications.TryGetValue(requestCode, out var authData))
         {

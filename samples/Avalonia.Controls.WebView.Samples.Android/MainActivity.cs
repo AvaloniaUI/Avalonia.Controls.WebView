@@ -1,8 +1,11 @@
-﻿using Android.App;
+﻿using System;
+using Android.App;
 using Android.Content;
 using Android.Content.PM;
-using Avalonia;
+using Android.OS;
+using AndroidX.AppCompat.App;
 using Avalonia.Android;
+using Avalonia.Controls.Android;
 
 namespace Avalonia.Controls.WebView.Samples.Android;
 
@@ -12,22 +15,29 @@ namespace Avalonia.Controls.WebView.Samples.Android;
     Icon = "@drawable/icon",
     LaunchMode = LaunchMode.SingleTask,
     MainLauncher = true,
+    LaunchMode = LaunchMode.SingleTask,
     ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.UiMode)]
-[IntentFilter(actions: ["android.intent.action.VIEW"], Categories = ["android.intent.category.DEFAULT", "android.intent.category.BROWSABLE"], DataScheme = "com.AvaloniaUI.WebView.Samples", DataPath = "/oauth2redirect")]
+
 public class MainActivity : AvaloniaMainActivity<App>
 {
-    protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
+
+    protected override void OnCreate(Bundle? savedInstanceState)
     {
-        return base.CustomizeAppBuilder(builder);
+        base.OnCreate(savedInstanceState);
     }
 
-    public override void OnNewIntent(Intent intent, ComponentCaller caller)
-    {
-        base.OnNewIntent(intent, caller);
-        if (intent?.Data is not null)
+    protected override void OnDestroy()
         {
-            SetResult(Result.Ok, intent);
-            Finish();
+        base.OnDestroy();
         }
     }
+
+[Activity(
+    Label = "Avalonia.Controls.WebView.Samples",
+    Theme = "@style/MyTheme.NoActionBar",
+    Icon = "@drawable/icon",
+    Exported = true)]
+[IntentFilter(actions: ["android.intent.action.VIEW"], Categories = ["android.intent.category.DEFAULT", "android.intent.category.BROWSABLE"], DataScheme = "com.avaloniaui.webview.samples", DataHost = "oauth2redirect")]
+public class RedirectActivity : RedirectUriReceiverActivity
+{
 }
