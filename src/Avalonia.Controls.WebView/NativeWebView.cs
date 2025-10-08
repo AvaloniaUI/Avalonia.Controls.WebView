@@ -17,7 +17,6 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using ControlSize = System.Windows.Size;
 #elif AVALONIA
-using System.Linq;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using Avalonia.Threading;
