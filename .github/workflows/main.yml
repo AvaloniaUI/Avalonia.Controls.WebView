@@ -49,7 +49,7 @@ jobs:
   publish-nightly-release:
     runs-on: [self-hosted, Linux]
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push'
     steps:
 
       - uses: actions/download-artifact@v4
@@ -71,7 +71,7 @@ jobs:
 
   publish-xpf-release:
     runs-on: [self-hosted, Linux]
-    needs: build
+    needs: [build, publish-nightly-release]
     if: github.event_name == 'workflow_dispatch'
     steps:
 
@@ -97,7 +97,7 @@ jobs:
 
   publish-accelerate-release:
     runs-on: [self-hosted, Linux]
-    needs: build
+    needs: [build, publish-nightly-release]
     if: github.event_name == 'workflow_dispatch'
     steps:
 
@@ -114,8 +114,7 @@ jobs:
 
     - name: Publish release
       if: ${{ inputs.nuget }}
-      run: dotnet nuget push ./nupkgs/**/*.nupkg --api-key ${{secrets.INTERNAL_FEED_API_KEY}} --source ${{ vars.INTERNAL_FEED_UPLOAD_URL }}
-      #run: dotnet nuget push ./nupkgs/**/*.nupkg --api-key ${{secrets.NUGET_FEED_API_KEY}} --source https://api.nuget.org/v3/index.json
+      run: dotnet nuget push ./nupkgs/**/*.nupkg --api-key ${{secrets.NUGET_FEED_API_KEY}} --source https://api.nuget.org/v3/index.json
 
     - name: Clean packages
       if: always()
