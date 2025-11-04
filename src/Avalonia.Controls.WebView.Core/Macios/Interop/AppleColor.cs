@@ -9,7 +9,7 @@ internal class AppleColor : NSObject
         Libobjc.objc_getClass("NSColor") :
         Libobjc.objc_getClass("UIColor");
 
-    private static readonly IntPtr s_colorWithSRGBRedGreenBlueAlpha = Libobjc.sel_getUid("colorWithSRGBRed:green:blue:alpha:");
+    private static readonly IntPtr s_colorWithRedGreenBlueAlpha = Libobjc.sel_getUid("colorWithRed:green:blue:alpha:");
 
     private AppleColor(IntPtr handle, bool owns) : base(handle, owns)
     {
@@ -19,7 +19,7 @@ internal class AppleColor : NSObject
 
     public static AppleColor FromRGBA(double red, double green, double blue, double alpha)
     {
-        return new AppleColor(Libobjc.intptr_objc_msgSend(s_class, s_colorWithSRGBRedGreenBlueAlpha, red, green, blue,
+        return new AppleColor(Libobjc.intptr_objc_msgSend(s_class, s_colorWithRedGreenBlueAlpha, red, green, blue,
             alpha), true);
     }
 }
