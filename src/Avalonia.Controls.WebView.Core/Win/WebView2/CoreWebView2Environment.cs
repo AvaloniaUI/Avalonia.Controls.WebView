@@ -43,7 +43,7 @@ internal static partial class CoreWebView2Environment
             var runtimeFunc = TryFindWebView2Runtime(options.BrowserExecutableFolder);
             if (runtimeFunc == IntPtr.Zero)
             {
-                tcs = new TaskCompletionSource<ICoreWebView2Environment>();
+                tcs = new TaskCompletionSource<ICoreWebView2Environment>(TaskCreationOptions.RunContinuationsAsynchronously);
                 tcs.SetException(new InvalidOperationException("WebView2 runtime not found or CreateWebViewEnvironmentWithOptionsInternal not exported."));
             }
             else

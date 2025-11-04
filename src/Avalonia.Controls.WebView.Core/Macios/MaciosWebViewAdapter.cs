@@ -216,7 +216,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
     {
         if (args.Name == PostAvWebViewMessageName)
         {
-            var tcs = new TaskCompletionSource<string?>();
+            var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
             var state = new WKWebView.JSCallState(_webView.Handle, tcs);
             await WKWebView.PtrResultToString(args.Body, state);
             var str = await tcs.Task;

@@ -94,7 +94,7 @@ internal class WKWebView : AppleView
 
     public async Task<string?> EvaluateJavaScriptAsync(string script)
     {
-        var tcs = new TaskCompletionSource<string?>();
+        var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var state = new JSCallState(Handle, tcs);
         var stateHandle = GCHandle.Alloc(state);
         try
@@ -119,7 +119,7 @@ internal class WKWebView : AppleView
 
     public async Task<MemoryStream> CreatePdf(WKPDFConfiguration? configuration)
     {
-        var tcs = new TaskCompletionSource<MemoryStream>();
+        var tcs = new TaskCompletionSource<MemoryStream>(TaskCreationOptions.RunContinuationsAsynchronously);
         var stateHandle = GCHandle.Alloc(tcs);
         try
         {

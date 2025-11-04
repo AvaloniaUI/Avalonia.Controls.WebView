@@ -95,7 +95,7 @@ namespace Avalonia.Xpf.Controls
             (AvTopLevel topLevel, WebAuthenticatorOptions options)
 #endif
         {
-            var tcs = new TaskCompletionSource<WebAuthenticationResult>();
+            var tcs = new TaskCompletionSource<WebAuthenticationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             using var dialog = options.NativeWebDialogFactory?.Invoke() ?? DefaultFactory();
             dialog.EnvironmentRequested += (_, args) =>

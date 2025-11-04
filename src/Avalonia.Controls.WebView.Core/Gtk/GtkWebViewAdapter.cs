@@ -197,7 +197,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
 
     public async Task<string?> InvokeScript(string script)
     {
-        var tcs = new TaskCompletionSource<string?>();
+        var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var gcHandle = GCHandle.Alloc(tcs);
         try
         {

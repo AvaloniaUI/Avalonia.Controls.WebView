@@ -154,7 +154,7 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
 
     public Task<string?> InvokeScript(string script)
     {
-        var tcs = new TaskCompletionSource<string?>();
+        var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         WebView.EvaluateJavascript(script, new AndroidJavaScriptValueCallback(tcs));
         return tcs.Task;
     }

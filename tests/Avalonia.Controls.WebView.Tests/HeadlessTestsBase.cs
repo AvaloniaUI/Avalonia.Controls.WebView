@@ -20,14 +20,14 @@ public abstract class HeadlessTestsBase : IDisposable
 
     protected Task WaitForAdapterCreation(NativeWebView webView)
     {
-        var tcs = new TaskCompletionSource<bool>();
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         webView.AdapterCreated += (_, _) => tcs.SetResult(true);
         return tcs.Task;
     }
 
     protected Task WaitForAdapterCreation(NativeWebDialog webView)
     {
-        var tcs = new TaskCompletionSource<bool>();
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         webView.AdapterCreated += (_, _) => tcs.SetResult(true);
         return tcs.Task;
     }

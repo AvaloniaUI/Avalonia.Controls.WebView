@@ -13,7 +13,7 @@ internal static class MaciosWebAuthenticationBroker
 {
     public static async Task<Uri> AuthenticateAsync(TopLevel topLevel, Uri requestUri, string scheme, bool ephemeral)
     {
-        var tcs = new TaskCompletionSource<Uri>();
+        var tcs = new TaskCompletionSource<Uri>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var context = new ASWebAuthenticationPresentationContextProviding(GetWindowHandle(topLevel));
 

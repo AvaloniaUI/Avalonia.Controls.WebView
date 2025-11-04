@@ -28,7 +28,7 @@ internal static class AndroidWebAuthenticationBroker
         }
 
         var requestCode = Random.Shared.Next(10000, 99999);
-        var authData = new AuthenticationData(redirectUri, new TaskCompletionSource<Uri>());
+        var authData = new AuthenticationData(redirectUri, new TaskCompletionSource<Uri>(TaskCreationOptions.RunContinuationsAsynchronously));
         s_pendingAuthentications[requestCode] = authData;
         try
         {

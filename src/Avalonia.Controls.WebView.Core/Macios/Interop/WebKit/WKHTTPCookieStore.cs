@@ -31,7 +31,7 @@ internal class WKHTTPCookieStore(IntPtr handle, bool owns) : NSObject(handle, ow
 
     public async Task<IReadOnlyList<Cookie>> GetAllCookies()
     {
-        var tcs = new TaskCompletionSource<IReadOnlyList<Cookie>>();
+        var tcs = new TaskCompletionSource<IReadOnlyList<Cookie>>(TaskCreationOptions.RunContinuationsAsynchronously);
         var stateHandle = GCHandle.Alloc(tcs);
         try
         {

@@ -54,7 +54,7 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
     {
         base.OnAttachedToVisualTree(e);
 
-        _webViewReadyCompletion = new TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer?>();
+        _webViewReadyCompletion = new TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var adapterTask = factory.InvokeAsync(this);
         CompleteAdapter();
 

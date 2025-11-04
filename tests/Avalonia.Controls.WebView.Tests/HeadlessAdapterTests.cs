@@ -26,7 +26,7 @@ public class HeadlessAdapterTests : HeadlessTestsBase
     {
         var window = new Window();
         var webView = new NativeWebView();
-        var tcs = new TaskCompletionSource();
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var adapterCreated = false;
         webView.EnvironmentRequested += async (_, args) =>
         {

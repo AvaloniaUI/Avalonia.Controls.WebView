@@ -37,7 +37,7 @@ namespace Avalonia.Xpf.Controls
                 return _reparentingScope.ReparentRequested(parent);
             }
 
-            _webViewReadyCompletion = new TaskCompletionSource<IWebViewAdapter?>();
+            _webViewReadyCompletion = new TaskCompletionSource<IWebViewAdapter?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             var adapterWrapper = factory.InvokeAsync(parent, p => base.CreateNativeControlCore(p));
             CompleteAdapter(adapterWrapper);
