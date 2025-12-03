@@ -292,14 +292,14 @@ internal partial class WebView2CompAdapter
         {
             controller.SendMouseInput(
                 COREWEBVIEW2_MOUSE_EVENT_KIND.COREWEBVIEW2_MOUSE_EVENT_KIND_WHEEL,
-                virtualKeys, (uint)delta.Y, position);
+                virtualKeys, (int)(delta.Y * 120), position);
         }
 
         if (delta.X != 0)
         {
             controller.SendMouseInput(
                 COREWEBVIEW2_MOUSE_EVENT_KIND.COREWEBVIEW2_MOUSE_EVENT_KIND_HORIZONTAL_WHEEL,
-                virtualKeys, (uint)delta.X, position);
+                virtualKeys, (int)(delta.X * 120), position);
         }
 
         return true;

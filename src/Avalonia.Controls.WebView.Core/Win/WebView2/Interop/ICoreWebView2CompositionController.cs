@@ -27,7 +27,7 @@ internal partial interface ICoreWebView2CompositionController
     ICompositionVisual? GetRootVisualTarget();
     void SetRootVisualTarget(ICompositionVisual? value);
 
-    void SendMouseInput(COREWEBVIEW2_MOUSE_EVENT_KIND eventKind, COREWEBVIEW2_MOUSE_EVENT_VIRTUAL_KEYS virtualKeys, uint mouseData, tagPOINT point);
+    void SendMouseInput(COREWEBVIEW2_MOUSE_EVENT_KIND eventKind, COREWEBVIEW2_MOUSE_EVENT_VIRTUAL_KEYS virtualKeys, int mouseData, tagPOINT point);
 
     void SendPointerInput(int eventKind, [MarshalAs(UnmanagedType.Interface)] IntPtr pointerInfo);
 
