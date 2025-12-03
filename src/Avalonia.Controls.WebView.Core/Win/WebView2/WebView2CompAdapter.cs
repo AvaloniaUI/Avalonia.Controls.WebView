@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -13,6 +14,7 @@ using Avalonia.Controls.Win.WebView2.Interop;
 using Avalonia.Input;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Microsoft.Win32.SafeHandles;
 
 namespace Avalonia.Controls.Win.WebView2;
 
@@ -167,53 +169,52 @@ internal partial class WebView2CompAdapter
             throw new COMException("Render Visual Failed", new Win32Exception(hr));
         }
 
-        await Task.Run(() => GetVisualPixelBuffer(currentSize, producer, hEvent, hMap, cbMap));
-        
-        _commitAsyncLoopHandler.RegisterNext();
-
-        static unsafe void GetVisualPixelBuffer(
-            PixelSize size, FrameChainBase<WriteableBitmap, PixelSize>.IProducer producer,
-            IntPtr hEvent, IntPtr hMap, uint cbMap)
+        try
         {
-            try
+            var wh = new ManualResetEvent(false);
+            wh.SafeWaitHandle = new SafeWaitHandle(hEvent, ownsHandle: false);
+
+            var tcs = new TaskCompletionSource<bool>();
+            ThreadPool.RegisterWaitForSingleObject(wh, static (state, timedOut) =>
             {
-                using (producer.GetNextFrame(size, out var frame))
+                var tcs = (TaskCompletionSource<bool>)state!;
+                tcs.SetResult(!timedOut);
+            }, tcs, TimeSpan.FromMilliseconds(100), true);
+
+            if (!await tcs.Task)
+            {
+                // Timeout, ignore
+                return;
+            }
+
+            using (producer.GetNextFrame(currentSize, out var frame))
+            {
+                var pbMap = PInvoke.MapViewOfFile(
+                    new HANDLE(hMap), FILE_MAP.FILE_MAP_WRITE, 0, 0, UIntPtr.Zero);
+
+                if (pbMap != IntPtr.Zero)
                 {
-                    var waitRet = PInvoke.WaitForSingleObject(new HANDLE(hEvent), 100);
-                    if (waitRet == WAIT_EVENT.WAIT_OBJECT_0)
-                    {
-                        var pbMap = PInvoke.MapViewOfFile(
-                            new HANDLE(hMap), FILE_MAP.FILE_MAP_WRITE, 0, 0, UIntPtr.Zero);
+                    using var buf = frame.Lock();
 
-                        if (pbMap != IntPtr.Zero)
-                        {
-                            using var buf = frame.Lock();
-
-                            Buffer.MemoryCopy(
-                                source: pbMap,
-                                destination: (void*)buf.Address,
-                                destinationSizeInBytes: buf.RowBytes * size.Height,
-                                sourceBytesToCopy: cbMap
-                            );
-                        }
-                    }
-                    else if (waitRet == WAIT_EVENT.WAIT_TIMEOUT)
+                    unsafe
                     {
-                        return;
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException(
-                            $"RenderVisual event wait failed (0x{waitRet:x8}): {Marshal.GetLastWin32Error()}");
+                        Buffer.MemoryCopy(
+                            source: pbMap,
+                            destination: (void*)buf.Address,
+                            destinationSizeInBytes: buf.RowBytes * currentSize.Height,
+                            sourceBytesToCopy: cbMap
+                        );
                     }
                 }
             }
-            finally
-            {
-                PInvoke.CloseHandle(new HANDLE(hMap));
-                PInvoke.CloseHandle(new HANDLE(hEvent));
-            }
         }
+        finally
+        {
+            PInvoke.CloseHandle(new HANDLE(hMap));
+            PInvoke.CloseHandle(new HANDLE(hEvent));
+        }
+        
+        _commitAsyncLoopHandler.RegisterNext();
     }
 
     internal EventHandler? GetCursorChanged() => _cursorChangedHandler;
