@@ -6,7 +6,6 @@
       net6.0;net8.0;
       net8.0-android
     </TargetFrameworks>
-    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
 
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <RootNamespace>Avalonia.Controls</RootNamespace>
