@@ -23,8 +23,17 @@ internal partial interface ICompositionCaptureTest
         uint offsetY,
         uint width,
         uint height,
-        uint format,
+        CompositionCaptureTestBitmapPixelFormat format,
         ref IntPtr hMap,
         ref IntPtr hEvent,
         out uint cbMap); // count in bytes of the map
+}
+
+internal enum CompositionCaptureTestBitmapPixelFormat : uint
+{
+    Rgba16 = 12,
+    Rgba8 = 30,
+    Gray16 = 57,
+    Gray8 = 62,
+    Bgra8 = 87
 }

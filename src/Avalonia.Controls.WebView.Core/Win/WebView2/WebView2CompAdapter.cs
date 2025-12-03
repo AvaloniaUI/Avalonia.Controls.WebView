@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
@@ -21,7 +22,8 @@ namespace Avalonia.Controls.Win.WebView2;
 internal partial class WebView2CompAdapter
     // ICoreWebView2Controller can be queried from ICoreWebView2CompositionController. 
     // ReSharper disable once SuspiciousTypeConversion.Global
-    : WebView2BaseAdapter, IWebViewAdapterWithOffscreenBuffer,
+    (IntPtr handle, ICoreWebView2CompositionController controller)
+    : WebView2BaseAdapter((ICoreWebView2Controller)controller), IWebViewAdapterWithOffscreenBuffer,
         IWebViewAdapterWithOffscreenInput, IWebViewAdapterWithExplicitCursor
 {
     private static readonly Lazy<ICompositor> s_compositor = new(() =>
@@ -32,16 +34,8 @@ internal partial class WebView2CompAdapter
         return compositor;
     });
 
-    private readonly ICoreWebView2CompositionController _controller;
     private EventRegistrationToken _cursorChangedToken;
     private EventHandler? _cursorChangedHandler;
-
-    public WebView2CompAdapter(IntPtr handle, ICoreWebView2CompositionController controller)
-        : base((ICoreWebView2Controller)controller)
-    {
-        _controller = controller;
-        Handle = handle;
-    }
 
     public event Action? DrawRequested;
     public event EventHandler? CursorChanged
@@ -50,9 +44,9 @@ internal partial class WebView2CompAdapter
         remove => _cursorChangedHandler -= value;
     }
 
-    public StandardCursorType CurrentCursorType => WindowsUtility.MapCursor(_controller.GetSystemCursorId());
+    public StandardCursorType CurrentCursorType => WindowsUtility.MapCursor(controller.GetSystemCursorId());
 
-    public override IntPtr Handle { get; }
+    public override IntPtr Handle { get; } = handle;
     public override string HandleDescriptor => "Windows.UI.Composition.ContainerVisual";
 
     public static async Task<WebViewAdapter.OffscreenWebViewAdapterBuilder> CreateBuilder(
@@ -120,7 +114,7 @@ internal partial class WebView2CompAdapter
     public async Task UpdateWriteableBitmap(PixelSize currentSize,
         FrameChainBase<WriteableBitmap, PixelSize>.IProducer producer)
     {
-        var target = _controller.GetRootVisualTarget();
+        var target = controller.GetRootVisualTarget();
 
         if (target is null || currentSize.Height == 0 || currentSize.Width == 0)
             return;
@@ -148,62 +142,40 @@ internal partial class WebView2CompAdapter
         //      as they will be processed in a separate batch
         var hMap = IntPtr.Zero;
         var hEvent = IntPtr.Zero;
+        
         var hr = compositorCapture.RenderVisual(
             target,
             0, // offset X
             0, // offset y
             (uint)currentSize.Width,
             (uint)currentSize.Height,
-            87 /* Bgra8 */,
+            CompositionCaptureTestBitmapPixelFormat.Bgra8,
             ref hMap,
             ref hEvent,
             out var cbMap);
-
         if (hr != 0)
         {
-            throw new Exception("Render Visual Failed, ErrCode: " + hr);
+            throw new COMException("Render Visual Failed", new Win32Exception(hr));
         }
 
         await Task.Run(() => GetVisualPixelBuffer(currentSize, producer, hEvent, hMap, cbMap));
-    }
 
-    internal EventHandler? GetCursorChanged() => _cursorChangedHandler;
-
-    protected override void RegisterCallbacks(WebViewCallbacks callbacks)
-    {
-        _controller.add_CursorChanged(callbacks, out _cursorChangedToken);
-        base.RegisterCallbacks(callbacks);
-    }
-
-    protected override void UnregisterCallbacks()
-    {
-        _controller.remove_CursorChanged(_cursorChangedToken);
-        base.UnregisterCallbacks();
-    }
-
-    protected override void SizeChangedCore(PixelSize containerSize)
-    {
-        var target = _controller.GetRootVisualTarget();
-        target?.SetSize(new winrtVector2 { X = containerSize.Width, Y = containerSize.Height });
-
-        base.SizeChangedCore(containerSize);
-    }
-
-    private static unsafe void GetVisualPixelBuffer(
-        PixelSize size, FrameChainBase<WriteableBitmap, PixelSize>.IProducer producer,
-        IntPtr hEvent, IntPtr hMap, uint cbMap)
-    {
-        try
+        static unsafe void GetVisualPixelBuffer(
+            PixelSize size, FrameChainBase<WriteableBitmap, PixelSize>.IProducer producer,
+            IntPtr hEvent, IntPtr hMap, uint cbMap)
         {
-            using (producer.GetNextFrame(size, out var frame))
+            try
             {
-                var waitRet = PInvoke.WaitForSingleObject(new HANDLE(hEvent), 100);
-                if (waitRet == WAIT_EVENT.WAIT_OBJECT_0)
+                using (producer.GetNextFrame(size, out var frame))
                 {
-                    var pbMap = PInvoke.MapViewOfFile(new HANDLE(hMap), FILE_MAP.FILE_MAP_WRITE, 0, 0, UIntPtr.Zero);
-
-                    if (pbMap != IntPtr.Zero)
+                    var waitRet = PInvoke.WaitForSingleObject(new HANDLE(hEvent), 100);
+                    if (waitRet == WAIT_EVENT.WAIT_OBJECT_0)
                     {
+                        var pbMap = PInvoke.MapViewOfFile(
+                            new HANDLE(hMap), FILE_MAP.FILE_MAP_WRITE, 0, 0, UIntPtr.Zero);
+
+                        if (pbMap != IntPtr.Zero)
+                        {
                             using var buf = frame.Lock();
 
                             Buffer.MemoryCopy(
@@ -212,25 +184,49 @@ internal partial class WebView2CompAdapter
                                 destinationSizeInBytes: buf.RowBytes * size.Height,
                                 sourceBytesToCopy: cbMap
                             );
+                        }
+                    }
+                    else if (waitRet == WAIT_EVENT.WAIT_TIMEOUT)
+                    {
+                        return;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            $"RenderVisual event wait failed (0x{waitRet:x8}): {Marshal.GetLastWin32Error()}");
                     }
                 }
-                else if (waitRet == WAIT_EVENT.WAIT_TIMEOUT)
-                {
-                    return;
-                }
-                else
-                {
-                    throw new InvalidOperationException(
-                        $"RenderVisual event wait failed (0x{waitRet:x8}): {Marshal.GetLastWin32Error()}");
-                }
+            }
+            finally
+            {
+                PInvoke.CloseHandle(new HANDLE(hMap));
+                PInvoke.CloseHandle(new HANDLE(hEvent));
             }
         }
-        finally
-        {
-            PInvoke.CloseHandle(new HANDLE(hMap));
-            PInvoke.CloseHandle(new HANDLE(hEvent));
-        }
     }
+
+    internal EventHandler? GetCursorChanged() => _cursorChangedHandler;
+
+    protected override void RegisterCallbacks(WebViewCallbacks callbacks)
+    {
+        controller.add_CursorChanged(callbacks, out _cursorChangedToken);
+        base.RegisterCallbacks(callbacks);
+    }
+
+    protected override void UnregisterCallbacks()
+    {
+        controller.remove_CursorChanged(_cursorChangedToken);
+        base.UnregisterCallbacks();
+    }
+
+    protected override void SizeChangedCore(PixelSize containerSize)
+    {
+        var target = controller.GetRootVisualTarget();
+        target?.SetSize(new winrtVector2 { X = containerSize.Width, Y = containerSize.Height });
+
+        base.SizeChangedCore(containerSize);
+    }
+
 #if COM_SOURCE_GEN
     [GeneratedComClass]
 #endif
@@ -242,7 +238,7 @@ internal partial class WebView2CompAdapter
     {
         if (disposing)
         {
-            _controller.SetRootVisualTarget(null);
+            controller.SetRootVisualTarget(null);
         }
 
         base.Dispose(disposing);
@@ -284,7 +280,7 @@ internal partial class WebView2CompAdapter
                 .COREWEBVIEW2_MOUSE_EVENT_KIND_MOVE,
             _ => throw new ArgumentOutOfRangeException(nameof(point.Properties.PointerUpdateKind))
         };
-        _controller.SendMouseInput(changeType, virtualKeys, 0, position);
+        controller.SendMouseInput(changeType, virtualKeys, 0, position);
         return true;
     }
 
@@ -294,14 +290,14 @@ internal partial class WebView2CompAdapter
         var position = ToPoint(point.Position, dpi);
         if (delta.Y != 0)
         {
-            _controller.SendMouseInput(
+            controller.SendMouseInput(
                 COREWEBVIEW2_MOUSE_EVENT_KIND.COREWEBVIEW2_MOUSE_EVENT_KIND_WHEEL,
                 virtualKeys, (uint)delta.Y, position);
         }
 
         if (delta.X != 0)
         {
-            _controller.SendMouseInput(
+            controller.SendMouseInput(
                 COREWEBVIEW2_MOUSE_EVENT_KIND.COREWEBVIEW2_MOUSE_EVENT_KIND_HORIZONTAL_WHEEL,
                 virtualKeys, (uint)delta.X, position);
         }

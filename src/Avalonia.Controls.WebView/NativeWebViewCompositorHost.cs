@@ -4,6 +4,7 @@ using Avalonia.Controls.Rendering;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Rendering.Composition;
 
 #if AVALONIA
@@ -18,7 +19,7 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
     //private ReparentingScope? _reparentingScope;
     private bool _firstDraw;
     private CompositionCustomVisual? _customVisual;
-    private readonly BitmapFrameChain _frameChain = new();
+    private readonly BitmapFrameChain _frameChain = new(PixelFormats.Bgra8888);
 
     /// <inheritdoc />
     public event EventHandler<IWebViewAdapter>? AdapterCreated;
