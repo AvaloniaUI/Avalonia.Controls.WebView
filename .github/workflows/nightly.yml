@@ -15,4 +15,4 @@ jobs:
       nuget_feed: ${{ vars.NIGHTLY_FEED_UPLOAD_URL }}
     secrets:
       checkout_token: ${{ secrets.SUBMODULE_TOKEN }}
-      nightly_api_key: ${{secrets.NIGHTLY_FEED_API_KEY}}
+      nuget_api_key: ${{secrets.NIGHTLY_FEED_API_KEY}}
