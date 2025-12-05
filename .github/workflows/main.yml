@@ -17,40 +17,25 @@ on:
 
 jobs:
 
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-          # https://github.com/actions/checkout/issues/116#issuecomment-644419389
-          token: ${{ secrets.SUBMODULE_TOKEN }}
-          submodules: 'recursive'
-    - uses: actions/setup-dotnet@v4
-      with:
-          dotnet-version: '9.0.305'
+  build_avalonia:
+    uses: AvaloniaUI/build-common/.github/workflows/build-library.yml@main
+    with:
+      artifact_name: avalonia
+      artifact_glob: Avalonia.Controls.WebView.*.nupkg
+    secrets:
+      SUBMODULE_TOKEN: ${{ secrets.SUBMODULE_TOKEN }}
 
-    - name: Install workloads
-      run: dotnet workload install android --version 9.0.305
-
-    - name: CreateNugetPackages
-      run: dotnet run --project ${{github.workspace}}/build/_build.csproj -- --target CreateNugetPackages --configuration Release --output ${{github.workspace}}/artifacts/packages/
-
-    - name: Upload Avalonia nupkg artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: avalonia
-        path: ${{github.workspace}}/artifacts/packages/Avalonia.Controls.WebView.*.nupkg
-        retention-days: 1
-    - name: Upload XPF nupkg artifact
-      uses: actions/upload-artifact@v4
-      with:
-          name: xpf
-          path: ${{github.workspace}}/artifacts/packages/Avalonia.Xpf.Controls.WebView.*.nupkg
-          retention-days: 1
+  build_xpf:
+    uses: AvaloniaUI/build-common/.github/workflows/build-library.yml@main
+    with:
+      artifact_name: xpf
+      artifact_glob: Avalonia.Xpf.Controls.WebView.*.nupkg
+    secrets:
+      SUBMODULE_TOKEN: ${{ secrets.SUBMODULE_TOKEN }}
 
   publish-nightly-release:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build_avalonia]
     if: (github.event_name == 'push' || github.event_name == 'pull_request') && github.ref == 'refs/heads/main'
     steps:
 
@@ -65,7 +50,7 @@ jobs:
 
   publish-xpf-release:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build_xpf]
     if: github.event_name == 'workflow_dispatch'
     steps:
 
@@ -86,7 +71,7 @@ jobs:
 
   publish-accelerate-release:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build_avalonia]
     if: github.event_name == 'workflow_dispatch'
     steps:
 
