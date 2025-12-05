@@ -9,11 +9,10 @@ on:
 jobs:
 
   release_nightly:
-    uses: AvaloniaUI/build-common/.github/workflows/release-library.yml@main
+    uses: AvaloniaUI/build-common/.github/workflows/library-cicd.yml@main
     with:
-      artifact_name: avalonia
       artifact_glob: Avalonia.Controls.WebView.*.nupkg
-      push_nightly: true
+      nuget_feed: ${{ variables.NIGHTLY_FEED_UPLOAD_URL }}
     secrets:
       checkout_token: ${{ secrets.SUBMODULE_TOKEN }}
       nightly_api_key: ${{secrets.NIGHTLY_FEED_API_KEY}}
