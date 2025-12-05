@@ -1,92 +1,19 @@
-name: CICD
+name: Nightly
 
 on:
   push:
     branches: [ "main", "release/*" ]
-    tags:
-      - '*'
   pull_request:
-      branches: [ "main" ]
-  workflow_dispatch: # manual trigger for stable release 
-    inputs:
-      nuget:
-          description: 'Push NuGet'
-          required: true
-          type: boolean
-          default: false
+    branches: [ "main" ]
 
 jobs:
 
-  build_avalonia:
-    uses: AvaloniaUI/build-common/.github/workflows/build-library.yml@main
+  release_avalonia:
+    uses: AvaloniaUI/build-common/.github/workflows/release-library.yml@main
     with:
       artifact_name: avalonia
       artifact_glob: Avalonia.Controls.WebView.*.nupkg
+      push_nightly: true
     secrets:
       checkout_token: ${{ secrets.SUBMODULE_TOKEN }}
-
-  build_xpf:
-    uses: AvaloniaUI/build-common/.github/workflows/build-library.yml@main
-    with:
-      artifact_name: xpf
-      artifact_glob: Avalonia.Xpf.Controls.WebView.*.nupkg
-    secrets:
-      checkout_token: ${{ secrets.SUBMODULE_TOKEN }}
-
-  publish-nightly-release:
-    runs-on: ubuntu-latest
-    needs: [build_avalonia]
-    if: (github.event_name == 'push' || github.event_name == 'pull_request') && github.ref == 'refs/heads/main'
-    steps:
-
-      # Only publish nightly for Avalonia, not XPF 
-      - uses: actions/download-artifact@v4
-        with:
-            name: avalonia
-            path: ./nupkgs
-
-      - name: Publish Nightly release
-        run: dotnet nuget push ./nupkgs/**/*.nupkg --api-key ${{secrets.NIGHTLY_FEED_API_KEY}} --source https://nuget-feed-nightly.avaloniaui.net/v3/index.json
-
-  publish-xpf-release:
-    runs-on: ubuntu-latest
-    needs: [build_xpf]
-    if: github.event_name == 'workflow_dispatch'
-    steps:
-
-    - name: Check branch validity
-      if: ${{ !startsWith(github.ref, 'refs/heads/release/') }}
-      run: |
-          echo "Error: stable_release can only be run on 'release/*' branches."
-          exit 1
-
-    - uses: actions/download-artifact@v4
-      with:
-        name: xpf
-        path: ./nupkgs
-
-    - name: Publish XPF release
-      if: ${{ inputs.nuget }}
-      run: dotnet nuget push ./nupkgs/**/*.nupkg  --api-key ${{secrets.XPF_FEED_API_KEY}} --source https://xpf-nuget-feed.avaloniaui.net/push/v3/index.json
-
-  publish-accelerate-release:
-    runs-on: ubuntu-latest
-    needs: [build_avalonia]
-    if: github.event_name == 'workflow_dispatch'
-    steps:
-
-    - name: Check branch validity
-      if: ${{ !startsWith(github.ref, 'refs/heads/release/') }}
-      run: |
-          echo "Error: stable_release can only be run on 'release/*' branches."
-          exit 1
-
-    - uses: actions/download-artifact@v4
-      with:
-        name: avalonia
-        path: ./nupkgs
-
-    - name: Publish release
-      if: ${{ inputs.nuget }}
-      run: dotnet nuget push ./nupkgs/**/*.nupkg --api-key ${{secrets.NUGET_FEED_API_KEY}} --source https://api.nuget.org/v3/index.json
-
+      nightly_api_key: ${{secrets.NIGHTLY_FEED_API_KEY}}
