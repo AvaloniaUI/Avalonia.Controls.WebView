@@ -256,7 +256,7 @@ internal static unsafe partial class GtkInterop
     internal static extern IntPtr gtk_window_new(int type);
 
     [DllImport(LibGtk)]
-    internal static extern IntPtr gtk_window_set_type_hint(IntPtr window, int type);
+    internal static extern void gtk_window_set_type_hint(IntPtr window, int type);
 
     [DllImport(LibGtk)]
     internal static extern void gtk_window_close(IntPtr window);
@@ -279,8 +279,28 @@ internal static unsafe partial class GtkInterop
     [DllImport(LibGtk)]
     internal static extern bool gtk_window_get_resizable(IntPtr window);
 
+#if NET7_0_OR_GREATER
+    [LibraryImport(LibGtk)]
+    internal static partial void gtk_window_set_geometry_hints(IntPtr window, IntPtr geometry_widget, ref GdkGeometry geometry, GdkWindowHints geom_mask);
+
+    [LibraryImport(LibGtk)]
+    internal static partial void gtk_window_get_size(IntPtr window, out int width, out int height);
+#else
+    [DllImport(LibGtk)]
+    internal static extern void gtk_window_set_geometry_hints(IntPtr window, IntPtr geometry_widget, ref GdkGeometry geometry, GdkWindowHints geom_mask);
+
+    [DllImport(LibGtk)]
+    internal static extern void gtk_window_get_size(IntPtr window, out int width, out int height);
+#endif
+
     [DllImport(LibGtk)]
     internal static extern void gtk_window_set_position(IntPtr window, int positionType);
+
+    [DllImport(LibGtk)]
+    internal static extern void gtk_window_set_modal(IntPtr window, bool modal);
+
+    [DllImport(LibGtk)]
+    internal static extern void gtk_window_set_transient_for(IntPtr window, IntPtr parent);
 
     [DllImport(LibGtk)]
     internal static extern IntPtr gtk_window_get_screen(IntPtr window);
@@ -343,6 +363,12 @@ internal static unsafe partial class GtkInterop
 
     [DllImport(LibGdk)]
     internal static extern void gdk_window_set_transient_for(IntPtr window, IntPtr parent);
+
+    [DllImport(LibGdk)]
+    internal static extern void gdk_window_set_decorations(IntPtr window, GdkWMDecoration decorations);
+
+    [DllImport(LibGdk)]
+    internal static extern void gdk_window_set_functions(IntPtr window, GdkWMFunction functions);
 
     [DllImport(LibGdk)]
     internal static extern IntPtr gdk_x11_window_foreign_new_for_display(IntPtr display, IntPtr xid);
@@ -519,6 +545,73 @@ internal static unsafe partial class GtkInterop
         public double green;
         public double blue;
         public double alpha;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct GdkGeometry
+    {
+        public int min_width;
+        public int min_height;
+        public int max_width;
+        public int max_height;
+        public int base_width;
+        public int base_height;
+        public int width_inc;
+        public int height_inc;
+        public double min_aspect;
+        public double max_aspect;
+        public int win_gravity;
+    }
+
+    [Flags]
+    internal enum GdkWindowHints
+    {
+        GDK_HINT_POS = 1 << 0,
+        GDK_HINT_MIN_SIZE = 1 << 1,
+        GDK_HINT_MAX_SIZE = 1 << 2,
+        GDK_HINT_BASE_SIZE = 1 << 3,
+        GDK_HINT_ASPECT = 1 << 4,
+        GDK_HINT_RESIZE_INC = 1 << 5,
+        GDK_HINT_WIN_GRAVITY = 1 << 6,
+        GDK_HINT_USER_POS = 1 << 7,
+        GDK_HINT_USER_SIZE = 1 << 8
+    }
+
+    [Flags]
+    internal enum GdkWMDecoration
+    {
+        GDK_DECOR_ALL = 1 << 0,
+        GDK_DECOR_BORDER = 1 << 1,
+        GDK_DECOR_RESIZEH = 1 << 2,
+        GDK_DECOR_TITLE = 1 << 3,
+        GDK_DECOR_MENU = 1 << 4,
+        GDK_DECOR_MINIMIZE = 1 << 5,
+        GDK_DECOR_MAXIMIZE = 1 << 6
+    }
+
+    [Flags]
+    internal enum GdkWMFunction
+    {
+        GDK_FUNC_ALL = 1 << 0,
+        GDK_FUNC_RESIZE = 1 << 1,
+        GDK_FUNC_MOVE = 1 << 2,
+        GDK_FUNC_MINIMIZE = 1 << 3,
+        GDK_FUNC_MAXIMIZE = 1 << 4,
+        GDK_FUNC_CLOSE = 1 << 5
+    }
+
+    [Flags]
+    internal enum GdkWindowState
+    {
+        GDK_WINDOW_STATE_WITHDRAWN = 1 << 0,
+        GDK_WINDOW_STATE_ICONIFIED = 1 << 1,
+        GDK_WINDOW_STATE_MAXIMIZED = 1 << 2,
+        GDK_WINDOW_STATE_STICKY = 1 << 3,
+        GDK_WINDOW_STATE_FULLSCREEN = 1 << 4,
+        GDK_WINDOW_STATE_ABOVE = 1 << 5,
+        GDK_WINDOW_STATE_BELOW = 1 << 6,
+        GDK_WINDOW_STATE_FOCUSED = 1 << 7,
+        GDK_WINDOW_STATE_TILED = 1 << 8
     }
 
     [StructLayout(LayoutKind.Sequential)]
