@@ -157,6 +157,22 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
         set => Navigate(value);
     }
 
+    public WebViewAdapterInfo Info => field ??= GetWebKitGtkInfo();
+
+    public virtual Color DefaultBackground
+    {
+        set
+        {
+            // webkit_web_view_set_background_color (WebViewHandle, new GdkRGBA
+            // {
+            //     alpha = value.A /  255.0f,
+            //     red = value.R /  255.0f,
+            //     green = value.G /  255.0f,
+            //     blue = value.B /  255.0f,
+            // });
+        }
+    }
+
     public event EventHandler<WebViewNavigationCompletedEventArgs>? NavigationCompleted;
     public event EventHandler<WebViewNavigationStartingEventArgs>? NavigationStarted;
     public event EventHandler<WebViewNewWindowRequestedEventArgs>? NewWindowRequested;
@@ -285,20 +301,6 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
                     operation.Dispose();
                 });
             }
-        }
-    }
-
-    public virtual Color DefaultBackground
-    {
-        set
-        {
-            // webkit_web_view_set_background_color (WebViewHandle, new GdkRGBA
-            // {
-            //     alpha = value.A /  255.0f,
-            //     red = value.R /  255.0f,
-            //     green = value.G /  255.0f,
-            //     blue = value.B /  255.0f,
-            // });
         }
     }
 
@@ -592,4 +594,28 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     }
 
     IntPtr IGtkWebViewPlatformHandle.WebKitWebView => WebViewHandle;
+    
+    internal static WebViewAdapterInfo GetWebKitGtkInfo()
+    {
+        const WebViewEmbeddingScenario scenarios =
+            //WebViewEmbeddingScenario.NativeControlHost |
+            //WebViewEmbeddingScenario.OffscreenRenderer |
+            WebViewEmbeddingScenario.NativeDialog;
+
+        if (!OperatingSystemEx.IsLinux())
+        {
+            return WebViewAdapterInfo.PlatformNotSupported(WebViewAdapterType.WebKitGtk);
+        }
+
+        var version = AvaloniaGtk.TryGetVersion();
+
+        return new WebViewAdapterInfo(
+            WebViewAdapterType.WebKitGtk,
+            WebViewEngine.WebKit,
+            IsSupported: true,
+            IsInstalled: version is not null,
+            Version: version?.ToString(),
+            UnavailableReason: version is not null ? null : "WebKitGtk library is not installed. Install webkit2gtk 4.0+ package.",
+            SupportedScenarios: version is not null ? scenarios : WebViewEmbeddingScenario.None);
+    }
 }

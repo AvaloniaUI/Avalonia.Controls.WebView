@@ -110,6 +110,20 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         set => Navigate(value);
     }
 
+    public WebViewAdapterInfo Info => field ??= GetWkWebViewInfo();
+
+    public Color DefaultBackground
+    {
+        set
+        {
+            using var color = AppleColor.FromRGBA(
+                value.R / 255f, value.G / 255f, value.B / 255f, value.A / 255f);
+            _webView.BackgroundColor = color;
+            if (OperatingSystemEx.IsIOS())
+                _webView.ScrollView!.BackgroundColor = color;
+        }
+    }
+
     public event EventHandler<WebViewNavigationCompletedEventArgs>? NavigationCompleted;
     public event EventHandler<WebViewNavigationStartingEventArgs>? NavigationStarted;
     public event EventHandler<WebViewNewWindowRequestedEventArgs>? NewWindowRequested;
@@ -178,18 +192,6 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         {
             _webView.Dispose();
         });
-    }
-
-    public Color DefaultBackground
-    {
-        set
-        {
-            using var color = AppleColor.FromRGBA(
-                value.R / 255f, value.G / 255f, value.B / 255f, value.A / 255f);
-            _webView.BackgroundColor = color;
-            if (OperatingSystemEx.IsIOS())
-                _webView.ScrollView!.BackgroundColor = color;
-        }
     }
 
     public void SizeChanged(PixelSize containerSize)
@@ -452,5 +454,28 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
     IntPtr IAppleWKWebViewPlatformHandle.WKWebView => Handle;
     IntPtr IAppleWKWebViewPlatformHandle.GetWKWebViewRetained() => _webView.Retain();
+
+    internal static WebViewAdapterInfo GetWkWebViewInfo()
+    {
+        const WebViewEmbeddingScenario scenarios =
+            WebViewEmbeddingScenario.NativeControlHost;
+
+        if (!OperatingSystemEx.IsMacOS() && !OperatingSystemEx.IsIOS())
+        {
+            return WebViewAdapterInfo.PlatformNotSupported(WebViewAdapterType.WkWebView);
+        }
+
+        var isAvailable = OperatingSystemEx.IsMacOSVersionAtLeast(10, 10) ||
+                          OperatingSystemEx.IsIOSVersionAtLeast(8, 0);
+
+        return new WebViewAdapterInfo(
+            WebViewAdapterType.WkWebView,
+            WebViewEngine.WebKit,
+            IsSupported: isAvailable,
+            IsInstalled: isAvailable,
+            Version: null,
+            UnavailableReason: isAvailable ? null : "WKWebView requires macOS 10.10+ or iOS 8.0+.",
+            SupportedScenarios: isAvailable ? scenarios : WebViewEmbeddingScenario.None);
+    }
 }
 

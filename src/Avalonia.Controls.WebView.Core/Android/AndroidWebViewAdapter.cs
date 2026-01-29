@@ -31,19 +31,6 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
     private readonly JavaScriptInterface _jsInterface;
     private WebView? _webView;
 
-    public static (WebViewEngine engine, string version) GetWebViewEngineInfo()
-    {
-        try
-        {
-            // On modern Android, webview always uses Blink. WebKit is no longer available anywhere.
-            return (WebViewEngine.Blink, WebView.CurrentWebViewPackage?.VersionName ?? "Unknown");
-        }
-        catch
-        {
-            return (WebViewEngine.Unknown, "Unknown");
-        }
-    }
-
     public AndroidWebViewAdapter(IPlatformHandle parent, AndroidWebViewEnvironmentRequestedEventArgs environmentArgs)
         : this(
             (parent as AndroidViewControlHandle)?.View.Context ?? global::Android.App.Application.Context,
@@ -107,6 +94,8 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
     public WebView WebView => _webView ?? throw new ObjectDisposedException(nameof(AndroidWebViewAdapter));
     public IntPtr Handle => WebView.Handle;
     public string HandleDescriptor => "Android.Webkit.WebView";
+
+    public WebViewAdapterInfo Info => field ??= GetAndroidWebViewInfo();
 
     public Media.Color DefaultBackground
     {
@@ -280,6 +269,40 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
         return Task.FromResult<IReadOnlyList<Cookie>>(cookies);
     }
 
+    internal static WebViewAdapterInfo GetAndroidWebViewInfo()
+    {
+        if (!OperatingSystem.IsAndroid())
+        {
+            return WebViewAdapterInfo.PlatformNotSupported(WebViewAdapterType.AndroidWebView);
+        }
+
+        const WebViewEmbeddingScenario scenarios =
+            WebViewEmbeddingScenario.NativeControlHost |
+            WebViewEmbeddingScenario.NativeDialog;
+
+        WebViewEngine engine;
+        string? version;
+        try
+        {
+            (engine, version) = !OperatingSystem.IsAndroidVersionAtLeast(26) ?
+                (WebViewEngine.Blink, WebView.CurrentWebViewPackage?.VersionName) :
+                (WebViewEngine.Blink, null);
+        }
+        catch
+        {
+            (engine, version) = (WebViewEngine.Unknown, null);
+        }
+
+        return new WebViewAdapterInfo(
+            WebViewAdapterType.AndroidWebView,
+            engine,
+            IsSupported: true,
+            IsInstalled: true,
+            Version: version,
+            UnavailableReason: null,
+            SupportedScenarios: scenarios);
+    }
+    
     private class JavaScriptInterface(AndroidWebViewAdapter adapter) : Java.Lang.Object
     {
         [Export("postMessage")]

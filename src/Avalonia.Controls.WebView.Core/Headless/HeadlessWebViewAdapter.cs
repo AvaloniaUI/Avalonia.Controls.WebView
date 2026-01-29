@@ -64,6 +64,8 @@ internal partial class HeadlessWebViewAdapter : IWebViewAdapterWithOffscreenBuff
     public IntPtr Handle { get; } = new(Interlocked.Increment(ref s_headlessHandleCounted));
     public string HandleDescriptor => "HeadlessWebViewAdapter";
 
+    public WebViewAdapterInfo Info => field ??= GetHeadlessInfo();
+
     public Color DefaultBackground
     {
         set
@@ -308,5 +310,17 @@ internal partial class HeadlessWebViewAdapter : IWebViewAdapterWithOffscreenBuff
             using var buf = frame.Lock();
         }
         return Task.CompletedTask;
+    }
+
+    internal static WebViewAdapterInfo GetHeadlessInfo() 
+    {
+        return new WebViewAdapterInfo(
+            WebViewAdapterType.Headless,
+            WebViewEngine.Unknown,
+            IsSupported: true,
+            IsInstalled: true,
+            Version: null,
+            UnavailableReason: null,
+            SupportedScenarios: WebViewEmbeddingScenario.OffscreenRenderer);
     }
 }

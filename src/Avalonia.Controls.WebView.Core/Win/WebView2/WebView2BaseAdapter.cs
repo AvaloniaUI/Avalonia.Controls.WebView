@@ -20,6 +20,7 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
 {
     private EventHandler<WebResourceRequestedEventArgs>? _webResourceRequested;
     private Action? _subscriptions;
+    private string? _customBrowserExecutable;
 
     public abstract IntPtr Handle { get; }
     public abstract string? HandleDescriptor { get; }
@@ -75,6 +76,7 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
     public event EventHandler? GotFocus;
     public event EventHandler<IWebViewAdapterWithFocus.LostFocusDirection>? LostFocus;
 
+    public WebViewAdapterInfo Info => field ??= GetWebView2Info(_customBrowserExecutable);
     public Color DefaultBackground
     {
         set
@@ -232,6 +234,7 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
 
     public async Task InitializeAsync(WindowsWebView2EnvironmentRequestedEventArgs environmentArgs)
     {
+        _customBrowserExecutable = environmentArgs.BrowserExecutableFolder;
         var addScriptCompletion = new AddScriptToExecuteOnDocumentCreatedCompletedHandler();
         var webView = TryGetWebView2() ?? throw new InvalidOperationException("WebView2 is not initialized.");
         webView.AddScriptToExecuteOnDocumentCreated(
@@ -373,4 +376,39 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
 
     unsafe IntPtr IWindowsWebView2PlatformHandle.CoreWebView2Controller =>
         new(ComInterfaceMarshaller<ICoreWebView2Controller>.ConvertToUnmanaged(controller));
+
+    internal static WebViewAdapterInfo GetWebView2Info(string? browserExecutableFolder)
+    {
+        const WebViewEmbeddingScenario scenarios =
+            //WebViewEmbeddingScenario.OffscreenRenderer |
+            WebViewEmbeddingScenario.NativeControlHost;
+
+        if (!OperatingSystemEx.IsWindows())
+        {
+            return WebViewAdapterInfo.PlatformNotSupported(WebViewAdapterType.WebView2);
+        }
+
+        var error = Win.WebView2.CoreWebView2Environment.TryFindWebView2Runtime(
+            browserExecutableFolder, out var runtimeHandle, out var version);
+        if (runtimeHandle == IntPtr.Zero && error is not null)
+        {
+            return new WebViewAdapterInfo(
+                WebViewAdapterType.WebView2,
+                WebViewEngine.Blink,
+                IsSupported: true,
+                IsInstalled: false,
+                Version: null,
+                UnavailableReason: error,
+                SupportedScenarios: scenarios);
+        }
+
+        return new WebViewAdapterInfo(
+            WebViewAdapterType.WebView2,
+            WebViewEngine.Blink,
+            IsSupported: true,
+            IsInstalled: true,
+            Version: version,
+            UnavailableReason: null,
+            SupportedScenarios: scenarios);
+    }
 }
