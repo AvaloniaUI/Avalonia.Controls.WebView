@@ -303,6 +303,9 @@ internal partial class HeadlessWebViewAdapter : IWebViewAdapterWithOffscreenBuff
     public event Action? DrawRequested;
     public Task UpdateWriteableBitmap(PixelSize currentSize, FrameChainBase<WriteableBitmap, PixelSize>.IProducer producer)
     {
+        if (currentSize == default)
+            return Task.CompletedTask;
+
         using (producer.GetNextFrame(currentSize, out var frame))
         {
             using var buf = frame.Lock();

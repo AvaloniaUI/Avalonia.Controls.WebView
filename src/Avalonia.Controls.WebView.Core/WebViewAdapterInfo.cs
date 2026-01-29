@@ -46,12 +46,10 @@ public enum WebViewAdapterType
     /// </summary>
     AndroidWebView,
 
-#if DEBUG
     /// <summary>
     /// Headless WebView for testing scenarios.
     /// </summary>
     Headless = int.MaxValue
-#endif
 }
 
 /// <summary>
@@ -160,9 +158,7 @@ public record WebViewAdapterInfo(
 #else
                 PlatformNotSupported(adapterType),
 #endif
-#if DEBUG
             WebViewAdapterType.Headless => Headless.HeadlessWebViewAdapter.GetHeadlessInfo(),
-#endif
             _ => UnknownAdapter(adapterType)
         };
     }
