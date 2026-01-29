@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using AvPlatform = global::Avalonia.Platform;
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
 using AvInput = Avalonia.Input;
 using Core = Avalonia.Controls;
@@ -57,7 +58,7 @@ namespace Avalonia.Xpf.Controls
         private static readonly DependencyPropertyKey AdapterInfoPropertyKey =
             DependencyProperty.RegisterReadOnly(
                 name: nameof(AdapterInfo),
-                propertyType: typeof(Core.WebViewAdapterInfo),
+                propertyType: typeof(AvPlatform.WebViewAdapterInfo),
                 ownerType: typeof(NativeWebView),
                 typeMetadata: new FrameworkPropertyMetadata());
 #elif AVALONIA
@@ -65,8 +66,8 @@ namespace Avalonia.Xpf.Controls
             nameof(Source), new Uri("about:blank"));
         public static readonly StyledProperty<IBrush?> BackgroundProperty =
             Border.BackgroundProperty.AddOwner<NativeWebView>();
-        public static readonly DirectProperty<NativeWebView, Core.WebViewAdapterInfo?> AdapterInfoProperty = AvaloniaProperty
-            .RegisterDirect<NativeWebView, Core.WebViewAdapterInfo?>(
+        public static readonly DirectProperty<NativeWebView, AvPlatform.WebViewAdapterInfo?> AdapterInfoProperty = AvaloniaProperty
+            .RegisterDirect<NativeWebView, AvPlatform.WebViewAdapterInfo?>(
                 nameof(AdapterInfo),
                 o => o.AdapterInfo);
 
@@ -275,10 +276,10 @@ namespace Avalonia.Xpf.Controls
         /// <summary>
         /// Information about the underlying WebView adapter.
         /// </summary>
-        public Core.WebViewAdapterInfo? AdapterInfo
+        public AvPlatform.WebViewAdapterInfo? AdapterInfo
         {
 #if WPF
-            get => (Core.WebViewAdapterInfo)GetValue(AdapterInfoPropertyKey.DependencyProperty);
+            get => (AvPlatform.WebViewAdapterInfo)GetValue(AdapterInfoPropertyKey.DependencyProperty);
             private set => SetValue(AdapterInfoPropertyKey, value);
 #elif AVALONIA
             get;
@@ -440,7 +441,7 @@ namespace Avalonia.Xpf.Controls
             controlHostImpl.AdapterDestroyed += ControlHostImplOnAdapterDeinitialized;
 
             _controlHostImplTcs.TrySetResult(controlHostImpl);
-            AdapterInfo = adapterFactory?.Info ?? Core.WebViewAdapterInfo.PlatformNotSupported();
+            AdapterInfo = adapterFactory?.Info ?? AvPlatform.WebViewAdapterInfo.PlatformNotSupported();
 
 #if AVALONIA
             VisualChildren.Add((Control)controlHostImpl);

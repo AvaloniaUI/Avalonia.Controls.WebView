@@ -1,6 +1,7 @@
 using System;
 
-namespace Avalonia.Controls;
+// ReSharper disable once CheckNamespace
+namespace Avalonia.Platform;
 
 /// <summary>
 /// Represents the type of WebView adapter available on the system.
@@ -148,17 +149,17 @@ public record WebViewAdapterInfo(
     {
         return adapterType switch
         {
-            WebViewAdapterType.WebView2 => Win.WebView2.WebView2BaseAdapter.GetWebView2Info(null),
-            WebViewAdapterType.WebView1 => Win.WebView1.WebView1Adapter.GetWebView1Info(),
-            WebViewAdapterType.WkWebView => Macios.MaciosWebViewAdapter.GetWkWebViewInfo(),
-            WebViewAdapterType.WebKitGtk => Gtk.GtkWebViewAdapter.GetWebKitGtkInfo(),
+            WebViewAdapterType.WebView2 => Controls.Win.WebView2.WebView2BaseAdapter.GetWebView2Info(null),
+            WebViewAdapterType.WebView1 => Controls.Win.WebView1.WebView1Adapter.GetWebView1Info(),
+            WebViewAdapterType.WkWebView => Controls.Macios.MaciosWebViewAdapter.GetWkWebViewInfo(),
+            WebViewAdapterType.WebKitGtk => Controls.Gtk.GtkWebViewAdapter.GetWebKitGtkInfo(),
             WebViewAdapterType.AndroidWebView =>
 #if ANDROID
-                Android.AndroidWebViewAdapter.GetAndroidWebViewInfo(),
+                Controls.Android.AndroidWebViewAdapter.GetAndroidWebViewInfo(),
 #else
                 PlatformNotSupported(adapterType),
 #endif
-            WebViewAdapterType.Headless => Headless.HeadlessWebViewAdapter.GetHeadlessInfo(),
+            WebViewAdapterType.Headless => Controls.Headless.HeadlessWebViewAdapter.GetHeadlessInfo(),
             _ => UnknownAdapter(adapterType)
         };
     }
