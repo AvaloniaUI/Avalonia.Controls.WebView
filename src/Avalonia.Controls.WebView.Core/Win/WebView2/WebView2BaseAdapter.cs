@@ -16,7 +16,7 @@ namespace Avalonia.Controls.Win.WebView2;
 
 [SupportedOSPlatform("windows6.1")] // win7
 internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller controller)
-    : IWebViewAdapterWithCookieManager, IWebViewAdapterWithFocus, IWindowsWebView2PlatformHandle, IWebViewWithPrint
+    : IWebViewAdapterWithCookieManager, IWebViewAdapterWithFocus, IWindowsWebView2PlatformHandle, IWebViewWithPrintWithOptions
 {
     private EventHandler<WebResourceRequestedEventArgs>? _webResourceRequested;
     private Action? _subscriptions;

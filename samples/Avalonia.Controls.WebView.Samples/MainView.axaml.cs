@@ -129,10 +129,7 @@ public partial class MainView : UserControl
         {
             try
             {
-                var page = await WebView.PrintToPdfStreamAsync(new AP.WebViewPrintSettings()
-                {
-                    Orientation = AP.WebViewPrintOrientation.Landscape
-                });
+                var page = await WebView.PrintToPdfStreamAsync();
 
 #if AVALONIA
                 var storage = TopLevel.GetTopLevel(this)!.StorageProvider;

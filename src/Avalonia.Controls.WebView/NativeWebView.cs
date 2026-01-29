@@ -317,7 +317,9 @@ namespace Avalonia.Xpf.Controls
             Task.FromException<Stream>(new PlatformNotSupportedException());
 
         /// <inheritdoc cref="PrintToPdfStreamAsync()"/>
-        public Task<Stream> PrintToPdfStreamAsync(AvPlatform.WebViewPrintSettings printSettings) => TryGetAdapter() is Core.IWebViewWithPrint adapter ?
+        [UnsupportedOSPlatform("macos")]
+        [UnsupportedOSPlatform("ios")]
+        public Task<Stream> PrintToPdfStreamAsync(AvPlatform.WebViewPrintSettings printSettings) => TryGetAdapter() is Core.IWebViewWithPrintWithOptions adapter ?
             adapter.PrintToPdfStreamAsync(printSettings) :
             Task.FromException<Stream>(new PlatformNotSupportedException());
 

@@ -443,65 +443,6 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         return await _webView.CreatePdf(configuration);
     }
 
-    public async Task<Stream> PrintToPdfStreamAsync(WebViewPrintSettings settings)
-    {
-        // NSPrintOperation with settings is only available on macOS
-        if (!OperatingSystemEx.IsMacOSVersionAtLeast(11, 0))
-            throw new PlatformNotSupportedException("PrintToPdfStreamAsync with settings requires macOS 11.0+");
-
-        var tempFile = Path.GetTempFileName();
-        // Rename to .pdf so the print system handles it correctly
-        var pdfFile = Path.ChangeExtension(tempFile, ".pdf");
-        File.Move(tempFile, pdfFile);
-
-        try
-        {
-            using var printInfo = new NSPrintInfo();
-
-            // Configure for silent PDF output
-            printInfo.SetJobDispositionSaveJob();
-            using var fileUrl = NSUrl.FileURLWithPath(pdfFile);
-            printInfo.JobSavingURL = fileUrl;
-
-            // Apply print settings
-            // Orientation: 0 = Portrait, 1 = Landscape
-            printInfo.Orientation = settings.Orientation == WebViewPrintOrientation.Landscape ? 1 : 0;
-
-            // Scale factor
-            printInfo.ScalingFactor = settings.ScaleFactor;
-
-            // Margins (converting pixels to points: 1 pixel ≈ 0.75 points at 96 DPI)
-            const double pixelsToPoints = 72.0 / 96.0;
-            printInfo.TopMargin = settings.MarginTop * pixelsToPoints;
-            printInfo.BottomMargin = settings.MarginBottom * pixelsToPoints;
-            printInfo.LeftMargin = settings.MarginLeft * pixelsToPoints;
-            printInfo.RightMargin = settings.MarginRight * pixelsToPoints;
-
-            using var operation = _webView.PrintOperationWithPrintInto(printInfo);
-            if (operation is null)
-                throw new InvalidOperationException("Failed to create print operation");
-
-            // RunOperation runs synchronously without showing a dialog
-            var success = operation.RunOperation();
-            if (!success)
-                throw new InvalidOperationException("Print operation failed");
-
-            // Read the PDF file into a memory stream
-#if NET6_0_OR_GREATER
-            var pdfBytes = await File.ReadAllBytesAsync(pdfFile);
-#else
-            var pdfBytes = await Task.Run(() => File.ReadAllBytes(pdfFile));
-#endif
-            return new MemoryStream(pdfBytes);
-        }
-        finally
-        {
-            // Clean up temp file
-            if (File.Exists(pdfFile))
-                File.Delete(pdfFile);
-        }
-    }
-
     public void Copy() => _webView.Copy();
     public void Cut() => _webView.Cut();
     public void Paste() => _webView.Paste();
