@@ -18,6 +18,15 @@ internal static unsafe partial class GtkInterop
     public const int True = 1;
     public const int False = 0;
 
+    [DllImport(LibWebKit)]
+    public static extern uint webkit_get_major_version();
+
+    [DllImport(LibWebKit)]
+    public static extern uint webkit_get_minor_version();
+
+    [DllImport(LibWebKit)]
+    public static extern uint webkit_get_micro_version();
+
 #if NET7_0_OR_GREATER
     [LibraryImport(LibGLib, StringMarshalling = StringMarshalling.Utf8)]
     internal static partial uint g_log_set_handler(string? logDomain, uint logLevels, IntPtr callback, IntPtr userData);

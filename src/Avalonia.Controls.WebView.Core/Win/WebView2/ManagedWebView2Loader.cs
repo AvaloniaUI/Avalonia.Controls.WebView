@@ -22,13 +22,13 @@ internal static class ManagedWebView2Loader
         { "{BE59E8FD-089A-411B-A3B0-051D9E417818}", "Internal" }
     };
 
-    private static Lazy<string?> s_regeditLocation = new(FindRuntimeInRegistryGlobal);
+    private static readonly Lazy<(string? runtimePath, string? version)> s_regeditLocation = new(FindRuntimeInRegistryGlobal);
 
     /// <summary>
     /// Finds the WebView2 runtime installation path using registry
     /// </summary>
     /// <returns>Path to the WebView2 runtime DLL, or null if not found</returns>
-    public static string? FindWebView2Runtime(string? browserFolderOverride)
+    public static (string? path, string? version) FindWebView2Runtime(string? browserFolderOverride)
     {
         if (string.IsNullOrEmpty(browserFolderOverride))
         {
@@ -42,7 +42,7 @@ internal static class ManagedWebView2Loader
             {
                 Logger.TryGet(LogEventLevel.Information, "WebView")?
                     .Log(null, "Found WebView2 runtime using custom browser executable folder at: {RuntimePath}", dllPath);
-                return dllPath;
+                return (dllPath, null);
             }
             else
             {
@@ -54,36 +54,36 @@ internal static class ManagedWebView2Loader
         return s_regeditLocation.Value;
     }
 
-    private static string? FindRuntimeInRegistryGlobal()
+    private static (string? path, string? version) FindRuntimeInRegistryGlobal()
     {
         // Try HKLM first (machine-wide installation)
         foreach (var channel in s_channelInfo)
         {
-            var runtimePath = FindRuntimeInRegistry(RegistryHive.LocalMachine, channel.Key);
+            var (runtimePath, version) = FindRuntimeInRegistry(RegistryHive.LocalMachine, channel.Key);
             if (!string.IsNullOrEmpty(runtimePath))
             {
                 Logger.TryGet(LogEventLevel.Information, "WebView")?
                     .Log(null, "Found WebView2 {Channel} runtime at: {RuntimePath} HKLM", channel.Key, runtimePath);
-                return runtimePath;
+                return (runtimePath, version);
             }
         }
 
         // Then try HKCU (user installation)
         foreach (var channel in s_channelInfo)
         {
-            var runtimePath = FindRuntimeInRegistry(RegistryHive.CurrentUser, channel.Key);
+            var (runtimePath, version) = FindRuntimeInRegistry(RegistryHive.CurrentUser, channel.Key);
             if (!string.IsNullOrEmpty(runtimePath))
             {
                 Logger.TryGet(LogEventLevel.Information, "WebView")?
                     .Log(null, "Found WebView2 {Channel} runtime at: {RuntimePath} HKCU", channel.Key, runtimePath);
-                return runtimePath;
+                return (runtimePath, version);
             }
         }
 
-        return null;
+        return default;
     }
 
-    private static string? FindRuntimeInRegistry(RegistryHive hive, string channelUuid)
+    private static (string? path, string? version) FindRuntimeInRegistry(RegistryHive hive, string channelUuid)
     {
         // Using Registry32 view automatically handles WOW6432Node redirection
         using var baseKey = RegistryKey.OpenBaseKey(hive, RegistryView.Registry32);
@@ -91,9 +91,11 @@ internal static class ManagedWebView2Loader
 
         using var key = baseKey.OpenSubKey(keyPath);
         if (key == null)
-            return null;
+            return default;
 
         // Look for the EBWebView value or any other values that might contain the path
+        string? path = null;
+        string? version = null;
         foreach (var valueName in key.GetValueNames())
         {
             if (key.GetValue(valueName) is not string value || value.Length == 0)
@@ -106,11 +108,18 @@ internal static class ManagedWebView2Loader
             {
                 var dllPath = ComputeDllPath(value);
                 if (File.Exists(dllPath))
-                    return dllPath;
+                {
+                    path = dllPath;
+                }
+            }
+            
+            if (valueName == "pv")
+            {
+                version = value;
             }
         }
 
-        return null;
+        return path != null ? (path, version) : default;
     }
 
     private static string ComputeDllPath(string browserFolder)

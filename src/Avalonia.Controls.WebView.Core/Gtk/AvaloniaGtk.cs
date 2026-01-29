@@ -64,10 +64,26 @@ internal static class AvaloniaGtk
     }
 
     public static bool HasSoup3 { get; }
-    
+
+    public static Version? TryGetVersion()
+    {
+        try
+        {
+            var major = (int)GtkInterop.webkit_get_major_version();
+            var minor = (int)GtkInterop.webkit_get_minor_version();
+            var micro = (int)GtkInterop.webkit_get_micro_version();
+
+            return new Version(major, minor, micro);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
     public static bool CheckAccess() => GtkInterop.g_main_context_default() is var context && context != IntPtr.Zero &&
                                         GtkInterop.g_main_context_is_owner(context);
-    
+
     public static Task<T> RunOnGlibThreadAsync<T>(Func<T> callback,
         [CallerMemberName] string? callerMethod = null,
         [CallerArgumentExpression(nameof(callback))]

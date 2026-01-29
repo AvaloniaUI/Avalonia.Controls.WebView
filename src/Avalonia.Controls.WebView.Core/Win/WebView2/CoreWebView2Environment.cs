@@ -85,31 +85,41 @@ internal static partial class CoreWebView2Environment
         }
     }
 
-    public static IntPtr TryFindWebView2Runtime(string? browserExecutableFolder)
+    public static string? TryFindWebView2Runtime(
+        string? browserExecutableFolder, out IntPtr createEnvProc, out string? version)
     {
-        var webViewRuntime = ManagedWebView2Loader.FindWebView2Runtime(browserExecutableFolder);
+        (var webViewRuntime, version) = ManagedWebView2Loader.FindWebView2Runtime(browserExecutableFolder);
         if (webViewRuntime is null)
         {
-            Logger.TryGet(LogEventLevel.Warning, "WebView")
-                ?.Log(null, "WebView2 runtime not found. WebView2 will not be initialized.");
-            return IntPtr.Zero;
+            createEnvProc = IntPtr.Zero;
+            return "WebView2 runtime is not installed. Download from https://developer.microsoft.com/en-us/microsoft-edge/webview2/";
         }
 
         if (!NativeLibraryEx.TryLoad(webViewRuntime, out var lib))
         {
-            Logger.TryGet(LogEventLevel.Warning, "WebView")
-                ?.Log(null, "WebView2 runtime was found, but unable to load from {RuntimePath}.", webViewRuntime);
-            return IntPtr.Zero;
+            createEnvProc = IntPtr.Zero;
+            return $"WebView2 runtime was found, but unable to load from {webViewRuntime}.";
         }
 
         if (!NativeLibraryEx.TryGetExport(lib, "CreateWebViewEnvironmentWithOptionsInternal", out var createEnvPtr))
         {
-            Logger.TryGet(LogEventLevel.Warning, "WebView")
-                ?.Log(null , "CreateWebViewEnvironmentWithOptionsInternal not found in WebView2 runtime.");
-            return IntPtr.Zero;
+            createEnvProc = IntPtr.Zero;
+            return "CreateWebViewEnvironmentWithOptionsInternal not found in WebView2 runtime.";
         }
 
-        return createEnvPtr;
+        createEnvProc = createEnvPtr;
+        return null;
+    }
+
+    internal static IntPtr TryFindWebView2Runtime(string? browserExecutableFolder)
+    {
+        var error = TryFindWebView2Runtime(browserExecutableFolder, out var createEnvProc, out _);
+        if (error is not null)
+        {
+            Logger.TryGet(LogEventLevel.Warning, "WebView2")?.Log(null, error);
+        }
+
+        return createEnvProc;
     }
 
 #if COM_SOURCE_GEN

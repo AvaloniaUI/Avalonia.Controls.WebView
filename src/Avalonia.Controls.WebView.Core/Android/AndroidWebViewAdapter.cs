@@ -31,6 +31,19 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
     private readonly JavaScriptInterface _jsInterface;
     private WebView? _webView;
 
+    public static (WebViewEngine engine, string version) GetWebViewEngineInfo()
+    {
+        try
+        {
+            // On modern Android, webview always uses Blink. WebKit is no longer available anywhere.
+            return (WebViewEngine.Blink, WebView.CurrentWebViewPackage?.VersionName ?? "Unknown");
+        }
+        catch
+        {
+            return (WebViewEngine.Unknown, "Unknown");
+        }
+    }
+
     public AndroidWebViewAdapter(IPlatformHandle parent, AndroidWebViewEnvironmentRequestedEventArgs environmentArgs)
         : this(
             (parent as AndroidViewControlHandle)?.View.Context ?? global::Android.App.Application.Context,
