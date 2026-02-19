@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net10.0-android</TargetFrameworks>
+    <TargetFrameworks>net8.0;net10.0;net10.0-android</TargetFrameworks>
 
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <RootNamespace>Avalonia.Controls</RootNamespace>

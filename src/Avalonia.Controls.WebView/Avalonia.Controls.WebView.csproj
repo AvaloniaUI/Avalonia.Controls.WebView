@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net10.0-android</TargetFrameworks>
+    <TargetFrameworks>net8.0;net10.0;net10.0-android</TargetFrameworks>
     <Description>Avalonia WebView component enables embedding web content in Avalonia applications for use cases like documentation, dashboards, and interactive content.</Description>
     <DefineConstants>$(DefineConstants);AVALONIA</DefineConstants>
     <RootNamespace>Avalonia.Controls</RootNamespace>
