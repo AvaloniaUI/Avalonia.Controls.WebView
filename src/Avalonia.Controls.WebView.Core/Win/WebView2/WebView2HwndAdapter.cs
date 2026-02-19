@@ -56,9 +56,7 @@ internal partial class WebView2HwndAdapter(IPlatformHandle handle, ICoreWebView2
         };
     }
 
-#if COM_SOURCE_GEN
     [GeneratedComClass]
-#endif
     private partial class WebView2ControllerHandler : GenericCompletedHandler<ICoreWebView2Controller>,
         ICoreWebView2CreateCoreWebView2ControllerCompletedHandler;
 }

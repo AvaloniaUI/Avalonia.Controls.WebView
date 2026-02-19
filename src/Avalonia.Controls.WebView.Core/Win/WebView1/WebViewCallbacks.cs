@@ -8,9 +8,7 @@ using Avalonia.Logging;
 
 namespace Avalonia.Controls.Win.WebView1;
 
-#if COM_SOURCE_GEN
 [GeneratedComClass]
-#endif
 [SupportedOSPlatform("windows6.1")]
 internal partial class WebViewCallbacks(WeakReference<WebView1Adapter> weakAdapter) : InspectableCallbackBase,
     IWebViewControlNavigationStartingHandler, IWebViewControlNavigationCompletedHandler,

@@ -18,12 +18,7 @@ internal struct winrtVector3
     public float Z;
 }
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("117E202D-A859-4C89-873B-C2AA566788E3")]
 internal partial interface ICompositionVisual : IInspectable
 {

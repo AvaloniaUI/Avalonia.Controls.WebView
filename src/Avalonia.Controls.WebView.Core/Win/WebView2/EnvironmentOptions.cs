@@ -5,9 +5,7 @@ using Avalonia.Platform;
 
 namespace Avalonia.Controls.Win.WebView2;
 
-#if COM_SOURCE_GEN
 [GeneratedComClass]
-#endif
 internal partial class EnvironmentOptions(WindowsWebView2EnvironmentRequestedEventArgs environmentArgs)
     : CallbackBase, ICoreWebView2EnvironmentOptions, IEquatable<EnvironmentOptions>
 {

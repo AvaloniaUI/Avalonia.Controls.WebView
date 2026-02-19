@@ -414,7 +414,7 @@ namespace Avalonia.Xpf.Controls
 #else
             Core.INativeWebViewDialog dialogImpl;
             // Special case for GTK, as we want to use GTK window instead of Avalonia window there.
-            if (Core.OperatingSystemEx.IsLinux() && !Core.WebViewAdapter.UseHeadless)
+            if (OperatingSystem.IsLinux() && !Core.WebViewAdapter.UseHeadless)
             {
                 dialogImpl = await GtkNativeWebViewDialog.CreateAsync(args => EnvironmentRequested?.Invoke(this, args));
             }

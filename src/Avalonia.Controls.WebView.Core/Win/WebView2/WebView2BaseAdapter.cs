@@ -408,7 +408,7 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
         string? browserExecutableFolder,
         WebViewEmbeddingScenario scenarios = WebViewEmbeddingScenario.NativeControlHost)
     {
-        if (!OperatingSystemEx.IsWindows())
+        if (!OperatingSystem.IsWindows())
         {
             return WebViewAdapterInfo.PlatformNotSupported(WebViewAdapterType.WebView2);
         }

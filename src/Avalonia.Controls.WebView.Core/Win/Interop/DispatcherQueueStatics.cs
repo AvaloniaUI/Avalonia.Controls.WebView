@@ -41,14 +41,9 @@ internal static partial class DispatcherQueueStatics
         return controller.GetDispatcherQueue();
     }
 
-#if NET7_0_OR_GREATER
     [LibraryImport("coremessaging.dll")]
     private static partial void CreateDispatcherQueueController(DispatcherQueueOptions options,
         out IDispatcherQueueController dispatcherQueueController);
-#else
-    [DllImport("coremessaging.dll")]
-    private static extern void CreateDispatcherQueueController(DispatcherQueueOptions options, out IDispatcherQueueController dispatcherQueueController);
-#endif
 
     private enum DISPATCHERQUEUE_THREAD_APARTMENTTYPE
     {

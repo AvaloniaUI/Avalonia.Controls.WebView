@@ -15,12 +15,7 @@ internal struct tagPOINT
     public int y;
 }
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("3DF9B733-B9AE-4A15-86B4-EB9EE9826469")]
 internal partial interface ICoreWebView2CompositionController
 {

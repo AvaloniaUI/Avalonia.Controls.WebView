@@ -9,12 +9,7 @@ internal enum COREWEBVIEW2_PRINT_ORIENTATION
     COREWEBVIEW2_PRINT_ORIENTATION_LANDSCAPE
 }
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("377F3721-C74E-48CA-8DB1-DF68E51D60E2")]
 internal partial interface ICoreWebView2PrintSettings
 {

@@ -87,9 +87,7 @@ internal abstract class ArrayIterator<TItem>(
 }
 
 
-#if COM_SOURCE_GEN
 [GeneratedComClass]
-#endif
 [SupportedOSPlatform("windows")]
 internal partial class HStringIterator(IEnumerable<string> items) : ArrayIterator<string>(items)
 {

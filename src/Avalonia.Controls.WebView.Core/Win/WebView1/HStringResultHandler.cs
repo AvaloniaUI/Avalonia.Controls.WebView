@@ -5,9 +5,7 @@ using Avalonia.Controls.Win.WebView1.Interop;
 
 namespace Avalonia.Controls.Win.WebView1;
 
-#if COM_SOURCE_GEN
 [GeneratedComClass]
-#endif
 [SupportedOSPlatform("windows")]
 internal partial class HStringResultHandler
     : BaseHandler<IAsyncOperation_HString, string>, IAsyncOperationCompletedHandler_HString

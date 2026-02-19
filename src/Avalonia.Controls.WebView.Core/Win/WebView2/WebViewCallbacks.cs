@@ -7,9 +7,7 @@ using Avalonia.Controls.Win.WebView2.Interop;
 
 namespace Avalonia.Controls.Win.WebView2;
 
-#if COM_SOURCE_GEN
 [GeneratedComClass]
-#endif
 [SupportedOSPlatform("windows6.1")]
 internal partial class WebViewCallbacks(WeakReference<WebView2BaseAdapter> weakAdapter) : ICoreWebView2NavigationStartingEventHandler,
     ICoreWebView2NavigationCompletedEventHandler, ICoreWebView2WebMessageReceivedEventHandler,

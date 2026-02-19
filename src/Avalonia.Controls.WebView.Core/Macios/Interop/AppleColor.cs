@@ -5,7 +5,7 @@ namespace Avalonia.Controls.Macios.Interop;
 // NSColor or UIColor
 internal class AppleColor : NSObject
 {
-    private static readonly IntPtr s_class = OperatingSystemEx.IsMacOS() ?
+    private static readonly IntPtr s_class = OperatingSystem.IsMacOS() ?
         Libobjc.objc_getClass("NSColor") :
         Libobjc.objc_getClass("UIColor");
 

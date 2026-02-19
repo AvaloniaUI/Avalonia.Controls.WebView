@@ -250,9 +250,7 @@ internal partial class WebView2CompAdapter
         base.SizeChangedCore(containerSize);
     }
 
-#if COM_SOURCE_GEN
     [GeneratedComClass]
-#endif
     private partial class WebView2CompositionControllerHandler :
         GenericCompletedHandler<ICoreWebView2CompositionController>,
         ICoreWebView2CreateCoreWebView2CompositionControllerCompletedHandler;
@@ -375,9 +373,7 @@ internal partial class WebView2CompAdapter
         return flags;
     }
 
-#if COM_SOURCE_GEN
     [GeneratedComClass]
-#endif
     private partial class CommitAsyncLoopHandler(WebView2CompAdapter adapter, ICompositor5 compositor) : IAsyncActionCompletedHandler
     {
         public void RegisterNext()

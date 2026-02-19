@@ -14,12 +14,7 @@ struct tagRECT
     public int bottom;
 }
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("4D00C0D1-9434-4EB6-8078-8697A560334F")]
 internal partial interface ICoreWebView2Controller
 {

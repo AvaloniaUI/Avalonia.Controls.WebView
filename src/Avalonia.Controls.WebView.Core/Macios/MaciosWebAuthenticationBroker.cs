@@ -32,7 +32,7 @@ internal static class MaciosWebAuthenticationBroker
         using var requestUrl = new NSUrl(requestUrlStr);
         using var schemeStr = NSString.Create(scheme);
 
-        return OperatingSystemEx.IsIOSVersionAtLeast(17, 4) || OperatingSystemEx.IsMacOSVersionAtLeast(14, 4)
+        return OperatingSystem.IsIOSVersionAtLeast(17, 4) || OperatingSystem.IsMacOSVersionAtLeast(14, 4)
             ? ASWebAuthenticationSession.InitWithURL(requestUrl, ASWebAuthenticationSessionCallback.FromCustomScheme(schemeStr), completion)
             : ASWebAuthenticationSession.InitWithURL(requestUrl, schemeStr, completion);
     }
@@ -49,7 +49,7 @@ internal static class MaciosWebAuthenticationBroker
             return AppleView.GetWindow(platformHandle.Handle);
         }
 
-        if (OperatingSystemEx.IsIOS() || OperatingSystemEx.IsTvOS())
+        if (OperatingSystem.IsIOS() || OperatingSystem.IsTvOS())
         {
             return AppleView.GetWindow(GetAvaloniaViewHandle(topLevel));
         }

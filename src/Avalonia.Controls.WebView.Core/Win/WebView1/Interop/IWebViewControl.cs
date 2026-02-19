@@ -14,20 +14,10 @@ struct winrtColor
     public byte B;
 };
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("3F921316-BC70-4BDA-9136-C94370899FAB")]
 internal partial interface IWebViewControl : IInspectable
-{
-#if !COM_SOURCE_GEN
-    void _VtblGap1_3();
-#endif
-
-    IUriRuntimeClass get_Source();
+{    IUriRuntimeClass get_Source();
 
     void put_Source(IUriRuntimeClass source);
 

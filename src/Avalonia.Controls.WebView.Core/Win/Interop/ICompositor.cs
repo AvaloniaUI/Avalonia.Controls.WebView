@@ -6,12 +6,7 @@ using Avalonia.Controls.Win.WebView1.Interop;
 
 namespace Avalonia.Controls.Win.Interop;
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("B403CA50-7F8C-4E83-985F-CC45060036D8")]
 internal partial interface ICompositor : IInspectable
 {
@@ -21,12 +16,7 @@ internal partial interface ICompositor : IInspectable
     IContainerVisual CreateContainerVisual();
 }
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("48EA31AD-7FCD-4076-A79C-90CC4B852C9B")]
 internal partial interface ICompositor5 : IInspectable
 {

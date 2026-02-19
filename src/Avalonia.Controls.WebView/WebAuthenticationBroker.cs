@@ -44,8 +44,8 @@ namespace Avalonia.Xpf.Controls
 #endif
         {
             var supportsNativeWebDialog =
-                OperatingSystemEx.IsWindows() || OperatingSystemEx.IsLinux() || OperatingSystemEx.IsMacOS() ||
-                OperatingSystemEx.IsAndroid();
+                OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ||
+                OperatingSystem.IsAndroid();
 
             if (!(supportsNativeWebDialog & options.PreferNativeWebDialog)
 #if WPF
@@ -63,14 +63,14 @@ namespace Avalonia.Xpf.Controls
                     return new WebAuthenticationResult(uri);
                 }
 #else
-                if ((OperatingSystemEx.IsIOSVersionAtLeast(13, 0) || OperatingSystemEx.IsMacOSVersionAtLeast(10, 15)))
+                if ((OperatingSystem.IsIOSVersionAtLeast(13, 0) || OperatingSystem.IsMacOSVersionAtLeast(10, 15)))
                 {
                     var uri = await Core.Macios.MaciosWebAuthenticationBroker.AuthenticateAsync(avTopLevel,
                         options.RequestUri, options.RedirectUri.Scheme, options.NonPersistent);
                     return new WebAuthenticationResult(uri);
                 }
 #if NET8_0_OR_GREATER
-                else if (OperatingSystemEx.IsBrowser())
+                else if (OperatingSystem.IsBrowser())
                 {
                     var uri = await Core.Browser.BrowserWebAuthenticationBroker.AuthenticateAsync(avTopLevel,
                         options.RequestUri, options.RedirectUri);

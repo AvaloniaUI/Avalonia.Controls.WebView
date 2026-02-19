@@ -53,7 +53,7 @@ internal static class WebViewAdapter
             }, Android.AndroidWebViewAdapter.GetAndroidWebViewInfo());
         }
 #else
-        if (OperatingSystemEx.IsMacOS() || OperatingSystemEx.IsIOS())
+        if (OperatingSystem.IsMacOS() || OperatingSystem.IsIOS())
         {
             var args = new AppleWKWebViewEnvironmentRequestedEventArgs(deferralManager);
             environmentRequested(args);
@@ -62,7 +62,7 @@ internal static class WebViewAdapter
             {
                 // NOTE: we add double platform condition here to shut up Roslyn Analyzer false positives.
                 // If you are from the future, please check if it's still the case.
-                if (OperatingSystemEx.IsMacOS() || OperatingSystemEx.IsIOS())
+                if (OperatingSystem.IsMacOS() || OperatingSystem.IsIOS())
                 {
                     IWebViewAdapter adapter = new Macios.MaciosWebViewAdapter(args);
                     return new AdapterWrapper(adapter, Task.FromResult(adapter));
@@ -71,7 +71,7 @@ internal static class WebViewAdapter
             }, Macios.MaciosWebViewAdapter.GetWkWebViewInfo());
         }
 
-        if (OperatingSystemEx.IsWindows())
+        if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
         {
             {
                 var args = new WindowsWebView2EnvironmentRequestedEventArgs(deferralManager);
@@ -81,7 +81,7 @@ internal static class WebViewAdapter
                     && Win.WebView2.CoreWebView2Environment.TryFindWebView2Runtime(args.BrowserExecutableFolder) !=
                     IntPtr.Zero)
                 {
-                    if (args.ExperimentalOffscreen && OperatingSystemEx.IsWindowsAtLeast(10, 0, 17763))
+                    if (args.ExperimentalOffscreen && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
                     {
                         var info = Win.WebView2.WebView2BaseAdapter.GetWebView2Info(args.BrowserExecutableFolder, WebViewEmbeddingScenario.OffscreenRenderer);
                         var builder = await Win.WebView2.WebView2CompAdapter.CreateBuilder(args);
@@ -109,7 +109,7 @@ internal static class WebViewAdapter
             }
         }
 
-        if (OperatingSystemEx.IsLinux())
+        if (OperatingSystem.IsLinux())
         {
             var args = new GtkWebViewEnvironmentRequestedEventArgs(deferralManager);
             environmentRequested(args);
@@ -126,7 +126,7 @@ internal static class WebViewAdapter
             }
         }
 
-        // if (OperatingSystemEx.IsBrowser())
+        // if (OperatingSystem.IsBrowser())
         // {
         //     var args = new GtkWebViewEnvironmentRequestedEventArgs(deferralManager);
         //     environmentRequested(args);

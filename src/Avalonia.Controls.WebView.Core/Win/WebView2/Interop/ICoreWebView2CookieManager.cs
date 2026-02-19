@@ -4,12 +4,7 @@ using System.Runtime.InteropServices.Marshalling;
 
 namespace Avalonia.Controls.Win.WebView2.Interop;
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("177CD9E7-B6F5-451A-94A0-5D7A3A4C4141")]
 internal partial interface ICoreWebView2CookieManager
 {

@@ -5,20 +5,10 @@ using Avalonia.Controls.Win.Interop;
 
 namespace Avalonia.Controls.Win.WebView1.Interop;
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("9E365E57-48B2-4160-956F-C7385120BBFC")]
 internal partial interface IUriRuntimeClass : IInspectable
-{
-#if !COM_SOURCE_GEN
-    void _VtblGap1_3();
-#endif
-
-    IntPtr get_AbsoluteUri();
+{    IntPtr get_AbsoluteUri();
     IntPtr get_DisplayUri();
     IntPtr get_Domain();
     IntPtr get_Extension();

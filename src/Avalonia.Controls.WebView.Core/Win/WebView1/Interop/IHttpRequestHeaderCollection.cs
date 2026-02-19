@@ -6,12 +6,7 @@ using Avalonia.Controls.Win.Interop;
 
 namespace Avalonia.Controls.Win.WebView1.Interop;
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("AF40329B-B544-469B-86B9-AC3D466FEA36")]
 internal partial interface IHttpRequestHeaderCollection : IInspectable
 {

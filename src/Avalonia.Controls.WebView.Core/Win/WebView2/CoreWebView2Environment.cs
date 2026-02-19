@@ -95,13 +95,13 @@ internal static partial class CoreWebView2Environment
             return "WebView2 runtime is not installed. Download from https://developer.microsoft.com/en-us/microsoft-edge/webview2/";
         }
 
-        if (!NativeLibraryEx.TryLoad(webViewRuntime, out var lib))
+        if (!NativeLibrary.TryLoad(webViewRuntime, out var lib))
         {
             createEnvProc = IntPtr.Zero;
             return $"WebView2 runtime was found, but unable to load from {webViewRuntime}.";
         }
 
-        if (!NativeLibraryEx.TryGetExport(lib, "CreateWebViewEnvironmentWithOptionsInternal", out var createEnvPtr))
+        if (!NativeLibrary.TryGetExport(lib, "CreateWebViewEnvironmentWithOptionsInternal", out var createEnvPtr))
         {
             createEnvProc = IntPtr.Zero;
             return "CreateWebViewEnvironmentWithOptionsInternal not found in WebView2 runtime.";
@@ -122,9 +122,7 @@ internal static partial class CoreWebView2Environment
         return createEnvProc;
     }
 
-#if COM_SOURCE_GEN
     [GeneratedComClass]
-#endif
     private partial class WebView2EnvHandler : GenericCompletedHandler<ICoreWebView2Environment>,
         ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler;
 }

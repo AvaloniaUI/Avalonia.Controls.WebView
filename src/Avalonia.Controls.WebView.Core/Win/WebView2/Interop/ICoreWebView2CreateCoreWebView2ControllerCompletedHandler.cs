@@ -3,12 +3,7 @@ using System.Runtime.InteropServices.Marshalling;
 
 namespace Avalonia.Controls.Win.WebView2.Interop;
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ManagedObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("6C4819F3-C9B7-4260-8127-C9F5BDE7F68C")]
 internal partial interface ICoreWebView2CreateCoreWebView2ControllerCompletedHandler
 {

@@ -158,7 +158,7 @@ internal static class AvaloniaGtk
     
     public static Task<T> RunTask<T>(Func<T> callback)
     {
-        if (!OperatingSystemEx.IsLinux())
+        if (!OperatingSystem.IsLinux())
             throw new PlatformNotSupportedException("GTK is only supported on Linux");
 
         if (CachedDelegate.IsAvailable)

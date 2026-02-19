@@ -5,12 +5,7 @@ using System.Runtime.InteropServices.Marshalling;
 
 namespace Avalonia.Controls.Win.WebView2.Interop;
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("97055CD4-512C-4264-8B5F-E3F446CEA6A5")]
 internal partial interface ICoreWebView2WebResourceRequest
 {

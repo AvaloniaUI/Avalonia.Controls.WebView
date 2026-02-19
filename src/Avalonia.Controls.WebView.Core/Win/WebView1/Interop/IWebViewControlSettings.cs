@@ -4,20 +4,10 @@ using Avalonia.Controls.Win.Interop;
 
 namespace Avalonia.Controls.Win.WebView1.Interop;
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("C9967FBF-5E98-4CFD-8CCE-27B0911E3DE8")]
 internal partial interface IWebViewControlSettings : IInspectable
-{
-#if !COM_SOURCE_GEN
-    void _VtblGap1_3();
-#endif
-
-    void put_IsJavaScriptEnabled([MarshalAs(UnmanagedType.Bool)] bool value);
+{    void put_IsJavaScriptEnabled([MarshalAs(UnmanagedType.Bool)] bool value);
 
     [return: MarshalAs(UnmanagedType.Bool)]
     bool get_IsJavaScriptEnabled();

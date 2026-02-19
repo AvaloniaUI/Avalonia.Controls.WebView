@@ -42,14 +42,14 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
             _config.ApplicationNameForUserAgent = appName;
         }
 
-        if (OperatingSystemEx.IsIOSVersionAtLeast(14, 0)
-            || OperatingSystemEx.IsMacOSVersionAtLeast(11, 0))
+        if (OperatingSystem.IsIOSVersionAtLeast(14, 0)
+            || OperatingSystem.IsMacOSVersionAtLeast(11, 0))
         {
             _config.LimitsNavigationsToAppBoundDomains = options.LimitsNavigationsToAppBoundDomains;
         }
 
-        if (OperatingSystemEx.IsIOSVersionAtLeast(14, 5)
-            || OperatingSystemEx.IsMacOSVersionAtLeast(11, 3))
+        if (OperatingSystem.IsIOSVersionAtLeast(14, 5)
+            || OperatingSystem.IsMacOSVersionAtLeast(11, 3))
         {
             _config.UpgradeKnownHostsToHTTPS = options.UpgradeKnownHostsToHTTPS;
         }
@@ -58,7 +58,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         {
             (true, _) => WKWebsiteDataStore.NonPersistent,
             (_, { Length: > 0 } id)
-                when OperatingSystemEx.IsIOSVersionAtLeast(17, 0) || OperatingSystemEx.IsMacOSVersionAtLeast(14, 0)
+                when OperatingSystem.IsIOSVersionAtLeast(17, 0) || OperatingSystem.IsMacOSVersionAtLeast(14, 0)
                 => WKWebsiteDataStore.ForIdentifier(id),
             _ => WKWebsiteDataStore.Default,
         };
@@ -72,13 +72,13 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
         _webView = new WKWebView(_config) { NavigationDelegate = _navDelegate };
         _webView.Opaque = false;
-        if (OperatingSystemEx.IsMacOS())
+        if (OperatingSystem.IsMacOS())
             _webView.DrawsBackground = false;
         _webView.PerformKeyEquivalent += WebViewOnPerformKeyEquivalent;
         _webView.BecomeFirstResponder += OnWebViewOnBecomeFirstResponder;
         _webView.ResignFirstResponder += OnWebViewOnResignFirstResponder;
 
-        if (OperatingSystemEx.IsIOS() && options.EnableDevTools)
+        if (OperatingSystem.IsIOS() && options.EnableDevTools)
         {
             using var key = NSString.Create("inspectable");
             Libobjc.void_objc_msgSend(
@@ -93,7 +93,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
     }
 
     public IntPtr Handle { get; }
-    public string HandleDescriptor => OperatingSystemEx.IsMacOS() ? "NSView" : "UIView";
+    public string HandleDescriptor => OperatingSystem.IsMacOS() ? "NSView" : "UIView";
 
     public bool CanGoBack => _webView.CanGoBack;
     public bool CanGoForward => _webView.CanGoForward;
@@ -117,7 +117,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
             using var color = AppleColor.FromRGBA(
                 value.R / 255f, value.G / 255f, value.B / 255f, value.A / 255f);
             _webView.BackgroundColor = color;
-            if (OperatingSystemEx.IsIOS())
+            if (OperatingSystem.IsIOS())
                 _webView.ScrollView!.BackgroundColor = color;
         }
     }
@@ -204,12 +204,12 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
     public void Focus()
     {
-        if (OperatingSystemEx.IsMacOS()) _webView.MakeFirstResponder();
+        if (OperatingSystem.IsMacOS()) _webView.MakeFirstResponder();
     }
 
     public void ResignFocus()
     {
-        if (OperatingSystemEx.IsMacOS()) _webView.RemoveFirstResponder();
+        if (OperatingSystem.IsMacOS()) _webView.RemoveFirstResponder();
     }
 
     private async void OnScriptHandlerOnDidReceiveScriptMessage(object? sender, WKScriptMessageHandler.ScriptMessageEventArgs args)
@@ -281,7 +281,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
     private void WebViewOnPerformKeyEquivalent(object? sender, AppleView.PerformKeyEquivalentEventArgs e)
     {
-        if (!OperatingSystemEx.IsMacOS() || !_webView.IsFirstResponder)
+        if (!OperatingSystem.IsMacOS() || !_webView.IsFirstResponder)
             return;
 
         var chars = e.Event.CharactersIgnoringModifiers;
@@ -415,7 +415,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
     public bool ShowPrintUI()
     {
-        if (!OperatingSystemEx.IsMacOSVersionAtLeast(11, 0))
+        if (!OperatingSystem.IsMacOSVersionAtLeast(11, 0))
             return false;
 
         var window = AppleView.GetWindow(_webView.Handle);
@@ -433,12 +433,12 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
     public async Task<Stream> PrintToPdfStreamAsync()
     {
-        if (!OperatingSystemEx.IsMacOSVersionAtLeast(11, 0)
-            && !OperatingSystemEx.IsIOSVersionAtLeast(14, 0))
+        if (!OperatingSystem.IsMacOSVersionAtLeast(11, 0)
+            && !OperatingSystem.IsIOSVersionAtLeast(14, 0))
             throw new PlatformNotSupportedException();
 
         using var configuration = new WKPDFConfiguration();
-        if (OperatingSystemEx.IsIOS() && _webView.ScrollView?.ContentSize is { } contentSize)
+        if (OperatingSystem.IsIOS() && _webView.ScrollView?.ContentSize is { } contentSize)
             configuration.Rect = new CGRect(0, 0, contentSize.Width, contentSize.Height);
         return await _webView.CreatePdf(configuration);
     }
@@ -455,13 +455,13 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
     internal static DetailedWebViewAdapterInfo GetWkWebViewInfo(WebViewEmbeddingScenario scenarios = WebViewEmbeddingScenario.NativeControlHost)
     {
-        if (!OperatingSystemEx.IsMacOS() && !OperatingSystemEx.IsIOS())
+        if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsIOS())
         {
             return WebViewAdapterInfo.PlatformNotSupported(WebViewAdapterType.WkWebView);
         }
 
-        var isAvailable = OperatingSystemEx.IsMacOSVersionAtLeast(10, 10) ||
-                          OperatingSystemEx.IsIOSVersionAtLeast(8, 0);
+        var isAvailable = OperatingSystem.IsMacOSVersionAtLeast(10, 10) ||
+                          OperatingSystem.IsIOSVersionAtLeast(8, 0);
 
         return new DetailedWebViewAdapterInfo(
             WebViewAdapterType.WkWebView,

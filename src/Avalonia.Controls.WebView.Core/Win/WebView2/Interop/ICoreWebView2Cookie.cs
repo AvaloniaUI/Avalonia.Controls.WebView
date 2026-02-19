@@ -11,12 +11,7 @@ internal enum COREWEBVIEW2_COOKIE_SAME_SITE_KIND
     COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT
 }
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("AD26D6BE-1486-43E6-BF87-A2034006CA21")]
 internal partial interface ICoreWebView2Cookie
 {

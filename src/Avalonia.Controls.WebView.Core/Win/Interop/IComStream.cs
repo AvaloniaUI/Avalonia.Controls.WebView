@@ -5,12 +5,7 @@ using System.Runtime.InteropServices.Marshalling;
 
 namespace Avalonia.Controls.Win.Interop;
 
-#if COM_SOURCE_GEN
 [GeneratedComInterface]
-#else
-[ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-#endif
 [Guid("0000000c-0000-0000-C000-000000000046")]
 internal partial interface IComStream
 {
