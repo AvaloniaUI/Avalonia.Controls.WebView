@@ -29,7 +29,7 @@
                 <TextBox IsReadOnly="True" Grid.Row="2" x:Name="LogList" />
             </Grid>
         </TabItem>
-        <TabItem Header="Offscreen" IsVisible="{OnPlatform Default=False, Windows=True, Linux=True}">
+        <TabItem Header="Offscreen" IsVisible="{OnPlatform Default=False, macOS=True, Windows=True, Linux=True}">
             <NativeWebView Source="https://google.com/"
                            EnvironmentRequested="Offscreen_EnvironmentRequested"/>
         </TabItem>

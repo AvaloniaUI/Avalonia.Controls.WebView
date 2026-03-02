@@ -34,4 +34,12 @@ public sealed class AppleWKWebViewEnvironmentRequestedEventArgs : WebViewEnviron
     /// Gets or sets a value indicating whether the web view limits navigation to pages within the application's domain.
     /// </summary>
     public bool LimitsNavigationsToAppBoundDomains { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether to use experimental offscreen rendering mode on macOS.
+    /// When enabled, the WKWebView is hosted in an offscreen window and rendered into a bitmap
+    /// using the takeSnapshot API, allowing compositing within Avalonia's rendering pipeline.
+    /// Requires macOS 10.15+.
+    /// </summary>
+    public bool ExperimentalOffscreen { get; set; }
 }

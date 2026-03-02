@@ -418,6 +418,10 @@ public partial class MainView : UserControl
         {
             gtk.ExperimentalOffscreen = true;
         }
+        else if (e is AP.AppleWKWebViewEnvironmentRequestedEventArgs apple)
+        {
+            apple.ExperimentalOffscreen = true;
+        }
         else
         {
             throw new NotSupportedException();

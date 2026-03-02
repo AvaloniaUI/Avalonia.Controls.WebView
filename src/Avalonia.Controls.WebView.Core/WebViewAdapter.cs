@@ -58,6 +58,14 @@ internal static class WebViewAdapter
             var args = new AppleWKWebViewEnvironmentRequestedEventArgs(deferralManager);
             environmentRequested(args);
             await deferralManager.WaitForDeferralsAsync();
+
+            if (OperatingSystem.IsMacOS() && args.ExperimentalOffscreen && OperatingSystem.IsMacOSVersionAtLeast(10, 15))
+            {
+                var builder = await Macios.MaciosOffscreenWebViewAdapter.CreateBuilder(args);
+                return new CompositorHostAdapterFactory(builder,
+                    Macios.MaciosWebViewAdapter.GetWkWebViewInfo(WebViewEmbeddingScenario.OffscreenRenderer));
+            }
+
             return new NativeHostAdapterFactory((_, _) =>
             {
                 // NOTE: we add double platform condition here to shut up Roslyn Analyzer false positives.

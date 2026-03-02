@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Avalonia.Controls.Rendering;
 using Avalonia.Input;
+using Avalonia.Logging;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -129,8 +130,15 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
             adapter.SizeChanged(adapterSize);
         }
 
-        await adapter.UpdateWriteableBitmap(adapterSize, _frameChain.Producer);
-        _customVisual?.SendHandlerMessage(VisualHandler.DrawRequested);
+        try
+        {
+            await adapter.UpdateWriteableBitmap(adapterSize, _frameChain.Producer);
+            _customVisual?.SendHandlerMessage(VisualHandler.DrawRequested);
+        }
+        catch (Exception ex)
+        {
+            Logger.TryGet(LogEventLevel.Error, "WebView")?.Log(ex, "UpdateWriteableBitmap failed with an error.");
+        }
     }
 
     private void CursorAdapter_OnCursorChanged(object? sender, EventArgs e)
