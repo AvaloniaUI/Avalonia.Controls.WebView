@@ -41,7 +41,31 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
     private static readonly IntPtr s_setNeedsDisplay = Libobjc.sel_getUid("setNeedsDisplay:");
     private static readonly IntPtr s_display = Libobjc.sel_getUid("display");
     private static readonly IntPtr s_window = Libobjc.sel_getUid("window");
-    private static readonly IntPtr s_sendEvent = Libobjc.sel_getUid("sendEvent:");
+
+    // NSResponder event methods — called directly on the WKWebView to bypass window focus requirement
+    private static readonly IntPtr s_mouseDown = Libobjc.sel_getUid("mouseDown:");
+    private static readonly IntPtr s_mouseUp = Libobjc.sel_getUid("mouseUp:");
+    private static readonly IntPtr s_mouseMoved = Libobjc.sel_getUid("mouseMoved:");
+    private static readonly IntPtr s_mouseDragged = Libobjc.sel_getUid("mouseDragged:");
+    private static readonly IntPtr s_mouseEntered = Libobjc.sel_getUid("mouseEntered:");
+    private static readonly IntPtr s_mouseExited = Libobjc.sel_getUid("mouseExited:");
+    private static readonly IntPtr s_rightMouseDown = Libobjc.sel_getUid("rightMouseDown:");
+    private static readonly IntPtr s_rightMouseUp = Libobjc.sel_getUid("rightMouseUp:");
+    private static readonly IntPtr s_rightMouseDragged = Libobjc.sel_getUid("rightMouseDragged:");
+    private static readonly IntPtr s_otherMouseDown = Libobjc.sel_getUid("otherMouseDown:");
+    private static readonly IntPtr s_otherMouseUp = Libobjc.sel_getUid("otherMouseUp:");
+    private static readonly IntPtr s_otherMouseDragged = Libobjc.sel_getUid("otherMouseDragged:");
+    private static readonly IntPtr s_scrollWheel = Libobjc.sel_getUid("scrollWheel:");
+    private static readonly IntPtr s_keyDown = Libobjc.sel_getUid("keyDown:");
+    private static readonly IntPtr s_keyUp = Libobjc.sel_getUid("keyUp:");
+
+    // NSEvent factory selectors
+    private static readonly IntPtr s_NSEventClass = Libobjc.objc_getClass("NSEvent");
+    private static readonly IntPtr s_mouseEventWithType =
+        Libobjc.sel_getUid("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:");
+    private static readonly IntPtr s_keyEventWithType =
+        Libobjc.sel_getUid("keyEventWithType:location:modifierFlags:timestamp:windowNumber:context:characters:charactersIgnoringModifiers:isARepeat:keyCode:");
+    private static readonly IntPtr s_windowNumber = Libobjc.sel_getUid("windowNumber");
 
     // NSImage -> CGImage
     private static readonly IntPtr s_CGImageForProposedRect =
@@ -211,31 +235,37 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
         if (keyCode < 0)
             return false;
 
-        // Create CGEvent for the key
-        var eventType = press ? CGEventType.KeyDown : CGEventType.KeyUp;
-        var cgEvent = CGEventCreateKeyboardEvent(IntPtr.Zero, (ushort)keyCode, press);
-        if (cgEvent == IntPtr.Zero)
+        var nsEventType = press ? NSEventType.KeyDown : NSEventType.KeyUp;
+        var nsModifiers = ToNSEventModifierFlags(modifiers);
+        var windowNum = Libobjc.int_objc_msgSend(_offscreenWindow, s_windowNumber);
+
+        // Create characters string (use symbol if available, else empty)
+        var characters = symbol != null
+            ? Libobjc.intptr_objc_msgSend(
+                Libobjc.objc_getClass("NSString"), Libobjc.sel_getUid("stringWithUTF8String:"),
+                Marshal.StringToHGlobalAnsi(symbol))
+            : CFStringCreateEmpty();
+        var charactersIgnoring = characters;
+
+        var nsEvent = NSEvent_keyEventWithType(
+            s_NSEventClass, s_keyEventWithType,
+            nsEventType,
+            new CGPointNative(0, 0), // location in window
+            nsModifiers,
+            0.0, // timestamp
+            windowNum,
+            IntPtr.Zero, // context (nil)
+            characters,
+            charactersIgnoring,
+            false, // isARepeat
+            (ushort)keyCode);
+
+        if (nsEvent == IntPtr.Zero)
             return false;
 
-        try
-        {
-            var cgFlags = ToCGEventFlags(modifiers);
-            CGEventSetFlags(cgEvent, cgFlags);
-
-            // Convert CGEvent to NSEvent and send to the window
-            var nsEvent = NSEventFromCGEvent(cgEvent);
-            if (nsEvent != IntPtr.Zero)
-            {
-                Libobjc.void_objc_msgSend(_offscreenWindow, s_sendEvent, nsEvent);
-                return true;
-            }
-        }
-        finally
-        {
-            CFRelease(cgEvent);
-        }
-
-        return false;
+        var sel = press ? s_keyDown : s_keyUp;
+        Libobjc.void_objc_msgSend(Handle, sel, nsEvent);
+        return true;
     }
 
     public bool PointerInput(PointerPoint point, int clickCount, double dpi, KeyModifiers modifiers)
@@ -243,95 +273,95 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
         if (_offscreenWindow == IntPtr.Zero)
             return false;
 
-        var (eventType, buttonNumber) = point.Properties.PointerUpdateKind switch
+        var (nsEventType, buttonNumber, viewSelector) = point.Properties.PointerUpdateKind switch
         {
-            PointerUpdateKind.LeftButtonPressed => (CGEventType.LeftMouseDown, 0),
-            PointerUpdateKind.LeftButtonReleased => (CGEventType.LeftMouseUp, 0),
-            PointerUpdateKind.RightButtonPressed => (CGEventType.RightMouseDown, 1),
-            PointerUpdateKind.RightButtonReleased => (CGEventType.RightMouseUp, 1),
-            PointerUpdateKind.MiddleButtonPressed => (CGEventType.OtherMouseDown, 2),
-            PointerUpdateKind.MiddleButtonReleased => (CGEventType.OtherMouseUp, 2),
-            PointerUpdateKind.Other => (CGEventType.MouseMoved, 0),
-            _ => (CGEventType.Null, -1)
+            PointerUpdateKind.LeftButtonPressed => (NSEventType.LeftMouseDown, 0, s_mouseDown),
+            PointerUpdateKind.LeftButtonReleased => (NSEventType.LeftMouseUp, 0, s_mouseUp),
+            PointerUpdateKind.RightButtonPressed => (NSEventType.RightMouseDown, 1, s_rightMouseDown),
+            PointerUpdateKind.RightButtonReleased => (NSEventType.RightMouseUp, 1, s_rightMouseUp),
+            PointerUpdateKind.MiddleButtonPressed => (NSEventType.OtherMouseDown, 2, s_otherMouseDown),
+            PointerUpdateKind.MiddleButtonReleased => (NSEventType.OtherMouseUp, 2, s_otherMouseUp),
+            PointerUpdateKind.Other => (NSEventType.MouseMoved, 0, s_mouseMoved),
+            _ => (NSEventType.MouseMoved, -1, IntPtr.Zero)
         };
 
-        if (buttonNumber == -1)
+        if (viewSelector == IntPtr.Zero)
             return false;
 
         // If it's a move while a button is held, adjust the type
-        if (eventType == CGEventType.MouseMoved)
+        if (nsEventType == NSEventType.MouseMoved)
         {
             if (point.Properties.IsLeftButtonPressed)
-                eventType = CGEventType.LeftMouseDragged;
+            {
+                nsEventType = NSEventType.LeftMouseDragged;
+                viewSelector = s_mouseDragged;
+            }
             else if (point.Properties.IsRightButtonPressed)
-                eventType = CGEventType.RightMouseDragged;
+            {
+                nsEventType = NSEventType.RightMouseDragged;
+                viewSelector = s_rightMouseDragged;
+            }
             else if (point.Properties.IsMiddleButtonPressed)
-                eventType = CGEventType.OtherMouseDragged;
+            {
+                nsEventType = NSEventType.OtherMouseDragged;
+                viewSelector = s_otherMouseDragged;
+            }
         }
 
         // point.Position is in logical coordinates (= macOS points).
-        // CGEvent expects CG screen coordinates: Y-down from top-left of primary display.
-        var cgPoint = new CGPointNative(
+        // NSEvent locationInWindow uses window coordinates: origin at bottom-left.
+        var locationInWindow = new CGPointNative(
             point.Position.X,
-            _screenHeightPts - _windowHeightPts + point.Position.Y);
+            _windowHeightPts - point.Position.Y);
 
-        var cgEvent = CGEventCreateMouseEvent(IntPtr.Zero, eventType,
-            cgPoint, (CGMouseButton)buttonNumber);
-        if (cgEvent == IntPtr.Zero)
+        var nsModifiers = ToNSEventModifierFlags(modifiers);
+        var windowNum = Libobjc.int_objc_msgSend(_offscreenWindow, s_windowNumber);
+
+        var nsEvent = NSEvent_mouseEventWithType(
+            s_NSEventClass, s_mouseEventWithType,
+            nsEventType,
+            locationInWindow,
+            nsModifiers,
+            0.0, // timestamp
+            windowNum,
+            IntPtr.Zero, // context (nil)
+            0, // eventNumber
+            clickCount,
+            (buttonNumber == 0 && clickCount == 0) ? 0.0f : 1.0f); // pressure
+
+        if (nsEvent == IntPtr.Zero)
             return false;
 
-        try
-        {
-            CGEventSetIntegerValueField(cgEvent, CGEventField.MouseEventClickState, clickCount);
-            CGEventSetFlags(cgEvent, ToCGEventFlags(modifiers));
-
-            var nsEvent = NSEventFromCGEvent(cgEvent);
-            if (nsEvent != IntPtr.Zero)
-            {
-                Libobjc.void_objc_msgSend(_offscreenWindow, s_sendEvent, nsEvent);
-                return true;
-            }
-        }
-        finally
-        {
-            CFRelease(cgEvent);
-        }
-
-        return false;
+        Libobjc.void_objc_msgSend(Handle, viewSelector, nsEvent);
+        return true;
     }
 
     public bool PointerLeaveInput(PointerPoint point, double dpi, KeyModifiers modifiers)
     {
-        // WKWebView handles mouse exit tracking internally.
-        // Synthesize a mouse-exited event.
         if (_offscreenWindow == IntPtr.Zero)
             return false;
 
-        var cgPoint = new CGPointNative(
+        var locationInWindow = new CGPointNative(
             point.Position.X,
-            _screenHeightPts - _windowHeightPts + point.Position.Y);
+            _windowHeightPts - point.Position.Y);
 
-        var cgEvent = CGEventCreateMouseEvent(IntPtr.Zero, CGEventType.MouseMoved,
-            cgPoint, CGMouseButton.Left);
-        if (cgEvent == IntPtr.Zero)
+        var windowNum = Libobjc.int_objc_msgSend(_offscreenWindow, s_windowNumber);
+
+        var nsEvent = NSEvent_mouseEventWithType(
+            s_NSEventClass, s_mouseEventWithType,
+            NSEventType.MouseExited,
+            locationInWindow,
+            ToNSEventModifierFlags(modifiers),
+            0.0,
+            windowNum,
+            IntPtr.Zero,
+            0, 0, 0.0f);
+
+        if (nsEvent == IntPtr.Zero)
             return false;
 
-        try
-        {
-            // Post a mouse-moved out of bounds to trigger mouse exit
-            var nsEvent = NSEventFromCGEvent(cgEvent);
-            if (nsEvent != IntPtr.Zero)
-            {
-                Libobjc.void_objc_msgSend(_offscreenWindow, s_sendEvent, nsEvent);
-                return true;
-            }
-        }
-        finally
-        {
-            CFRelease(cgEvent);
-        }
-
-        return false;
+        Libobjc.void_objc_msgSend(Handle, s_mouseExited, nsEvent);
+        return true;
     }
 
     public bool PointerWheelInput(Vector delta, PointerPoint point, double dpi, KeyModifiers modifiers)
@@ -339,8 +369,8 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
         if (_offscreenWindow == IntPtr.Zero)
             return false;
 
-        // Create scroll wheel event
-        // Using 2 axes: vertical (deltaY) and horizontal (deltaX)
+        // Create a CGEvent-based scroll wheel event and convert to NSEvent,
+        // because NSEvent doesn't have a direct factory for scroll wheel events.
         var cgEvent = CGEventCreateScrollWheelEvent2(IntPtr.Zero,
             CGScrollEventUnit.Pixel, 2,
             (int)(delta.Y * 40), (int)(delta.X * 40));
@@ -350,27 +380,21 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
 
         try
         {
-            // Set scroll event location to the pointer position (CG screen coordinates)
-            var cgPoint = new CGPointNative(
-                point.Position.X,
-                _screenHeightPts - _windowHeightPts + point.Position.Y);
-            CGEventSetLocation(cgEvent, cgPoint);
-
             CGEventSetFlags(cgEvent, ToCGEventFlags(modifiers));
 
+            // Convert to NSEvent — scroll wheel events work even without window focus
+            // because they carry their own location data.
             var nsEvent = NSEventFromCGEvent(cgEvent);
-            if (nsEvent != IntPtr.Zero)
-            {
-                Libobjc.void_objc_msgSend(_offscreenWindow, s_sendEvent, nsEvent);
-                return true;
-            }
+            if (nsEvent == IntPtr.Zero)
+                return false;
+
+            Libobjc.void_objc_msgSend(Handle, s_scrollWheel, nsEvent);
+            return true;
         }
         finally
         {
             CFRelease(cgEvent);
         }
-
-        return false;
     }
 
     public new void Dispose()
@@ -466,6 +490,20 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
         return windowPtr;
     }
 
+    private static NSEventModifierFlags ToNSEventModifierFlags(KeyModifiers modifiers)
+    {
+        var flags = NSEventModifierFlags.None;
+        if (modifiers.HasFlag(KeyModifiers.Shift))
+            flags |= NSEventModifierFlags.Shift;
+        if (modifiers.HasFlag(KeyModifiers.Control))
+            flags |= NSEventModifierFlags.Control;
+        if (modifiers.HasFlag(KeyModifiers.Alt))
+            flags |= NSEventModifierFlags.Option;
+        if (modifiers.HasFlag(KeyModifiers.Meta))
+            flags |= NSEventModifierFlags.Command;
+        return flags;
+    }
+
     private static CGEventFlags ToCGEventFlags(KeyModifiers modifiers)
     {
         var flags = CGEventFlags.None;
@@ -482,31 +520,22 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
 
     #region Native Interop
 
-    // CGEvent APIs
-    private const string ApplicationServices =
-        "/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices";
     private const string CoreGraphics =
         "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics";
     private const string CoreFoundation =
         "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation";
     private const string AppKit =
         "/System/Library/Frameworks/AppKit.framework/AppKit";
+    private const string libobjc = "/usr/lib/libobjc.dylib";
 
-    [DllImport(CoreGraphics)]
-    private static extern IntPtr CGEventCreateKeyboardEvent(IntPtr source, ushort virtualKey, [MarshalAs(UnmanagedType.Bool)] bool keyDown);
-
-    [DllImport(CoreGraphics)]
-    private static extern IntPtr CGEventCreateMouseEvent(IntPtr source, CGEventType mouseType, CGPointNative mouseCursorPosition, CGMouseButton mouseButton);
-
+    // CGEvent APIs — still needed for scroll wheel events (no NSEvent factory for scroll)
     [DllImport(CoreGraphics, EntryPoint = "CGEventCreateScrollWheelEvent2")]
     private static extern IntPtr CGEventCreateScrollWheelEvent2(IntPtr source, CGScrollEventUnit units, uint wheelCount, int value1, int value2);
 
     [DllImport(CoreGraphics)]
     private static extern void CGEventSetFlags(IntPtr @event, CGEventFlags flags);
 
-    [DllImport(CoreGraphics)]
-    private static extern void CGEventSetIntegerValueField(IntPtr @event, CGEventField field, long value);
-
+    // CGImage / CGBitmapContext
     [DllImport(CoreGraphics)]
     private static extern nuint CGImageGetWidth(IntPtr image);
 
@@ -536,17 +565,10 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
     [DllImport(CoreGraphics)]
     private static extern CGRectNative CGDisplayBounds(uint display);
 
-    [DllImport(CoreGraphics)]
-    private static extern void CGEventSetLocation(IntPtr @event, CGPointNative location);
-
     [DllImport(CoreFoundation)]
     private static extern void CFRelease(IntPtr obj);
 
-    // NSEvent from CGEvent  
-    [DllImport(AppKit, EntryPoint = "objc_msgSend")]
-    private static extern IntPtr NSEventFromCGEvent_msgSend(IntPtr cls, IntPtr sel, IntPtr cgEvent);
-
-    private static readonly IntPtr s_NSEventClass = Libobjc.objc_getClass("NSEvent");
+    // NSEvent from CGEvent (for scroll wheel)
     private static readonly IntPtr s_eventWithCGEvent = Libobjc.sel_getUid("eventWithCGEvent:");
 
     private static IntPtr NSEventFromCGEvent(IntPtr cgEvent)
@@ -554,9 +576,45 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
         return Libobjc.intptr_objc_msgSend(s_NSEventClass, s_eventWithCGEvent, cgEvent);
     }
 
-    private enum CGEventType : uint
+    // NSEvent factory: +[NSEvent mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:]
+    // Signature: id, SEL, NSEventType(long), CGPoint(double,double), NSEventModifierFlags(ulong), double, long, id, long, long, float
+    [DllImport(libobjc, EntryPoint = "objc_msgSend")]
+    private static extern IntPtr NSEvent_mouseEventWithType(
+        IntPtr cls, IntPtr sel,
+        NSEventType type,
+        CGPointNative location,
+        NSEventModifierFlags modifierFlags,
+        double timestamp,
+        long windowNumber,
+        IntPtr context,
+        long eventNumber,
+        long clickCount,
+        float pressure);
+
+    // NSEvent factory: +[NSEvent keyEventWithType:location:modifierFlags:timestamp:windowNumber:context:characters:charactersIgnoringModifiers:isARepeat:keyCode:]
+    [DllImport(libobjc, EntryPoint = "objc_msgSend")]
+    private static extern IntPtr NSEvent_keyEventWithType(
+        IntPtr cls, IntPtr sel,
+        NSEventType type,
+        CGPointNative location,
+        NSEventModifierFlags modifierFlags,
+        double timestamp,
+        long windowNumber,
+        IntPtr context,
+        IntPtr characters,
+        IntPtr charactersIgnoringModifiers,
+        [MarshalAs(UnmanagedType.Bool)] bool isARepeat,
+        ushort keyCode);
+
+    private static IntPtr CFStringCreateEmpty()
     {
-        Null = 0,
+        var cls = Libobjc.objc_getClass("NSString");
+        var sel = Libobjc.sel_getUid("string");
+        return Libobjc.intptr_objc_msgSend(cls, sel);
+    }
+
+    private enum NSEventType : ulong
+    {
         LeftMouseDown = 1,
         LeftMouseUp = 2,
         RightMouseDown = 3,
@@ -568,35 +626,35 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
         KeyUp = 11,
         FlagsChanged = 12,
         ScrollWheel = 22,
+        MouseEntered = 8,
+        MouseExited = 9,
         OtherMouseDown = 25,
         OtherMouseUp = 26,
         OtherMouseDragged = 27,
     }
 
-    private enum CGMouseButton : uint
+    [Flags]
+    private enum NSEventModifierFlags : ulong
     {
-        Left = 0,
-        Right = 1,
-        Center = 2,
+        None = 0,
+        CapsLock = 1UL << 16,
+        Shift = 1UL << 17,
+        Control = 1UL << 18,
+        Option = 1UL << 19,
+        Command = 1UL << 20,
+        NumericPad = 1UL << 21,
+        Help = 1UL << 22,
+        Function = 1UL << 23,
     }
 
     [Flags]
     private enum CGEventFlags : ulong
     {
         None = 0,
-        MaskAlphaShift = 0x00010000,
         MaskShift = 0x00020000,
         MaskControl = 0x00040000,
         MaskAlternate = 0x00080000,
         MaskCommand = 0x00100000,
-        MaskNumericPad = 0x00200000,
-        MaskHelp = 0x00400000,
-        MaskSecondaryFn = 0x00800000,
-    }
-
-    private enum CGEventField : uint
-    {
-        MouseEventClickState = 1,
     }
 
     private enum CGScrollEventUnit : uint
