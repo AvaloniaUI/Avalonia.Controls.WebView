@@ -27,6 +27,7 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
         Libobjc.sel_getUid("takeSnapshotWithConfiguration:completionHandler:");
 
     private static readonly IntPtr s_NSWindowClass = Libobjc.objc_getClass("NSWindow");
+    private static readonly IntPtr s_FakeKeyWindowClass = CreateFakeKeyWindowClass();
     private static readonly IntPtr s_NSWindowAlloc = Libobjc.sel_getUid("alloc");
     private static readonly IntPtr s_NSWindowInit =
         Libobjc.sel_getUid("initWithContentRect:styleMask:backing:defer:");
@@ -471,8 +472,8 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
 
     private static IntPtr CreateOffscreenWindow(int width, int height)
     {
-        // NSWindow style: NSWindowStyleMaskBorderless = 0
-        var windowPtr = Libobjc.intptr_objc_msgSend(s_NSWindowClass, s_NSWindowAlloc);
+        // Use the FakeKeyWindow subclass so WKWebView thinks it has focus
+        var windowPtr = Libobjc.intptr_objc_msgSend(s_FakeKeyWindowClass, s_NSWindowAlloc);
 
         // initWithContentRect:styleMask:backing:defer:
         // styleMask = 0 (borderless), backing = 2 (NSBackingStoreBuffered), defer = 0
@@ -487,6 +488,29 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
 
         return windowPtr;
     }
+
+    /// <summary>
+    /// Creates a dynamic NSWindow subclass that overrides <c>canBecomeKeyWindow</c> and <c>isKeyWindow</c>
+    /// to always return YES. This tricks WKWebView and NSTextInputContext into rendering the text caret
+    /// and focus highlights even though the window is ordered out (invisible).
+    /// </summary>
+    private static unsafe IntPtr CreateFakeKeyWindowClass()
+    {
+        var cls = Libobjc.objc_allocateClassPair(
+            Libobjc.objc_getClass("NSWindow"),
+            "AvaloniaOffscreenKeyWindow", 0);
+
+        var returnYes = (delegate* unmanaged[Cdecl]<IntPtr, IntPtr, byte>)&ReturnYes;
+
+        Libobjc.class_addMethod(cls, Libobjc.sel_getUid("canBecomeKeyWindow"), returnYes, "B@:");
+        Libobjc.class_addMethod(cls, Libobjc.sel_getUid("isKeyWindow"), returnYes, "B@:");
+
+        Libobjc.objc_registerClassPair(cls);
+        return cls;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static byte ReturnYes(IntPtr self, IntPtr sel) => 1;
 
     private static CGEventFlags ToCGEventFlags(KeyModifiers modifiers)
     {
