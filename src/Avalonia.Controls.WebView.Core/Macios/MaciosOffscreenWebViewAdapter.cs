@@ -54,16 +54,34 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
     private static readonly unsafe IntPtr s_takeSnapshotCallback =
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void>)&TakeSnapshotCallback);
 
+    private static readonly IntPtr s_makeFirstResponder = Libobjc.sel_getUid("makeFirstResponder:");
+
     private IntPtr _offscreenWindow;
     private PixelSize _currentSize;
     private DisplayLinkTimer? _displayLink;
+    private double _backingScaleFactor = 1.0;
+    private double _screenHeightPts;
+    private double _windowHeightPts;
 
     public MaciosOffscreenWebViewAdapter(AppleWKWebViewEnvironmentRequestedEventArgs options) : base(options)
     {
+        // Get backing scale factor from main screen
+        var nsScreenClass = Libobjc.objc_getClass("NSScreen");
+        var mainScreen = Libobjc.intptr_objc_msgSend(nsScreenClass, Libobjc.sel_getUid("mainScreen"));
+        _backingScaleFactor = Libobjc.double_objc_msgSend(mainScreen, Libobjc.sel_getUid("backingScaleFactor"));
+        if (_backingScaleFactor <= 0) _backingScaleFactor = 1.0;
+
+        // Get screen height in points for CG coordinate conversion
+        var displayBounds = CGDisplayBounds(CGMainDisplayID());
+        _screenHeightPts = displayBounds.Height;
+
         _offscreenWindow = CreateOffscreenWindow(100, 100);
 
         // Set the WKWebView as the content view of the offscreen window
         Libobjc.void_objc_msgSend(_offscreenWindow, s_NSWindowSetContentView, Handle);
+
+        // Make WKWebView first responder for keyboard input
+        Libobjc.void_objc_msgSend(_offscreenWindow, s_makeFirstResponder, Handle);
 
         _displayLink = new DisplayLinkTimer(OnDisplayLinkFired);
     }
@@ -91,13 +109,16 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
 
         _currentSize = containerSize;
 
-        // Resize the offscreen window
-        var frame = new CGRect(0, 0, containerSize.Width, containerSize.Height);
-        Libobjc.void_objc_msgSend(_offscreenWindow, s_setFrameDisplay, frame, 1);
+        // Convert pixel size to macOS points (pixels / backingScaleFactor)
+        var widthPts = containerSize.Width / _backingScaleFactor;
+        var heightPts = containerSize.Height / _backingScaleFactor;
+        _windowHeightPts = heightPts;
 
-        // Resize the WKWebView to fill the window
+        // Resize the offscreen window and WKWebView in points
+        var frame = new CGRect(0, 0, widthPts, heightPts);
+        Libobjc.void_objc_msgSend(_offscreenWindow, s_setFrameDisplay, frame, 1);
         Libobjc.void_objc_msgSend(Handle, s_setFrame, frame);
-        
+
         _displayLink?.RequestNextFrame();
     }
 
@@ -248,11 +269,14 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
                 eventType = CGEventType.OtherMouseDragged;
         }
 
-        var x = point.Position.X * dpi;
-        var y = point.Position.Y * dpi;
+        // point.Position is in logical coordinates (= macOS points).
+        // CGEvent expects CG screen coordinates: Y-down from top-left of primary display.
+        var cgPoint = new CGPointNative(
+            point.Position.X,
+            _screenHeightPts - _windowHeightPts + point.Position.Y);
 
         var cgEvent = CGEventCreateMouseEvent(IntPtr.Zero, eventType,
-            new CGPointNative(x, y), (CGMouseButton)buttonNumber);
+            cgPoint, (CGMouseButton)buttonNumber);
         if (cgEvent == IntPtr.Zero)
             return false;
 
@@ -283,11 +307,12 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
         if (_offscreenWindow == IntPtr.Zero)
             return false;
 
-        var x = point.Position.X * dpi;
-        var y = point.Position.Y * dpi;
+        var cgPoint = new CGPointNative(
+            point.Position.X,
+            _screenHeightPts - _windowHeightPts + point.Position.Y);
 
         var cgEvent = CGEventCreateMouseEvent(IntPtr.Zero, CGEventType.MouseMoved,
-            new CGPointNative(x, y), CGMouseButton.Left);
+            cgPoint, CGMouseButton.Left);
         if (cgEvent == IntPtr.Zero)
             return false;
 
@@ -325,6 +350,12 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
 
         try
         {
+            // Set scroll event location to the pointer position (CG screen coordinates)
+            var cgPoint = new CGPointNative(
+                point.Position.X,
+                _screenHeightPts - _windowHeightPts + point.Position.Y);
+            CGEventSetLocation(cgEvent, cgPoint);
+
             CGEventSetFlags(cgEvent, ToCGEventFlags(modifiers));
 
             var nsEvent = NSEventFromCGEvent(cgEvent);
@@ -498,6 +529,15 @@ internal sealed class MaciosOffscreenWebViewAdapter : MaciosWebViewAdapter,
 
     [DllImport(CoreGraphics)]
     private static extern void CGContextRelease(IntPtr context);
+
+    [DllImport(CoreGraphics)]
+    private static extern uint CGMainDisplayID();
+
+    [DllImport(CoreGraphics)]
+    private static extern CGRectNative CGDisplayBounds(uint display);
+
+    [DllImport(CoreGraphics)]
+    private static extern void CGEventSetLocation(IntPtr @event, CGPointNative location);
 
     [DllImport(CoreFoundation)]
     private static extern void CFRelease(IntPtr obj);
