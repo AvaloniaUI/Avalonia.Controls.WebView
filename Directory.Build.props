@@ -20,9 +20,4 @@
     <PackageOutputPath>$(RepoRoot)\artifacts\packages</PackageOutputPath>
   </PropertyGroup>
 
-  <ItemGroup>
-    <!-- Testing key -->
-    <AvaloniaUILicenseKey Include="$(ACCELERATE_LICENSE_KEY)" />
-  </ItemGroup>
-
 </Project>
