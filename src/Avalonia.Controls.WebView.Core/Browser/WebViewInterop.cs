@@ -24,7 +24,7 @@ internal static partial class WebViewInterop
     [JSImport("closeAuthWindow", "av-webview")]
     public static partial Task CloseAuthWindow(string windowId);
 
-    [JSImport("globalThis.document.createElement")]
+    [JSImport("createIframeElement", "av-webview")]
     public static partial Task<JSObject> CreateElement(string tagName);
 
     [JSImport("getActualLocation", "av-webview")]

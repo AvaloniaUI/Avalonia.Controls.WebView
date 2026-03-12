@@ -1,4 +1,9 @@
-﻿export function goBack(iframe) {
+﻿export async function createIframeElement() {
+    const iframe = document.createElement("iframe");
+    return iframe;
+}
+
+export function goBack(iframe) {
     try {
         iframe.contentWindow.history.back();
         return true;
