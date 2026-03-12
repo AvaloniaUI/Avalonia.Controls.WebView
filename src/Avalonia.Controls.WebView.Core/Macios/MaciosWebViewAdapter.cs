@@ -102,8 +102,11 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
     {
         get
         {
-            using var value = _webView.CustomUserAgent;
-            return value is not null ? NSString.TryGetString(value.Handle) : null;
+            using var custom = _webView.CustomUserAgent;
+            if (custom is not null)
+                return NSString.TryGetString(custom.Handle);
+            var defaultUa = _webView.ValueForKey(WKWebView.UserAgentKey);
+            return defaultUa != IntPtr.Zero ? NSString.TryGetString(defaultUa) : null;
         }
         set
         {

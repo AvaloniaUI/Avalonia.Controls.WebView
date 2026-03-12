@@ -39,6 +39,8 @@ internal class WKWebView : AppleView
     private static readonly unsafe IntPtr s_callAsyncJavaScriptCallback = new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void>)&CallAsyncJavaScriptCallback);
     private static readonly unsafe IntPtr s_createPDFCallback = new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void>)&CreatePDFCallback);
 
+    internal static NSString UserAgentKey { get; } = NSString.Create("userAgent");
+
     static unsafe WKWebView()
     {
         var superclass = WebKit.objc_getClass("WKWebView");
