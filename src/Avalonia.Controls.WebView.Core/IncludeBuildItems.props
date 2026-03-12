@@ -8,6 +8,10 @@
     <PackageReference Include="Avalonia.Android" Version="$(AvaloniaVersion)" />
   </ItemGroup>
 
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'browser'">
+    <PackageReference Include="Avalonia.Browser" Version="$(AvaloniaVersion)" />
+  </ItemGroup>
+
   <ItemGroup Label="Browser Group">
     <!-- See https://github.com/dotnet/sdk/blob/9d4d2c4ca35b0856af7df63d6a38b3259aa6917c/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.Pack.targets#L64-L66 -->
     <Content Include="$(MSBuildThisFileDirectory)/build/Microsoft.AspNetCore.StaticWebAssets.props">

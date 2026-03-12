@@ -48,6 +48,11 @@ public enum WebViewAdapterType
     AndroidWebView,
 
     /// <summary>
+    /// Browser iframe-based WebView for WASM platforms.
+    /// </summary>
+    BrowserIFrame,
+
+    /// <summary>
     /// Headless WebView for testing scenarios.
     /// </summary>
     Headless = int.MaxValue
@@ -156,6 +161,12 @@ public record WebViewAdapterInfo(
             WebViewAdapterType.AndroidWebView =>
 #if ANDROID
                 Controls.Android.AndroidWebViewAdapter.GetAndroidWebViewInfo(),
+#else
+                PlatformNotSupported(adapterType),
+#endif
+            WebViewAdapterType.BrowserIFrame =>
+#if BROWSER
+                Controls.Browser.BrowserIFrameAdapter.GetBrowserInfo(),
 #else
                 PlatformNotSupported(adapterType),
 #endif

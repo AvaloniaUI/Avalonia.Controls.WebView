@@ -10,7 +10,11 @@
     <ProjectReference Include="..\Avalonia.Controls.WebView.Samples\Avalonia.Controls.WebView.Samples.csproj" />
   </ItemGroup>
 
-  <Import Project="../../src/Avalonia.Controls.WebView.Core/IncludeBuildItems.props" />
+  <ItemGroup>
+    <Content Include="..\..\src\Avalonia.Controls.WebView.Core\staticwebassets\av-webview.mjs"
+             Link="wwwroot/_framework/%(FileName)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Update="Avalonia" Version="$(AvaloniaSampleVersion)"  />
