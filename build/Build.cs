@@ -114,7 +114,7 @@ class Build : NukeBuild
 
     string GetVersion() => VersionResolver
         .GetGitHubVersion(
-            baseVersionNumber: new Version(12, 0, 999),
+            baseVersionNumber: new Version(11, 4, 999),
             isPackingToLocalCache: RunningTargets.Concat(ScheduledTargets)
                 .Any(t => t.Name == nameof(CopyPackagesToNuGetCache)))
         .ToString();
