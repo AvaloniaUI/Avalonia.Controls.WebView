@@ -75,6 +75,74 @@ export function subscribe(iframe, onload) {
     return () => iframe.removeEventListener("load", onloadHandler);
 }
 
+export function setBackground(iframe, color) {
+    iframe.style.backgroundColor = color;
+}
+
+export function focusIframe(iframe) {
+    iframe.focus();
+}
+
+export function blurIframe(iframe) {
+    iframe.blur();
+}
+
+export function subscribeFocus(iframe, onFocus, onBlur) {
+    var focusHandler = () => onFocus();
+    var blurHandler = () => onBlur();
+    iframe.addEventListener("focus", focusHandler);
+    iframe.addEventListener("blur", blurHandler);
+    return () => {
+        iframe.removeEventListener("focus", focusHandler);
+        iframe.removeEventListener("blur", blurHandler);
+    };
+}
+
+export function subscribeMessages(iframe, onMessage) {
+    var handler = (event) => {
+        if (event.source === iframe.contentWindow) {
+            var data = typeof event.data === "string" ? event.data : JSON.stringify(event.data);
+            onMessage(data);
+        }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+}
+
+export function injectPostMessageBridge(iframe) {
+    try {
+        var script = iframe.contentDocument.createElement("script");
+        script.textContent = `
+            if (!window.chrome) window.chrome = {};
+            if (!window.chrome.webview) window.chrome.webview = {};
+            window.chrome.webview.postMessage = function(message) {
+                window.parent.postMessage(message, '*');
+            };
+        `;
+        iframe.contentDocument.head.appendChild(script);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export function showPrintUI(iframe) {
+    try {
+        iframe.contentWindow.print();
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export function setSandbox(iframe, value) {
+    if (value) {
+        iframe.setAttribute("sandbox", value);
+    } else {
+        iframe.removeAttribute("sandbox");
+    }
+}
+
 let authWindows = new Map();
 
 export function openAuthWindow(windowId, url, redirectUri) {

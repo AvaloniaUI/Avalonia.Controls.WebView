@@ -1,5 +1,6 @@
 #if BROWSER
 using System;
+using System.IO;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
@@ -13,12 +14,14 @@ namespace Avalonia.Controls.Browser;
 // Note: this adapter is not yet compatible with WASM multithreading.
 // In order to support that we need to use only async JS interop, but IWebViewAdapter API is not compatible with that.
 [SupportedOSPlatform("browser")]
-internal class BrowserIFrameAdapter : JSObjectControlHandle, IWebViewAdapter
+internal class BrowserIFrameAdapter : JSObjectControlHandle, IWebViewAdapter,
+    IWebViewAdapterWithFocus, IWebViewWithPrint
 {
     private static readonly Lazy<Task> s_importModule = new(WebViewInterop.EnsureLoaded);
 
     private Action? _subscriptions;
     private Uri? _lastSrc;
+    private bool _enablePostMessageBridge;
 
     private BrowserIFrameAdapter(JSObject iframe) : base(iframe)
     {
@@ -45,7 +48,14 @@ internal class BrowserIFrameAdapter : JSObjectControlHandle, IWebViewAdapter
         }
     }
 
-    public Color DefaultBackground { set { } }
+    public Color DefaultBackground
+    {
+        set
+        {
+            var color = $"rgba({value.R},{value.G},{value.B},{value.A / 255.0:F2})";
+            WebViewInterop.SetBackground(Object, color);
+        }
+    }
 
     public void SizeChanged(PixelSize containerSize) { }
 
@@ -74,6 +84,9 @@ internal class BrowserIFrameAdapter : JSObjectControlHandle, IWebViewAdapter
     public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
     public event EventHandler<WebResourceRequestedEventArgs>? WebResourceRequested;
 
+    public event EventHandler? GotFocus;
+    public event EventHandler<IWebViewAdapterWithFocus.LostFocusDirection>? LostFocus;
+
     public bool GoBack() => WebViewInterop.GoBack(Object);
 
     public bool GoForward() => WebViewInterop.GoForward(Object);
@@ -93,6 +106,7 @@ internal class BrowserIFrameAdapter : JSObjectControlHandle, IWebViewAdapter
     public void NavigateToString(string text)
     {
         _lastSrc = new Uri("about:srcdoc");
+        NavigationStarted?.Invoke(this, new WebViewNavigationStartingEventArgs { Request = _lastSrc });
         Object.SetProperty("srcdoc", text);
     }
 
@@ -104,6 +118,21 @@ internal class BrowserIFrameAdapter : JSObjectControlHandle, IWebViewAdapter
     public bool Stop()
     {
         return WebViewInterop.Stop(Object);
+    }
+
+    public void Focus() => WebViewInterop.FocusIframe(Object);
+
+    public void ResignFocus() => WebViewInterop.BlurIframe(Object);
+
+    public bool ShowPrintUI()
+    {
+        return WebViewInterop.ShowPrintUI(Object);
+    }
+
+    public Task<Stream> PrintToPdfStreamAsync()
+    {
+        // PDF generation is not available in browser iframe context.
+        throw new PlatformNotSupportedException("PrintToPdfStreamAsync is not supported in a browser environment.");
     }
 
     public void Dispose()
@@ -125,14 +154,43 @@ internal class BrowserIFrameAdapter : JSObjectControlHandle, IWebViewAdapter
 
     private Task InitializeAsync(BrowserWebViewEnvironmentRequestedEventArgs environmentArgs)
     {
-        var unsub = WebViewInterop.Subscribe(Object,
-            src => NavigationCompleted?.Invoke(this, new WebViewNavigationCompletedEventArgs
-            {
-                Request = Uri.TryCreate(src, UriKind.Absolute, out var request) ? request : null
-            }));
+        _enablePostMessageBridge = environmentArgs.EnablePostMessageBridge;
 
-        _subscriptions = unsub;
+        if (environmentArgs.Sandbox is { } sandbox)
+        {
+            WebViewInterop.SetSandbox(Object, sandbox);
+        }
+
+        var unsubLoad = WebViewInterop.Subscribe(Object, OnNavigationCompleted);
+
+        var unsubFocus = WebViewInterop.SubscribeFocus(Object,
+            () => GotFocus?.Invoke(this, EventArgs.Empty),
+            () => LostFocus?.Invoke(this, IWebViewAdapterWithFocus.LostFocusDirection.Unknown));
+
+        var unsubMessages = WebViewInterop.SubscribeMessages(Object,
+            body => WebMessageReceived?.Invoke(this, new WebMessageReceivedEventArgs { Body = body }));
+
+        _subscriptions = () =>
+        {
+            unsubLoad();
+            unsubFocus();
+            unsubMessages();
+        };
+
         return Task.CompletedTask;
+    }
+
+    private void OnNavigationCompleted(string src)
+    {
+        if (_enablePostMessageBridge)
+        {
+            WebViewInterop.InjectPostMessageBridge(Object);
+        }
+
+        NavigationCompleted?.Invoke(this, new WebViewNavigationCompletedEventArgs
+        {
+            Request = Uri.TryCreate(src, UriKind.Absolute, out var request) ? request : null
+        });
     }
 }
 #endif

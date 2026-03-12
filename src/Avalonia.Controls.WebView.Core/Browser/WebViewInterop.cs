@@ -54,5 +54,39 @@ internal static partial class WebViewInterop
 
     [JSImport("evalScript", "av-webview")]
     public static partial Task<string?> Eval(JSObject iframe, string script);
+
+    [JSImport("setBackground", "av-webview")]
+    public static partial void SetBackground(JSObject iframe, string color);
+
+    [JSImport("focusIframe", "av-webview")]
+    public static partial void FocusIframe(JSObject iframe);
+
+    [JSImport("blurIframe", "av-webview")]
+    public static partial void BlurIframe(JSObject iframe);
+
+    [JSImport("subscribeFocus", "av-webview")]
+    [return: JSMarshalAs<JSType.Function>]
+    public static partial Action SubscribeFocus(
+        JSObject iframe,
+        [JSMarshalAs<JSType.Function>]
+        Action onFocus,
+        [JSMarshalAs<JSType.Function>]
+        Action onBlur);
+
+    [JSImport("subscribeMessages", "av-webview")]
+    [return: JSMarshalAs<JSType.Function>]
+    public static partial Action SubscribeMessages(
+        JSObject iframe,
+        [JSMarshalAs<JSType.Function<JSType.String>>]
+        Action<string> onMessage);
+
+    [JSImport("injectPostMessageBridge", "av-webview")]
+    public static partial bool InjectPostMessageBridge(JSObject iframe);
+
+    [JSImport("showPrintUI", "av-webview")]
+    public static partial bool ShowPrintUI(JSObject iframe);
+
+    [JSImport("setSandbox", "av-webview")]
+    public static partial void SetSandbox(JSObject iframe, string? value);
 }
 #endif
