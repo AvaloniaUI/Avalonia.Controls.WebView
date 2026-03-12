@@ -166,7 +166,7 @@ public record WebViewAdapterInfo(
 #endif
             WebViewAdapterType.BrowserIFrame =>
 #if BROWSER
-                Controls.WebView.Core.Browser.BrowserIFrameAdapter.GetBrowserInfo(),
+                Controls.Browser.BrowserIFrameAdapter.GetBrowserInfo(),
 #else
                 PlatformNotSupported(adapterType),
 #endif
