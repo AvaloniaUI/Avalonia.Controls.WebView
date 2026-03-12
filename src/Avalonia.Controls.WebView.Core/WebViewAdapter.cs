@@ -126,13 +126,20 @@ internal static class WebViewAdapter
             }
         }
 
-        // if (OperatingSystem.IsBrowser())
-        // {
-        //     var args = new GtkWebViewEnvironmentRequestedEventArgs(deferralManager);
-        //     environmentRequested(args);
-        //     await deferralManager.WaitForDeferralsAsync();
-        //     return new NativeHostAdapterFactory((parent, _) => new Browser.BrowserIFrameAdapter(args));
-        // }
+#if BROWSER
+        if (OperatingSystem.IsBrowser())
+        {
+            var args = new BrowserWebViewEnvironmentRequestedEventArgs(deferralManager);
+            environmentRequested(args);
+            await deferralManager.WaitForDeferralsAsync();
+            return new NativeHostAdapterFactory((parent, _) =>
+            {
+                var adapter = new WebView.Core.Browser.BrowserIFrameAdapter();
+                return new AdapterWrapper(adapter,
+                    adapter.InitializeTask.ContinueWith(_ => (IWebViewAdapter)adapter));
+            }, WebView.Core.Browser.BrowserIFrameAdapter.GetBrowserInfo());
+        }
+#endif
 #endif
 
         return null;

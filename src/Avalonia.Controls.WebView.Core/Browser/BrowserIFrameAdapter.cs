@@ -1,4 +1,4 @@
-﻿#if DISABLE
+#if BROWSER
 using System;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 using Avalonia;
 using Avalonia.Browser;
+using Avalonia.Media;
+using Avalonia.Platform;
+using WebViewInterop = Avalonia.Controls.Browser.WebViewInterop;
 
 namespace Avalonia.Controls.WebView.Core.Browser
 {
@@ -13,16 +16,19 @@ namespace Avalonia.Controls.WebView.Core.Browser
     internal class BrowserIFrameAdapter : JSObjectControlHandle, IWebViewAdapter
     {
         private static readonly Lazy<Task> _importModule =
-                                                                                                                                                                                                                                                                                                                                                                                                                       new(() => JSHost.ImportAsync("av-webview.mjs", "av-webview.mjs"));
+            new(() => WebViewInterop.EnsureLoaded());
+
         private Action? _subscriptions;
         private Uri? _lastSrc;
 
         public BrowserIFrameAdapter() : base(WebViewInterop.CreateElement("iframe"))
         {
-            Initialize();
+            InitializeTask = InitializeAsync();
         }
 
-        private async void Initialize()
+        internal Task InitializeTask { get; }
+
+        private async Task InitializeAsync()
         {
             await _importModule.Value;
 
@@ -33,12 +39,13 @@ namespace Avalonia.Controls.WebView.Core.Browser
                 }));
 
             _subscriptions = unsub;
-
-            IsInitialized = true;
-            Initialized?.Invoke(this, EventArgs.Empty);
         }
-        
+
+        public Color DefaultBackground { set { } }
+
         public void SizeChanged(PixelSize containerSize) { }
+
+        public void SetParent(IPlatformHandle parent) { }
 
         public bool CanGoBack => WebViewInterop.CanGoBack(Object);
 
@@ -59,12 +66,13 @@ namespace Avalonia.Controls.WebView.Core.Browser
 
         public event EventHandler<WebViewNavigationCompletedEventArgs>? NavigationCompleted;
         public event EventHandler<WebViewNavigationStartingEventArgs>? NavigationStarted;
+        public event EventHandler<WebViewNewWindowRequestedEventArgs>? NewWindowRequested;
+        public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
+        public event EventHandler<WebResourceRequestedEventArgs>? WebResourceRequested;
 
         public bool GoBack() => WebViewInterop.GoBack(Object);
 
         public bool GoForward() => WebViewInterop.GoForward(Object);
-
-        public void HandleResize(PixelSize newSize) { }
 
         public Task<string?> InvokeScript(string script)
         {
@@ -74,6 +82,7 @@ namespace Avalonia.Controls.WebView.Core.Browser
         public void Navigate(Uri url)
         {
             _lastSrc = url;
+            NavigationStarted?.Invoke(this, new WebViewNavigationStartingEventArgs { Request = url });
             Object.SetProperty("src", url.AbsoluteUri);
         }
 
@@ -96,6 +105,18 @@ namespace Avalonia.Controls.WebView.Core.Browser
         public void Dispose()
         {
             _subscriptions?.Invoke();
+        }
+
+        internal static DetailedWebViewAdapterInfo GetBrowserInfo()
+        {
+            return new DetailedWebViewAdapterInfo(
+                WebViewAdapterType.BrowserIFrame,
+                WebViewEngine.Unknown,
+                IsSupported: OperatingSystem.IsBrowser(),
+                IsInstalled: OperatingSystem.IsBrowser(),
+                Version: null,
+                UnavailableReason: OperatingSystem.IsBrowser() ? null : "Not running in a browser environment.",
+                SupportedScenarios: WebViewEmbeddingScenario.NativeControlHost);
         }
     }
 }

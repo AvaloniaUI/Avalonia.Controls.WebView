@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net10.0;net10.0-android</TargetFrameworks>
+    <TargetFrameworks>net8.0;net10.0;net10.0-android;net10.0-browser</TargetFrameworks>
 
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <RootNamespace>Avalonia.Controls</RootNamespace>
@@ -11,6 +11,14 @@
     <!-- https://github.com/dotnet/runtime/issues/90922 -->
     <NoWarn>$(NoWarn);CA2256</NoWarn>
   </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'browser'">
+    <DefineConstants>$(DefineConstants);BROWSER</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'browser'">
+    <PackageReference Include="Avalonia.Browser" Version="$(AvaloniaVersion)" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.242">
