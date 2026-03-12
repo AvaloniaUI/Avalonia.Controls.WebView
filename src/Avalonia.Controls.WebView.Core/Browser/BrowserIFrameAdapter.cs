@@ -1,46 +1,46 @@
 #if BROWSER
 using System;
-using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
 
-using Avalonia;
 using Avalonia.Browser;
 using Avalonia.Media;
 using Avalonia.Platform;
-using WebViewInterop = Avalonia.Controls.Browser.WebViewInterop;
 
-namespace Avalonia.Controls.WebView.Core.Browser
+namespace Avalonia.Controls.Browser
 {
     [SupportedOSPlatform("browser")]
     internal class BrowserIFrameAdapter : JSObjectControlHandle, IWebViewAdapter
     {
-        private static readonly Lazy<Task> _importModule =
-            new(() => WebViewInterop.EnsureLoaded());
+        private static readonly Lazy<Task> s_importModule = new(WebViewInterop.EnsureLoaded);
 
         private Action? _subscriptions;
         private Uri? _lastSrc;
 
-        public BrowserIFrameAdapter() : base(WebViewInterop.CreateElement("iframe"))
+        private BrowserIFrameAdapter() : base(WebViewInterop.CreateElement("iframe"))
         {
-            InitializeTask = InitializeAsync();
         }
 
-        internal Task InitializeTask { get; }
-
-        private async Task InitializeAsync()
+        public static async Task<WebViewAdapter.NativeWebViewAdapterBuilder> CreateBuilder(
+            BrowserWebViewEnvironmentRequestedEventArgs environmentArgs)
         {
-            await _importModule.Value;
+            await s_importModule.Value;
 
-            var unsub = WebViewInterop.Subscribe(Object,
-                src => NavigationCompleted?.Invoke(this, new WebViewNavigationCompletedEventArgs
-                {
-                    Request = Uri.TryCreate(src, UriKind.Absolute, out var request) ? request : null
-                }));
+            return (_, _) =>
+            {
+                var adapter = new BrowserIFrameAdapter();
+                return new WebViewAdapter.AdapterWrapper(adapter, InitializeAsync(adapter, environmentArgs));
+            };
 
-            _subscriptions = unsub;
+            static async Task<IWebViewAdapter> InitializeAsync(
+                BrowserIFrameAdapter adapter,
+                BrowserWebViewEnvironmentRequestedEventArgs environmentArgs)
+            {
+                await adapter.InitializeAsync(environmentArgs);
+                return adapter;
+            }
         }
-
+    
         public Color DefaultBackground { set { } }
 
         public void SizeChanged(PixelSize containerSize) { }
@@ -117,6 +117,18 @@ namespace Avalonia.Controls.WebView.Core.Browser
                 Version: null,
                 UnavailableReason: OperatingSystem.IsBrowser() ? null : "Not running in a browser environment.",
                 SupportedScenarios: WebViewEmbeddingScenario.NativeControlHost);
+        }
+
+        private Task InitializeAsync(BrowserWebViewEnvironmentRequestedEventArgs environmentArgs)
+        {
+            var unsub = WebViewInterop.Subscribe(Object,
+                src => NavigationCompleted?.Invoke(this, new WebViewNavigationCompletedEventArgs
+                {
+                    Request = Uri.TryCreate(src, UriKind.Absolute, out var request) ? request : null
+                }));
+
+            _subscriptions = unsub;
+            return Task.CompletedTask;
         }
     }
 }

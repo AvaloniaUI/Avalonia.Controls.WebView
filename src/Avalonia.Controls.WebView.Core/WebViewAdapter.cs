@@ -52,6 +52,18 @@ internal static class WebViewAdapter
                 return new AdapterWrapper(adapter, Task.FromResult(adapter));
             }, Android.AndroidWebViewAdapter.GetAndroidWebViewInfo());
         }
+#elif BROWSER
+        if (OperatingSystem.IsBrowser())
+        {
+            var args = new BrowserWebViewEnvironmentRequestedEventArgs(deferralManager);
+            environmentRequested(args);
+            await deferralManager.WaitForDeferralsAsync();
+
+            var builder = await Browser.BrowserIFrameAdapter.CreateBuilder(args);
+            return new NativeHostAdapterFactory(
+                builder,
+                Browser.BrowserIFrameAdapter.GetBrowserInfo());
+        }
 #else
         if (OperatingSystem.IsMacOS() || OperatingSystem.IsIOS())
         {
@@ -125,21 +137,6 @@ internal static class WebViewAdapter
                 return new NativeHostAdapterFactory(builder, Gtk.GtkWebViewAdapter.GetWebKitGtkInfo());
             }
         }
-
-#if BROWSER
-        if (OperatingSystem.IsBrowser())
-        {
-            var args = new BrowserWebViewEnvironmentRequestedEventArgs(deferralManager);
-            environmentRequested(args);
-            await deferralManager.WaitForDeferralsAsync();
-            return new NativeHostAdapterFactory((parent, _) =>
-            {
-                var adapter = new WebView.Core.Browser.BrowserIFrameAdapter();
-                return new AdapterWrapper(adapter,
-                    adapter.InitializeTask.ContinueWith(_ => (IWebViewAdapter)adapter));
-            }, WebView.Core.Browser.BrowserIFrameAdapter.GetBrowserInfo());
-        }
-#endif
 #endif
 
         return null;
