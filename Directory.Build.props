@@ -8,7 +8,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   
-    <AvaloniaVersion>12.0.0-preview2</AvaloniaVersion>
+    <AvaloniaVersion>11.1.0</AvaloniaVersion>
     <AvaloniaSampleVersion>12.0.0-preview2</AvaloniaSampleVersion>
 
     <!-- CS0067: The event '' is never used -->
