@@ -93,6 +93,9 @@ namespace Avalonia.Xpf.Controls
                 else if (args is AppleWKWebViewEnvironmentRequestedEventArgs wkWebView
                          && options.NonPersistent)
                     wkWebView.NonPersistentDataStore = true;
+                else if (args is GtkWebViewEnvironmentRequestedEventArgs gtkWebView
+                         && options.NonPersistent)
+                    gtkWebView.EphemeralDataManager = true;
                 else if (args is AndroidWebViewEnvironmentRequestedEventArgs androidWebView
                          && options.NonPersistent)
                 {
