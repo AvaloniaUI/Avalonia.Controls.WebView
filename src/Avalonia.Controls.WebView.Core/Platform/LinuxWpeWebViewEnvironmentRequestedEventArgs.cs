@@ -10,11 +10,6 @@ public sealed class LinuxWpeWebViewEnvironmentRequestedEventArgs : WebViewEnviro
     }
 
     /// <summary>
-    /// Gets or sets the user agent string for the WebView.
-    /// </summary>
-    public string? UserAgent { get; set; }
-
-    /// <summary>
     /// Gets or sets the data directory for persistent website data.
     /// When null, the default WebKit data directory is used.
     /// </summary>
