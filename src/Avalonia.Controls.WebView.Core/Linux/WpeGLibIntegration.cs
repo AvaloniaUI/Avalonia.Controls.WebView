@@ -55,7 +55,7 @@ internal static unsafe class WpeGLibIntegration
         if (s_refCount > 1)
             return;
 
-        s_mainContext = WpeInterop.g_main_context_default();
+        s_mainContext = WpeInterop.g_main_context_ref_thread_default();
         s_fdsCapacity = 64;
         s_fds = (GPollFD*)NativeMemory.Alloc((nuint)(s_fdsCapacity * sizeof(GPollFD)));
         s_pollBuf = (GPollFD*)NativeMemory.Alloc((nuint)((s_fdsCapacity + 1) * sizeof(GPollFD)));
@@ -98,6 +98,12 @@ internal static unsafe class WpeGLibIntegration
         {
             LibC.close(s_shutdownFd);
             s_shutdownFd = -1;
+        }
+
+        if (s_mainContext != IntPtr.Zero)
+        {
+            WpeInterop.g_main_context_unref(s_mainContext);
+            s_mainContext = IntPtr.Zero;
         }
 
         if (s_fds != null)

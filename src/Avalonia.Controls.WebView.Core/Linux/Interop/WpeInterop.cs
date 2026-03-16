@@ -229,6 +229,12 @@ internal static unsafe partial class WpeInterop
     public static partial IntPtr g_main_context_default();
 
     [LibraryImport(LibGLib)]
+    public static partial IntPtr g_main_context_ref_thread_default();
+
+    [LibraryImport(LibGLib)]
+    public static partial void g_main_context_unref(IntPtr context);
+
+    [LibraryImport(LibGLib)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool g_main_context_iteration(IntPtr context, [MarshalAs(UnmanagedType.Bool)] bool mayBlock);
 
