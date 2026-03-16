@@ -8,6 +8,7 @@
     <AndroidGenerateResourceDesigner>false</AndroidGenerateResourceDesigner>
     <AvnLicensingEmitBuildTime>true</AvnLicensingEmitBuildTime>
     <PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/CHANGELOG.md"))</PackageReleaseNotes>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>

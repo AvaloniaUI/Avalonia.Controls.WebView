@@ -2,11 +2,6 @@
 
 The Avalonia WebView component provides native web browser functionality for your Avalonia applications. Unlike embedded WebView solutions that require bundling Chromium, this implementation leverages the platform's native web rendering capabilities, resulting in smaller application size and better performance.
 
-## Requirements
-
-This package requires Avalonia Accelerate license:
-https://avaloniaui.net/accelerate
-
 ## Features
 
 - **Platform-Native Engines**: WebView2 (Windows), WebKit (macOS), WebKitGTK (Linux)
