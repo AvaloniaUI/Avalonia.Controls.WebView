@@ -157,6 +157,12 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
         });
     }
 
+    public bool TextInput(string text)
+    {
+        // GTK handles IME text input through its own event pipeline.
+        return false;
+    }
+
     public bool PointerInput(PointerPoint point, int _, double dpi, KeyModifiers modifiers)
     {
         var (eventType, button) = point.Properties.PointerUpdateKind switch

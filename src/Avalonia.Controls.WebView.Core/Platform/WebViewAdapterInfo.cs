@@ -53,6 +53,11 @@ public enum WebViewAdapterType
     BrowserIFrame,
 
     /// <summary>
+    /// WPE WebKit WebView for Linux platforms.
+    /// </summary>
+    WpeWebKit,
+
+    /// <summary>
     /// Headless WebView for testing scenarios.
     /// </summary>
     Headless = int.MaxValue
@@ -170,6 +175,7 @@ public record WebViewAdapterInfo(
 #else
                 PlatformNotSupported(adapterType),
 #endif
+            WebViewAdapterType.WpeWebKit => Controls.Linux.WpeWebViewAdapter.GetWpeInfo(),
             WebViewAdapterType.Headless => Controls.Headless.HeadlessWebViewAdapter.GetHeadlessInfo(),
             _ => UnknownAdapter(adapterType)
         };

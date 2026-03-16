@@ -123,18 +123,35 @@ internal static class WebViewAdapter
 
         if (OperatingSystem.IsLinux())
         {
-            var args = new GtkWebViewEnvironmentRequestedEventArgs(deferralManager);
-            environmentRequested(args);
-            await deferralManager.WaitForDeferralsAsync();
-            if (args.ExperimentalOffscreen)
+            if (Linux.WpeWebViewAdapter.IsAvailable())
             {
-                var builder = await Gtk.GtkOffscreenAvaloniaWebViewAdapter.CreateBuilder(args);
-                return new CompositorHostAdapterFactory(builder, Gtk.GtkWebViewAdapter.GetWebKitGtkInfo(WebViewEmbeddingScenario.OffscreenRenderer));
+                var args = new LinuxWpeWebViewEnvironmentRequestedEventArgs(deferralManager);
+                environmentRequested(args);
+                await deferralManager.WaitForDeferralsAsync();
+
+                if (!args.PreferWebKitGtkInstead)
+                {
+                    var builder = await Linux.WpeWebViewAdapter.CreateBuilder(args);
+                    return new CompositorHostAdapterFactory(
+                        builder,
+                        Linux.WpeWebViewAdapter.GetWpeInfo());
+                }
             }
-            else
+
             {
-                var builder = await Gtk.GtkX11WebViewAdapter.CreateBuilder(args);
-                return new NativeHostAdapterFactory(builder, Gtk.GtkWebViewAdapter.GetWebKitGtkInfo());
+                var args = new GtkWebViewEnvironmentRequestedEventArgs(deferralManager);
+                environmentRequested(args);
+                await deferralManager.WaitForDeferralsAsync();
+                if (args.ExperimentalOffscreen)
+                {
+                    var builder = await Gtk.GtkOffscreenAvaloniaWebViewAdapter.CreateBuilder(args);
+                    return new CompositorHostAdapterFactory(builder, Gtk.GtkWebViewAdapter.GetWebKitGtkInfo(WebViewEmbeddingScenario.OffscreenRenderer));
+                }
+                else
+                {
+                    var builder = await Gtk.GtkX11WebViewAdapter.CreateBuilder(args);
+                    return new NativeHostAdapterFactory(builder, Gtk.GtkWebViewAdapter.GetWebKitGtkInfo());
+                }
             }
         }
 #endif
