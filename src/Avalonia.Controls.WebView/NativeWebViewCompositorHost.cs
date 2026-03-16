@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Avalonia.Controls.Rendering;
 using Avalonia.Input;
+using Avalonia.Input.TextInput;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -15,11 +16,21 @@ namespace Avalonia.Xpf.Controls;
 
 internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterFactory factory) : Control, INativeWebViewControlImpl
 {
+    private WebViewTextInputMethodClient? _imClient;
     private TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer?>? _webViewReadyCompletion;
     //private ReparentingScope? _reparentingScope;
     private bool _firstDraw;
     private CompositionCustomVisual? _customVisual;
     private readonly BitmapFrameChain _frameChain = new(PixelFormats.Bgra8888);
+
+    static NativeWebViewCompositorHost()
+    {
+        FocusableProperty.OverrideDefaultValue<NativeWebViewCompositorHost>(true);
+        TextInputMethodClientRequestedEvent.AddClassHandler<NativeWebViewCompositorHost>((host, e) =>
+        {
+            e.Client = host._imClient ??= new WebViewTextInputMethodClient(host);
+        });
+    }
 
     /// <inheritdoc />
     public event EventHandler<IWebViewAdapter>? AdapterCreated;
@@ -185,5 +196,15 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
                 drawingContext.DrawBitmap(frame, GetRenderBounds());
             }
         }
+    }
+
+    private sealed class WebViewTextInputMethodClient(NativeWebViewCompositorHost owner) : TextInputMethodClient
+    {
+        public override Visual TextViewVisual => owner;
+        public override bool SupportsPreedit => false;
+        public override bool SupportsSurroundingText => false;
+        public override string SurroundingText => string.Empty;
+        public override Rect CursorRectangle => new(0, 0, 1, 20);
+        public override TextSelection Selection { get; set; }
     }
 }

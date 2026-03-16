@@ -404,6 +404,7 @@ internal interface IWebViewAdapterWithCookieManager : IWebViewAdapter
 internal interface IWebViewAdapterWithOffscreenInput : IWebViewAdapter
 {
     bool KeyInput(bool press, PhysicalKey physical, string? symbol, KeyModifiers modifiers);
+    bool TextInput(string text);
     bool PointerInput(PointerPoint point, int clickCount, double dpi, KeyModifiers modifiers);
     bool PointerLeaveInput(PointerPoint point, double dpi, KeyModifiers modifiers);
     bool PointerWheelInput(Vector delta, PointerPoint point, double dpi, KeyModifiers modifiers);
@@ -413,6 +414,26 @@ internal interface IWebViewAdapterWithOffscreenBuffer : IWebViewAdapter
 {
     event Action DrawRequested;
     Task UpdateWriteableBitmap(PixelSize currentSize, FrameChainBase<WriteableBitmap, PixelSize>.IProducer producer);
+}
+
+internal interface IWebViewAdapterWithGpuSurface : IWebViewAdapter
+{
+    /// <summary>
+    /// Returns true if the adapter can export GPU frames (DMABuf).
+    /// When false (e.g. SHM mode), the compositor host should use the bitmap path instead.
+    /// </summary>
+    bool IsGpuExportAvailable { get; }
+
+    /// <summary>
+    /// Presents a GPU frame to the given composition surface.
+    /// </summary>
+    Task PresentGpuFrame(global::Avalonia.Rendering.Composition.ICompositionGpuInterop gpuInterop,
+        global::Avalonia.Rendering.Composition.CompositionDrawingSurface surface);
+}
+
+internal interface IWebViewAdapterWithVisibility : IWebViewAdapter
+{
+    void SetVisible(bool visible);
 }
 
 internal interface IWebViewAdapterWithExplicitCursor : IWebViewAdapter

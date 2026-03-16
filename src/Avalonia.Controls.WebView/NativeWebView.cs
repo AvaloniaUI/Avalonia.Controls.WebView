@@ -22,6 +22,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.Input;
+using Avalonia.Input.TextInput;
 using Avalonia.Interactivity;
 using ControlSize = Avalonia.Size;
 #endif
@@ -824,6 +825,15 @@ namespace Avalonia.Xpf.Controls
             }
             base.OnKeyUp(e);
         }
+
+        protected override void OnTextInput(TextInputEventArgs e)
+        {
+            if (e.Text is { Length: > 0 } && TryGetAdapter() is IWebViewAdapterWithOffscreenInput input)
+            {
+                e.Handled = input.TextInput(e.Text);
+            }
+            base.OnTextInput(e);
+        }
 #endif
 
 #if WPF
@@ -844,5 +854,6 @@ namespace Avalonia.Xpf.Controls
             return _ => null;
         }
 #endif
+
     }
 }
