@@ -86,7 +86,16 @@ internal sealed unsafe class WpeWebViewAdapter
         // Must set the backend library env var BEFORE loading any WPE libraries,
         // because loading libWPEWebKit pulls in libwpe which immediately tries
         // to dlopen the backend via its constructor/loader.
-        EnsureWpeBackendLibrary();
+        try
+        {
+            EnsureWpeBackendLibrary();
+        }
+        catch (DllNotFoundException)
+        {
+            // If the WPE libraries are not present, treat WPE as unavailable
+            // instead of allowing the exception to propagate.
+            return false;
+        }
 
         return NativeLibrary.TryLoad("libWPEWebKit-2.0.so", out _)
             && NativeLibrary.TryLoad("libWPEBackend-fdo-1.0.so", out _)
@@ -320,9 +329,6 @@ internal sealed unsafe class WpeWebViewAdapter
 
         switch (loadEvent)
         {
-            case WEBKIT_LOAD_STARTED:
-                adapter.NavigationStarted?.Invoke(adapter, new WebViewNavigationStartingEventArgs { Request = uri });
-                break;
             case WEBKIT_LOAD_FINISHED:
                 adapter.NavigationCompleted?.Invoke(adapter, new WebViewNavigationCompletedEventArgs { Request = uri, IsSuccess = true });
                 break;
