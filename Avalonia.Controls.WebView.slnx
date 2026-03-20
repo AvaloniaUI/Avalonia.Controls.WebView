@@ -17,6 +17,7 @@
     </Project>
     <Project Path="samples/Avalonia.Controls.WebView.Samples.Browser/Avalonia.Controls.WebView.Samples.Browser.csproj" />
     <Project Path="samples/Avalonia.Controls.WebView.Samples.Desktop/Avalonia.Controls.WebView.Samples.Desktop.csproj" />
+    <Project Path="samples/Avalonia.Controls.WebView.Samples.Oidc/Avalonia.Controls.WebView.Samples.Oidc.csproj" />
     <Project Path="samples/Avalonia.Controls.WebView.Samples.iOS/Avalonia.Controls.WebView.Samples.iOS.csproj" />
     <Project Path="samples/Avalonia.Controls.WebView.Samples/Avalonia.Controls.WebView.Samples.csproj">
       <Platform Solution="*|x64" Project="x64" />
