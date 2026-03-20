@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Avalonia.Controls.WebView.Samples.Oidc.MainWindow"
+        Title="OAuth 2.0 Authorization Server Metadata (RFC 8414) + PKCE"
+        Width="720"
+        Height="640">
+    <DockPanel Margin="12">
+        <StackPanel DockPanel.Dock="Top" Spacing="8">
+            <TextBlock TextWrapping="Wrap"
+                       Text="Uses /.well-known/oauth-authorization-server, then authorization code with PKCE (S256). Register the redirect URI with your identity provider." />
+            <TextBlock Text="Issuer (authorization server identifier URL)" FontWeight="SemiBold" />
+            <TextBox x:Name="IssuerBox"
+                     Text="https://login.microsoftonline.com/common/v2.0" />
+            <TextBlock Text="Client ID" FontWeight="SemiBold" />
+            <TextBox x:Name="ClientIdBox"
+                     PlaceholderText="Application (client) ID" />
+            <TextBlock Text="Redirect URI (must match app registration)" FontWeight="SemiBold" />
+            <TextBox x:Name="RedirectBox"
+                     Text="http://localhost" />
+            <TextBlock Text="Scope" FontWeight="SemiBold" />
+            <TextBox x:Name="ScopeBox"
+                     Text="openid profile offline_access" />
+            <Button HorizontalAlignment="Left"
+                    Content="Sign in (metadata → broker → token)"
+                    Click="SignIn_OnClick" />
+        </StackPanel>
+        <TextBlock DockPanel.Dock="Top"
+                   Margin="0,12,0,4"
+                   Text="Log"
+                   FontWeight="SemiBold" />
+        <ScrollViewer>
+            <TextBox x:Name="LogBox"
+                     AcceptsReturn="True"
+                     IsReadOnly="True"
+                     TextWrapping="Wrap"
+                     FontFamily="Consolas" />
+        </ScrollViewer>
+    </DockPanel>
+</Window>
