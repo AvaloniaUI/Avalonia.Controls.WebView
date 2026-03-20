@@ -1,6 +1,8 @@
 # 11.4.0
 
+- WebView is now FOSS under MIT license 
 - Dropped .NET Standard and .NET Framework support
+- NativeWebView now supports Linux with WpeWebView backend
 - NativeWebView and NativeWebDialog now support Browser backend, but with sandboxing limitations
 - NativeWebView and NativeWebDialog now have UserAgent property
 
