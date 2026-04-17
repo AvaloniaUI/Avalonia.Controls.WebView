@@ -241,7 +241,12 @@ internal sealed unsafe class WpeWebViewAdapter
         else
             _networkSession = WpeInterop.webkit_network_session_get_default();
 
-        _webView = WpeInterop.webkit_web_view_new(wkBackend);
+        var webViewType = WpeInterop.webkit_web_view_get_type();
+        var wkBackendType = WpeInterop.webkit_web_view_backend_get_type();
+        var networkSessionType = WpeInterop.webkit_network_session_get_type();
+        var keys = new[] { "backend", "network-session" };
+        var values = new[] { new GValue(wkBackendType, wkBackend), new GValue(networkSessionType, _networkSession) };
+        _webView = WpeInterop.g_object_new_with_properties(webViewType, 2, keys, values);
         if (_webView == IntPtr.Zero)
             throw new InvalidOperationException("webkit_web_view_new failed.");
 

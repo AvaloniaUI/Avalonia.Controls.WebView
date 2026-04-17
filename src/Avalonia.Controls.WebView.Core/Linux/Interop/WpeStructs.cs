@@ -119,3 +119,17 @@ internal struct WpeViewBackendExportableFdoClient
     public IntPtr Reserved0;
     public IntPtr Reserved1;
 }
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct GValue
+{
+    public IntPtr Type;
+    public IntPtr Value0;
+    public IntPtr Value1;
+
+    public GValue(IntPtr type, IntPtr obj)
+    {
+        Type = type;
+        Value0 = obj;
+    }
+}
