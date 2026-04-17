@@ -101,23 +101,13 @@ internal sealed unsafe class WpeWebViewAdapter
             return false;
         }
 
-        if (!NativeLibrary.TryLoad("libWPEWebKit-2.0.so.1", out var webkitHandle))
+        if (!NativeLibrary.TryLoad("libWPEWebKit-2.0.so.1", out _))
             return false;
-        if (!NativeLibrary.TryLoad("libWPEBackend-fdo-1.0.so.1", out var fdoHandle))
-        {
-            NativeLibrary.Free(webkitHandle);
+        if (!NativeLibrary.TryLoad("libWPEBackend-fdo-1.0.so.1", out _))
             return false;
-        }
-        if (!NativeLibrary.TryLoad("libwpe-1.0.so.1", out var wpeHandle))
-        {
-            NativeLibrary.Free(fdoHandle);
-            NativeLibrary.Free(webkitHandle);
+        if (!NativeLibrary.TryLoad("libwpe-1.0.so.1", out _))
             return false;
-        }
 
-        NativeLibrary.Free(wpeHandle);
-        NativeLibrary.Free(fdoHandle);
-        NativeLibrary.Free(webkitHandle);
         return true;
     }
 
