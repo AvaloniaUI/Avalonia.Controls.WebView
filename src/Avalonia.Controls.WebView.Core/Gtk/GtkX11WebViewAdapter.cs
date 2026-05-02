@@ -28,6 +28,7 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
     public static async Task<WebViewAdapter.NativeWebViewAdapterBuilder> CreateBuilder(
         GtkWebViewEnvironmentRequestedEventArgs environmentArgs)
     {
+        using var _ = EnsureX11GdkBackendForGtkInit();
         var adapter = await RunOnGlibThreadAsync(() => new GtkX11WebViewAdapter(environmentArgs));
         return (parent, _) =>
         {

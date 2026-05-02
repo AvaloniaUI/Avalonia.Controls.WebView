@@ -34,6 +34,7 @@ internal sealed class GtkOffscreenAvaloniaWebViewAdapter : GtkOffscreenWebViewAd
     public static async Task<WebViewAdapter.OffscreenWebViewAdapterBuilder> CreateBuilder(
         GtkWebViewEnvironmentRequestedEventArgs environmentArgs)
     {
+        using var _ = EnsureX11GdkBackendForGtkInit();
         var adapter = await RunOnGlibThreadAsync(() => new GtkOffscreenAvaloniaWebViewAdapter(environmentArgs));
         return (parent) =>
         {

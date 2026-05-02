@@ -6,12 +6,13 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Logging;
 
 namespace Avalonia.Controls.Gtk;
 
-internal static class AvaloniaGtk
+internal static partial class AvaloniaGtk
 {
     static AvaloniaGtk()
     {
@@ -62,6 +63,105 @@ internal static class AvaloniaGtk
     }
 
     public static bool HasSoup3 { get; }
+
+    /// <summary>
+    /// Ensures GDK_BACKEND=x11 is in effect for the duration of the bridge call that
+    /// initializes GTK in Avalonia.X11.NativeDialogs.Gtk. The X11 GTK adapters in this
+    /// package use X11/GDK-X11-only entry points and require the X11 GDK backend; under
+    /// a Wayland session GDK_BACKEND is typically pre-set to "wayland" by the desktop,
+    /// which would otherwise cause `gtk_init` to fail with "Unable to initialize GTK".
+    /// </summary>
+    /// <remarks>
+    /// Only overrides the unset case and the implicit "wayland" case (the default under
+    /// a Wayland session). If the user has explicitly set some other backend like
+    /// "broadway", that's a deliberate choice in conflict with loading an X11-only
+    /// adapter, and we let `gtk_init` fail with its own error rather than silently
+    /// override.
+    ///
+    /// `Environment.SetEnvironmentVariable` alone is insufficient on Linux — it updates
+    /// the .NET managed env cache but does not propagate to libc's environ, which is
+    /// what `gtk_init` reads via `getenv`. A direct libc `setenv` call is required.
+    ///
+    /// The returned IDisposable restores the previous env value on Dispose. By that
+    /// point GTK has already locked in its backend choice for the process, so restoring
+    /// the env doesn't switch backends — it just keeps the rest of the process's env
+    /// state clean for any unrelated code that reads GDK_BACKEND.
+    ///
+    /// Concurrent calls share a single override window via refcounting: the first call
+    /// captures the previous env value and applies the override, subsequent overlapping
+    /// calls only refcount, and the override is restored when the last scope is
+    /// disposed. Without refcounting, two concurrent CreateBuilder calls could each
+    /// snapshot the other's already-overridden value and leave the env stuck at "x11"
+    /// after both restore.
+    /// </remarks>
+    public static IDisposable EnsureX11GdkBackendForGtkInit()
+    {
+        if (!OperatingSystem.IsLinux())
+            return EmptyScope.Instance;
+
+        lock (s_overrideLock)
+        {
+            if (s_overrideCount == 0)
+            {
+                var current = Environment.GetEnvironmentVariable("GDK_BACKEND");
+                if (string.Equals(current, "x11", StringComparison.Ordinal))
+                    return EmptyScope.Instance;
+                if (current is { Length: > 0 } && !string.Equals(current, "wayland", StringComparison.Ordinal))
+                    return EmptyScope.Instance;
+
+                try { setenv("GDK_BACKEND", "x11", 1); }
+                catch (DllNotFoundException) { return EmptyScope.Instance; }
+                catch (EntryPointNotFoundException) { return EmptyScope.Instance; }
+                Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
+                s_savedBackend = current;
+            }
+            s_overrideCount++;
+        }
+        return new RestoreGdkBackendScope();
+    }
+
+    private static readonly object s_overrideLock = new();
+    private static int s_overrideCount;
+    private static string? s_savedBackend;
+
+    [LibraryImport("libc", EntryPoint = "setenv", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int setenv(string name, string value, int overwrite);
+
+    [LibraryImport("libc", EntryPoint = "unsetenv", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int unsetenv(string name);
+
+    private sealed class EmptyScope : IDisposable
+    {
+        public static readonly EmptyScope Instance = new();
+        public void Dispose() { }
+    }
+
+    private sealed class RestoreGdkBackendScope : IDisposable
+    {
+        private int _disposed;
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+            lock (s_overrideLock)
+            {
+                if (--s_overrideCount > 0)
+                    return;
+                var previous = s_savedBackend;
+                s_savedBackend = null;
+                try
+                {
+                    if (previous is null)
+                        unsetenv("GDK_BACKEND");
+                    else
+                        setenv("GDK_BACKEND", previous, 1);
+                }
+                catch (DllNotFoundException) { }
+                catch (EntryPointNotFoundException) { }
+                Environment.SetEnvironmentVariable("GDK_BACKEND", previous);
+            }
+        }
+    }
 
     public static Version? TryGetVersion()
     {
