@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -305,24 +305,24 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
     private Action AddHandlers(ICoreWebView2 webView)
     {
         var callbacks = new WebViewCallbacks(new WeakReference<WebView2BaseAdapter>(this));
-        webView.add_NavigationStarting(callbacks, out var token1);
-        webView.add_NavigationCompleted(callbacks, out var token2);
-        webView.add_WebMessageReceived(callbacks, out var token3);
-        webView.add_WebResourceRequested(callbacks, out var token5);
-        webView.add_NewWindowRequested(callbacks, out var token4);
-        controller.add_MoveFocusRequested(callbacks, out var token6);
-        controller.add_GotFocus(callbacks, out var token7);
+        webView.add_NavigationStarting(callbacks, out var navigationStartingToken);
+        webView.add_NavigationCompleted(callbacks, out var navigationCompletedToken);
+        webView.add_WebMessageReceived(callbacks, out var webMessageReceivedToken);
+        webView.add_WebResourceRequested(callbacks, out var webResourceRequestedToken);
+        webView.add_NewWindowRequested(callbacks, out var newWindowRequestedToken);
+        controller.add_MoveFocusRequested(callbacks, out var moveFocusRequestedToken);
+        controller.add_GotFocus(callbacks, out var gotFocusToken);
         RegisterCallbacks(callbacks);
 
         return () =>
         {
-            webView.remove_NavigationStarting(token1);
-            webView.remove_NavigationCompleted(token2);
-            webView.remove_WebMessageReceived(token3);
-            webView.remove_NewWindowRequested(token5);
-            webView.remove_NewWindowRequested(token4);
-            controller.remove_MoveFocusRequested(token6);
-            controller.remove_MoveFocusRequested(token7);
+            webView.remove_NavigationStarting(navigationStartingToken);
+            webView.remove_NavigationCompleted(navigationCompletedToken);
+            webView.remove_WebMessageReceived(webMessageReceivedToken);
+            webView.remove_WebResourceRequested(webResourceRequestedToken);
+            webView.remove_NewWindowRequested(newWindowRequestedToken);
+            controller.remove_MoveFocusRequested(moveFocusRequestedToken);
+            controller.remove_GotFocus(gotFocusToken);
             UnregisterCallbacks();
         };
     }
