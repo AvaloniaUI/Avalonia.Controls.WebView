@@ -245,10 +245,43 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
 
     public void Focus()
     {
-        controller.MoveFocus(0 /* Programmatic */);
+        SafeCallController(() =>
+            controller.MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON.COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC));
     }
 
     public void ResignFocus() { }
+
+    private void SafeCallController(Action action)
+    {
+        if (Disposed || controller == null)
+        {
+            return;
+        }
+        try
+        {
+            action();
+        }
+        catch (ArgumentException ex) when (ex.HResult == HResult.EInvalidArg)
+        {
+            // Controller rejected MoveFocus with E_INVALIDARG — transient state during
+            // async init or window-activation race. Safe to ignore; focus re-establishes
+            // naturally once the controller reaches a ready state.
+        }
+        catch (COMException ex) when (ex.HResult is HResult.EInvalidArg or HResult.EInvalidState)
+        {
+            // Same transient rejection surfaced as COMException depending on the
+            // source-generated interop path (e.g. during controller teardown).
+        }
+    }
+
+    private static class HResult
+    {
+        // E_INVALIDARG (0x80070057): returned by MoveFocus when the controller rejects
+        // the call during async init or window-activation races.
+        public const int EInvalidArg = unchecked((int)0x80070057);
+        // ERROR_INVALID_STATE (0x8007139F): observed in teardown-phase rejections.
+        public const int EInvalidState = unchecked((int)0x8007139F);
+    }
 
     internal EventHandler<WebViewNavigationStartingEventArgs>? GetNavigationStarted() => NavigationStarted;
     internal EventHandler<WebViewNavigationCompletedEventArgs>? GetNavigationCompleted() => NavigationCompleted;
