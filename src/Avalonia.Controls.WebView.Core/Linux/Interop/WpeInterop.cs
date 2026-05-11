@@ -73,8 +73,14 @@ internal static unsafe partial class WpeInterop
     private const string LibWpeWebKit = "libWPEWebKit-2.0.so.1";
 
     [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_web_view_backend_get_type();
+    
+    [LibraryImport(LibWpeWebKit)]
     public static partial IntPtr webkit_web_view_backend_new(
         IntPtr viewBackend, IntPtr notifyFunc, IntPtr userData);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_web_view_get_type();
 
     [LibraryImport(LibWpeWebKit)]
     public static partial IntPtr webkit_web_view_new(IntPtr backend);
@@ -171,6 +177,9 @@ internal static unsafe partial class WpeInterop
 
     // Network session and cookie manager
     [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_network_session_get_type();
+
+    [LibraryImport(LibWpeWebKit)]
     public static partial IntPtr webkit_network_session_get_default();
 
     [LibraryImport(LibWpeWebKit, StringMarshalling = StringMarshalling.Utf8)]
@@ -212,6 +221,10 @@ internal static unsafe partial class WpeInterop
 
     private const string LibGObject = "libgobject-2.0.so.0";
     private const string LibGLib = "libglib-2.0.so.0";
+
+    [LibraryImport(LibGObject, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr g_object_new_with_properties(IntPtr objType, uint nProperties, [In] string[] names,
+        [In] GValue[] values);
 
     [LibraryImport(LibGObject, StringMarshalling = StringMarshalling.Utf8)]
     public static partial ulong g_signal_connect_data(

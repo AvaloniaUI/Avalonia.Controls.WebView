@@ -241,7 +241,12 @@ internal sealed unsafe class WpeWebViewAdapter
         else
             _networkSession = WpeInterop.webkit_network_session_get_default();
 
-        _webView = WpeInterop.webkit_web_view_new(wkBackend);
+        var webViewType = WpeInterop.webkit_web_view_get_type();
+        var wkBackendType = WpeInterop.webkit_web_view_backend_get_type();
+        var networkSessionType = WpeInterop.webkit_network_session_get_type();
+        var keys = new[] { "backend", "network-session" };
+        var values = new[] { new GValue(wkBackendType, wkBackend), new GValue(networkSessionType, _networkSession) };
+        _webView = WpeInterop.g_object_new_with_properties(webViewType, 2, keys, values);
         if (_webView == IntPtr.Zero)
             throw new InvalidOperationException("webkit_web_view_new failed.");
 
@@ -812,11 +817,29 @@ internal sealed unsafe class WpeWebViewAdapter
             WpeInterop.soup_cookie_set_secure(soupCookie, cookie.Secure);
             WpeInterop.soup_cookie_set_http_only(soupCookie, cookie.HttpOnly);
 
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcsHandle = GCHandle.Alloc(tcs);
+
             WpeInterop.webkit_cookie_manager_add_cookie(
-                _cookieManager, soupCookie, IntPtr.Zero, null, IntPtr.Zero);
+                _cookieManager, soupCookie, IntPtr.Zero,
+                &OnAddCookieFinished, GCHandle.ToIntPtr(tcsHandle));
+
+            WaitForCompletion(tcs.Task);
 
             // soup cookie is consumed by webkit
         }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static void OnAddCookieFinished(IntPtr sourceObject, IntPtr result, IntPtr userData)
+    {
+        var tcsHandle = GCHandle.FromIntPtr(userData);
+        var tcs = (TaskCompletionSource<bool>)tcsHandle.Target!;
+        tcsHandle.Free();
+
+        IntPtr error = IntPtr.Zero;
+        var ok = WpeInterop.webkit_cookie_manager_add_cookie_finish(sourceObject, result, &error);
+        tcs.TrySetResult(ok && error == IntPtr.Zero);
     }
 
     public void DeleteCookie(string name, string domain, string path)
@@ -826,11 +849,45 @@ internal sealed unsafe class WpeWebViewAdapter
         var soupCookie = WpeInterop.soup_cookie_new(name, "", domain, path, 0);
         if (soupCookie != IntPtr.Zero)
         {
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcsHandle = GCHandle.Alloc(tcs);
+
             WpeInterop.webkit_cookie_manager_delete_cookie(
-                _cookieManager, soupCookie, IntPtr.Zero, null, IntPtr.Zero);
+                _cookieManager, soupCookie, IntPtr.Zero,
+                &OnDeleteCookieFinished, GCHandle.ToIntPtr(tcsHandle));
+
+            WaitForCompletion(tcs.Task);
 
             WpeInterop.soup_cookie_free(soupCookie);
         }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static void OnDeleteCookieFinished(IntPtr sourceObject, IntPtr result, IntPtr userData)
+    {
+        var tcsHandle = GCHandle.FromIntPtr(userData);
+        var tcs = (TaskCompletionSource<bool>)tcsHandle.Target!;
+        tcsHandle.Free();
+
+        IntPtr error = IntPtr.Zero;
+        var ok = WpeInterop.webkit_cookie_manager_delete_cookie_finish(sourceObject, result, &error);
+        tcs.TrySetResult(ok && error == IntPtr.Zero);
+    }
+
+    private static void WaitForCompletion(Task task)
+    {
+        if (task.IsCompleted)
+        {
+            task.GetAwaiter().GetResult();
+            return;
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            WebViewDispatcher.PushFrameForTask(task);
+        }
+
+        task.GetAwaiter().GetResult();
     }
 
     public Task<IReadOnlyList<Cookie>> GetCookiesAsync()
