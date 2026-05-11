@@ -11,7 +11,7 @@ on:
 
 jobs:
 
-  release-for-avalonia:
+  release-for-avalonia:      
     uses: AvaloniaUI/build-common/.github/workflows/library-cicd.yml@main
     with:
       runs_on: windows-latest
@@ -21,9 +21,11 @@ jobs:
       artifact_name: Avalonia.Controls.WebView
       validate_release_branch: true
       create_github_release: ${{inputs.create_release}}
-      push_package: false
+      nuget_feed: ${{ vars.RELEASE_MANAGER_UPLOAD_URL }}
     secrets:
-      checkout_token: ${{secrets.SUBMODULE_TOKEN}}
+      nuget_api_key: ${{ secrets.RELEASE_MANAGER_API_KEY }}
+    environment:
+      name: release
 
   release-for-xpf:
     uses: AvaloniaUI/build-common/.github/workflows/library-cicd.yml@main
@@ -34,7 +36,8 @@ jobs:
       artifact_glob: Avalonia.Xpf.Controls.WebView.*.nupkg
       artifact_name: Avalonia.Xpf.Controls.WebView
       validate_release_branch: true
-      push_package: false
+      nuget_feed: ${{ vars.RELEASE_MANAGER_UPLOAD_URL_XPF }}
     secrets:
-      checkout_token: ${{secrets.SUBMODULE_TOKEN}}
-
+      nuget_api_key: ${{ secrets.RELEASE_MANAGER_API_KEY }}
+    environment:
+        name: release
