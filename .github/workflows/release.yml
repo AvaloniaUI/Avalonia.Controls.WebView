@@ -20,12 +20,11 @@ jobs:
       artifact_glob: Avalonia.Controls.WebView.*.nupkg
       artifact_name: Avalonia.Controls.WebView
       validate_release_branch: true
+      environment: release
       create_github_release: ${{inputs.create_release}}
       nuget_feed: ${{ vars.RELEASE_MANAGER_UPLOAD_URL }}
     secrets:
       nuget_api_key: ${{ secrets.RELEASE_MANAGER_API_KEY }}
-    environment:
-      name: release
 
   release-for-xpf:
     uses: AvaloniaUI/build-common/.github/workflows/library-cicd.yml@main
@@ -36,8 +35,7 @@ jobs:
       artifact_glob: Avalonia.Xpf.Controls.WebView.*.nupkg
       artifact_name: Avalonia.Xpf.Controls.WebView
       validate_release_branch: true
+      environment: release
       nuget_feed: ${{ vars.RELEASE_MANAGER_UPLOAD_URL_XPF }}
     secrets:
       nuget_api_key: ${{ secrets.RELEASE_MANAGER_API_KEY }}
-    environment:
-        name: release
