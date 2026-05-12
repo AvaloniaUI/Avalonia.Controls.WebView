@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Controls.Linux.Interop;
 using Avalonia.Logging;
 
 namespace Avalonia.Controls.Gtk;
@@ -109,9 +110,16 @@ internal static partial class AvaloniaGtk
                 if (current is { Length: > 0 } && !string.Equals(current, "wayland", StringComparison.Ordinal))
                     return EmptyScope.Instance;
 
-                try { setenv("GDK_BACKEND", "x11", 1); }
+                int rc;
+                try { rc = LibC.setenv("GDK_BACKEND", "x11", 1); }
                 catch (DllNotFoundException) { return EmptyScope.Instance; }
                 catch (EntryPointNotFoundException) { return EmptyScope.Instance; }
+                if (rc != 0)
+                {
+                    Logger.TryGet(LogEventLevel.Warning, "WebView")?.Log(null,
+                        "libc setenv(GDK_BACKEND, x11) returned {Rc}; gtk_init may still pick Wayland", rc);
+                    return EmptyScope.Instance;
+                }
                 Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
                 s_savedBackend = current;
             }
@@ -123,12 +131,6 @@ internal static partial class AvaloniaGtk
     private static readonly object s_overrideLock = new();
     private static int s_overrideCount;
     private static string? s_savedBackend;
-
-    [LibraryImport("libc", EntryPoint = "setenv", StringMarshalling = StringMarshalling.Utf8)]
-    private static partial int setenv(string name, string value, int overwrite);
-
-    [LibraryImport("libc", EntryPoint = "unsetenv", StringMarshalling = StringMarshalling.Utf8)]
-    private static partial int unsetenv(string name);
 
     private sealed class EmptyScope : IDisposable
     {
@@ -152,9 +154,9 @@ internal static partial class AvaloniaGtk
                 try
                 {
                     if (previous is null)
-                        unsetenv("GDK_BACKEND");
+                        LibC.unsetenv("GDK_BACKEND");
                     else
-                        setenv("GDK_BACKEND", previous, 1);
+                        LibC.setenv("GDK_BACKEND", previous, 1);
                 }
                 catch (DllNotFoundException) { }
                 catch (EntryPointNotFoundException) { }

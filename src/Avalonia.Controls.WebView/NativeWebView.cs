@@ -529,7 +529,7 @@ namespace Avalonia.Xpf.Controls
             // layout participant — Avalonia only measures/arranges visual children that
             // the parent explicitly drives. Without this, the inner NativeControlHost's
             // Bounds stay default(Rect) and the X11 INativeControlHostImpl never maps
-            // its slot. See issue #5 / PR #38.
+            // its slot (symptom: blank pane on Linux until the user resizes the window).
             foreach (var child in VisualChildren)
             {
                 if (child is global::Avalonia.Layout.Layoutable layoutable)
