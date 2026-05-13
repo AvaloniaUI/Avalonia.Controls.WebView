@@ -2,40 +2,30 @@ name: Release
 
 on:
   workflow_dispatch:
-    inputs:
-      create_release:
-          description: 'Create GitHub Release'
-          required: true
-          type: boolean
-          default: true
 
 jobs:
 
-  release-for-avalonia:      
+  build:      
     uses: AvaloniaUI/build-common/.github/workflows/library-cicd.yml@main
     with:
       runs_on: windows-latest
       install_workloads: "android ios"
-      dotnet_sdk: 10.0.103
-      artifact_glob: Avalonia.Controls.WebView.*.nupkg
-      artifact_name: Avalonia.Controls.WebView
+      dotnet_sdk: 10.0.300
       validate_release_branch: true
-      environment: release
-      create_github_release: ${{inputs.create_release}}
-      nuget_feed: ${{ vars.RELEASE_MANAGER_UPLOAD_URL }}
-    secrets:
-      nuget_api_key: ${{ secrets.RELEASE_MANAGER_API_KEY }}
+      artifact_name: packages
+      push_package: 'false'
 
-  release-for-xpf:
-    uses: AvaloniaUI/build-common/.github/workflows/library-cicd.yml@main
-    with:
-      runs_on: windows-latest        
-      install_workloads: "android ios"
-      dotnet_sdk: 10.0.103
-      artifact_glob: Avalonia.Xpf.Controls.WebView.*.nupkg
-      artifact_name: Avalonia.Xpf.Controls.WebView
-      validate_release_branch: true
-      environment: release
-      nuget_feed: ${{ vars.RELEASE_MANAGER_UPLOAD_URL_XPF }}
-    secrets:
-      nuget_api_key: ${{ secrets.RELEASE_MANAGER_API_KEY }}
+  # We don't push via library-cicd.yml, because it's not possible to pass environment with environment-specific secrets.
+  push:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: ./nupkgs
+      - name: Avalonia release
+        run: dotnet nuget push './nupkgs/Avalonia.Controls.WebView.*.nupkg' --api-key '${{ secrets.RELEASE_MANAGER_API_KEY }}' --source '${{vars.RELEASE_MANAGER_UPLOAD_URL}}'
+      - name: XPF release
+        run: dotnet nuget push './nupkgs/Avalonia.Xpf.Controls.WebView.*.nupkg' --api-key '${{ secrets.RELEASE_MANAGER_API_KEY }}' --source '${{vars.RELEASE_MANAGER_UPLOAD_URL_XPF}}'
