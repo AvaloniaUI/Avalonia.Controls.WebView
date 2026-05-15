@@ -266,6 +266,11 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
         }
     }
 
+    public void DeleteCookie(System.Net.Cookie cookie)
+    {
+        DeleteCookie(cookie.Name, cookie.Domain, cookie.Path);
+    }
+
     public Task<IReadOnlyList<Cookie>> GetCookiesAsync()
     {
         var cookies = new List<Cookie>();

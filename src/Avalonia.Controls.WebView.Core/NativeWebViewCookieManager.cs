@@ -13,6 +13,8 @@ public sealed class NativeWebViewCookieManager
     }
 
     public void AddOrUpdateCookie(System.Net.Cookie cookie) => _webView.AddOrUpdateCookie(cookie);
+    [System.Obsolete("Use DeleteCookie(System.Net.Cookie cookie) instead")]
     public void DeleteCookie(string name, string domain, string path) => _webView.DeleteCookie(name, domain, path);
+    public void DeleteCookie(System.Net.Cookie cookie) => _webView.DeleteCookie(cookie);
     public Task<IReadOnlyList<System.Net.Cookie>> GetCookiesAsync() => _webView.GetCookiesAsync();
 }

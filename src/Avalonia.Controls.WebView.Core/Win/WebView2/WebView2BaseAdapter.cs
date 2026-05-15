@@ -385,6 +385,11 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
         }
     }
 
+    public void DeleteCookie(Cookie cookie)
+    {
+        DeleteCookie(cookie.Name, cookie.Domain, cookie.Path);
+    }
+
     public async Task<IReadOnlyList<Cookie>> GetCookiesAsync()
     {
         if (TryGetWebView2() is ICoreWebView2_2 webView2)

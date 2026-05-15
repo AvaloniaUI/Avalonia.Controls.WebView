@@ -844,9 +844,14 @@ internal sealed unsafe class WpeWebViewAdapter
 
     public void DeleteCookie(string name, string domain, string path)
     {
+        DeleteCookie(new Cookie(name, "", path, domain));
+    }
+
+    public void DeleteCookie(Cookie cookie)
+    {
         if (_cookieManager == IntPtr.Zero || _disposed) return;
 
-        var soupCookie = WpeInterop.soup_cookie_new(name, "", domain, path, 0);
+        var soupCookie = WpeInterop.soup_cookie_new(cookie.Name, cookie.Value, cookie.Domain, cookie.Path, 0);
         if (soupCookie != IntPtr.Zero)
         {
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

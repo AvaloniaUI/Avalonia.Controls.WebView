@@ -398,6 +398,7 @@ internal interface IWebViewAdapterWithCookieManager : IWebViewAdapter
 {
     void AddOrUpdateCookie(System.Net.Cookie cookie);
     void DeleteCookie(string name, string domain, string path);
+    void DeleteCookie(System.Net.Cookie cookie);
     Task<IReadOnlyList<System.Net.Cookie>> GetCookiesAsync();
 }
 
