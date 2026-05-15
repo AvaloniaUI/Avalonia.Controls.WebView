@@ -884,7 +884,10 @@ internal sealed unsafe class WpeWebViewAdapter
 
         if (Dispatcher.UIThread.CheckAccess())
         {
-            WebViewDispatcher.PushFrameForTask(task);
+            // Pump the GLib main loop so WebKit can dispatch the async callback.
+            var ctx = WpeInterop.g_main_context_default();
+            while (!task.IsCompleted)
+                WpeInterop.g_main_context_iteration(ctx, true);
         }
 
         task.GetAwaiter().GetResult();
