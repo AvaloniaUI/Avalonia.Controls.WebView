@@ -431,8 +431,13 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
     public void DeleteCookie(string name, string domain, string path)
     {
+        DeleteCookie(new Cookie(name, ".", path, domain));
+    }
+
+    public void DeleteCookie(Cookie cookie)
+    {
         using var cookieStore = _config.WebsiteDataStore.HttpCookieStore;
-        cookieStore.DeleteCookie(new Cookie(name, ".", path, domain));
+        cookieStore.DeleteCookie(cookie);
     }
 
     public async Task<IReadOnlyList<Cookie>> GetCookiesAsync()

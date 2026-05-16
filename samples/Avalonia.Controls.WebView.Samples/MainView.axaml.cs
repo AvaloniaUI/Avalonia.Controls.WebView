@@ -67,7 +67,7 @@ public partial class MainView : UserControl
             foreach (var c in cookies)
             {
                 LogList.Text += "\r\nCookie retrieved " + c;
-                manager.DeleteCookie(c.Name, c.Domain, c.Path);
+                manager.DeleteCookie(c);
             }
 
             cookies = await manager.GetCookiesAsync();
