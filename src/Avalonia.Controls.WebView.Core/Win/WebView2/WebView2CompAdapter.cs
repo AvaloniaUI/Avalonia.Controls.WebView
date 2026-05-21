@@ -133,100 +133,119 @@ internal partial class WebView2CompAdapter
     {
         var target = _controller.GetRootVisualTarget();
 
-        if (target is null || currentSize.Height == 0 || currentSize.Width == 0)
+        if (target is null)
             return;
-
-        // ReSharper disable once SuspiciousTypeConversion.Global
-        var compositor = ((ICompositionObject)target).Compositor();
-        // ReSharper disable once SuspiciousTypeConversion.Global
-        var compositorCapture = (ICompositionCaptureTest)compositor;
-
-        // https://github.com/ocalvo/WorkTests/blob/a2f18151be579addc60d4464b1e2a9f54f8e3314/MediaTestManaged/DCompHelpers.cs#L162
-
-        //   Render Visual:
-        //   * This function is basically async and returns immediately after putting
-        //     a MILCMD onto the batch for the application channel, and marks the device dirty.
-        //   * It returns two handles by reference.
-        //   * The first handle (hMap) is to a map of bits.
-        //   * The second handle (hEvent) is to an event.
-        //   * The event is signaled when a commit has happened 
-        //      and the after actual renderpass has been rendered and presented.
-        //   * Once signaled, the bits are ready for us to grab.
-        //   * Any changes to the tree before the implicit commit sends the batch to the 
-        //      Compositor will be reflected in the capture, even if made after the initial
-        //      RenderVisual function call.
-        //   * Any changes to the tree after the implicit commit may safely modify the tree,
-        //      as they will be processed in a separate batch
-        var hMap = IntPtr.Zero;
-        var hEvent = IntPtr.Zero;
-        
-        var hr = compositorCapture.RenderVisual(
-            target,
-            0, // offset X
-            0, // offset y
-            (uint)currentSize.Width,
-            (uint)currentSize.Height,
-            CompositionCaptureTestBitmapPixelFormat.Bgra8,
-            ref hMap,
-            ref hEvent,
-            out var cbMap);
-        if (hr != 0)
-        {
-            throw new COMException("Render Visual Failed", new Win32Exception(hr));
-        }
 
         try
         {
-            using var wh = new ManualResetEvent(false);
-            wh.SafeWaitHandle = new SafeWaitHandle(hEvent, ownsHandle: false);
-
-            var tcs = new TaskCompletionSource<bool>();
-            ThreadPool.RegisterWaitForSingleObject(wh, static (state, timedOut) =>
-            {
-                var tcs = (TaskCompletionSource<bool>)state!;
-                tcs.SetResult(!timedOut);
-            }, tcs, TimeSpan.FromMilliseconds(100), true);
-
-            if (!await tcs.Task)
-            {
-                // Timeout, ignore
+            if (currentSize.Height == 0 || currentSize.Width == 0)
                 return;
+
+            // ReSharper disable once SuspiciousTypeConversion.Global
+            var compositor = ((ICompositionObject)target).Compositor();
+            // ReSharper disable once SuspiciousTypeConversion.Global
+            var compositorCapture = (ICompositionCaptureTest)compositor;
+
+            // https://github.com/ocalvo/WorkTests/blob/a2f18151be579addc60d4464b1e2a9f54f8e3314/MediaTestManaged/DCompHelpers.cs#L162
+
+            //   Render Visual:
+            //   * This function is basically async and returns immediately after putting
+            //     a MILCMD onto the batch for the application channel, and marks the device dirty.
+            //   * It returns two handles by reference.
+            //   * The first handle (hMap) is to a map of bits.
+            //   * The second handle (hEvent) is to an event.
+            //   * The event is signaled when a commit has happened 
+            //      and the after actual renderpass has been rendered and presented.
+            //   * Once signaled, the bits are ready for us to grab.
+            //   * Any changes to the tree before the implicit commit sends the batch to the 
+            //      Compositor will be reflected in the capture, even if made after the initial
+            //      RenderVisual function call.
+            //   * Any changes to the tree after the implicit commit may safely modify the tree,
+            //      as they will be processed in a separate batch
+            var hMap = IntPtr.Zero;
+            var hEvent = IntPtr.Zero;
+
+            var hr = compositorCapture.RenderVisual(
+                target,
+                0, // offset X
+                0, // offset y
+                (uint)currentSize.Width,
+                (uint)currentSize.Height,
+                CompositionCaptureTestBitmapPixelFormat.Bgra8,
+                ref hMap,
+                ref hEvent,
+                out var cbMap);
+            if (hr != 0)
+            {
+                throw new COMException("Render Visual Failed", new Win32Exception(hr));
             }
 
-            using (producer.GetNextFrame(currentSize, out var frame))
+            try
             {
-                var pbMap = PInvoke.MapViewOfFile(
-                    new HANDLE(hMap), FILE_MAP.FILE_MAP_WRITE, 0, 0, UIntPtr.Zero);
+                using var wh = new ManualResetEvent(false);
+                wh.SafeWaitHandle = new SafeWaitHandle(hEvent, ownsHandle: false);
 
-                if (pbMap != IntPtr.Zero)
+                var tcs = new TaskCompletionSource<bool>();
+                RegisteredWaitHandle? registeredWaitHandle = null;
+                try
                 {
-                    try
+                    registeredWaitHandle = ThreadPool.RegisterWaitForSingleObject(wh, static (state, timedOut) =>
                     {
-                        using var buf = frame.Lock();
-                        unsafe
-                        {
-                            Buffer.MemoryCopy(
-                                source: pbMap,
-                                destination: (void*)buf.Address,
-                                destinationSizeInBytes: buf.RowBytes * currentSize.Height,
-                                sourceBytesToCopy: cbMap
-                            );
-                        }
-                    }
-                    finally
+                        var tcs = (TaskCompletionSource<bool>)state!;
+                        tcs.SetResult(!timedOut);
+                    }, tcs, TimeSpan.FromMilliseconds(100), true);
+
+                    if (!await tcs.Task)
                     {
-                        PInvoke.UnmapViewOfFile(pbMap);
+                        // Timeout, ignore this frame but keep the capture loop alive.
+                        return;
                     }
                 }
+                finally
+                {
+                    registeredWaitHandle?.Unregister(null);
+                }
+
+                using (producer.GetNextFrame(currentSize, out var frame))
+                {
+                    var pbMap = PInvoke.MapViewOfFile(
+                        new HANDLE(hMap), FILE_MAP.FILE_MAP_WRITE, 0, 0, UIntPtr.Zero);
+
+                    if (pbMap != IntPtr.Zero)
+                    {
+                        try
+                        {
+                            using var buf = frame.Lock();
+                            unsafe
+                            {
+                                Buffer.MemoryCopy(
+                                    source: pbMap,
+                                    destination: (void*)buf.Address,
+                                    destinationSizeInBytes: buf.RowBytes * currentSize.Height,
+                                    sourceBytesToCopy: cbMap
+                                );
+                            }
+                        }
+                        finally
+                        {
+                            PInvoke.UnmapViewOfFile(pbMap);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                PInvoke.CloseHandle(new HANDLE(hMap));
+                PInvoke.CloseHandle(new HANDLE(hEvent));
             }
         }
         finally
         {
-            PInvoke.CloseHandle(new HANDLE(hMap));
-            PInvoke.CloseHandle(new HANDLE(hEvent));
+            if (!Disposed)
+            {
+                _commitAsyncLoopHandler.RegisterNext();
+            }
         }
-        
-        _commitAsyncLoopHandler.RegisterNext();
     }
 
     internal EventHandler? GetCursorChanged() => _cursorChangedHandler;
