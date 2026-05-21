@@ -129,19 +129,29 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
 
     private async void OffscreenAdapter_OnDrawRequested()
     {
-        var adapter = (IWebViewAdapterWithOffscreenBuffer?)TryGetAdapter();
-        if (adapter is null)
-            return;
-
-        var adapterSize = PixelSize.FromSize(Bounds.Size, TopLevel.GetTopLevel(this)!.RenderScaling);
-        if (_firstDraw)
+        try
         {
-            _firstDraw = false;
-            adapter.SizeChanged(adapterSize);
-        }
+            var adapter = (IWebViewAdapterWithOffscreenBuffer?)TryGetAdapter();
+            if (adapter is null)
+                return;
 
-        await adapter.UpdateWriteableBitmap(adapterSize, _frameChain.Producer);
-        _customVisual?.SendHandlerMessage(VisualHandler.DrawRequested);
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel is null)
+                return;
+
+            var adapterSize = PixelSize.FromSize(Bounds.Size, topLevel.RenderScaling);
+            if (_firstDraw)
+            {
+                _firstDraw = false;
+                adapter.SizeChanged(adapterSize);
+            }
+
+            await adapter.UpdateWriteableBitmap(adapterSize, _frameChain.Producer);
+            _customVisual?.SendHandlerMessage(VisualHandler.DrawRequested);
+        }
+        catch (Exception)
+        {
+        }
     }
 
     private void CursorAdapter_OnCursorChanged(object? sender, EventArgs e)
