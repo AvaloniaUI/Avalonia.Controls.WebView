@@ -13,8 +13,9 @@ public sealed class WindowsWebView2EnvironmentRequestedEventArgs : WebViewEnviro
 
     /// <summary>
     /// Gets or sets a value indicating whether to prefer WebView1 instead of WebView2.
+    /// When set to true, the WebView1-based adapter is used even if the WebView2 runtime is available.
     /// </summary>
-    internal bool PreferWebView1Instead { get; set; }
+    public bool PreferWebView1Instead { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether to enable offscreen composition mode.

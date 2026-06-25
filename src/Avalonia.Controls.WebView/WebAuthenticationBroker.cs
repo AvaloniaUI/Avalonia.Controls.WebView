@@ -147,9 +147,13 @@ namespace Avalonia.Xpf.Controls
             using var dialog = options.NativeWebDialogFactory?.Invoke() ?? DefaultFactory();
             dialog.EnvironmentRequested += (_, args) =>
             {
-                if (args is WindowsWebView2EnvironmentRequestedEventArgs webView2
-                    && options.NonPersistent)
-                    webView2.IsInPrivateModeEnabled = true;
+                if (args is WindowsWebView2EnvironmentRequestedEventArgs webView2)
+                {
+                    if (options.NonPersistent)
+                        webView2.IsInPrivateModeEnabled = true;
+                    if (options.PreferWebView1)
+                        webView2.PreferWebView1Instead = true;
+                }
                 else if (args is AppleWKWebViewEnvironmentRequestedEventArgs wkWebView
                          && options.NonPersistent)
                     wkWebView.NonPersistentDataStore = true;

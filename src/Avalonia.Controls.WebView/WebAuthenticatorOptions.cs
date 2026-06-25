@@ -44,6 +44,12 @@ public record WebAuthenticatorOptions(Uri RequestUri, Uri RedirectUri)
     /// Options used when <see cref="Mode"/> is <see cref="WebAuthenticatorMode.Browser"/>.
     /// </summary>
     public BrowserOptions? BrowserOptions { get; init; }
+
+    /// <summary>
+    /// If true, forces the broker's WebView dialog to use WebView1 instead of WebView2 on Windows,
+    /// even if the WebView2 runtime is available. Has no effect on other platforms.
+    /// </summary>
+    public bool PreferWebView1 { get; init; }
 }
 
 /// <summary>
