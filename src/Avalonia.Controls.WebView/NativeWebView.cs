@@ -1,5 +1,6 @@
 ﻿#if AVALONIA || WPF
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -132,6 +133,16 @@ namespace Avalonia.Xpf.Controls
 
         /// <inheritdoc/>
         public event EventHandler<Core.WebViewEnvironmentRequestedEventArgs>? EnvironmentRequested;
+
+        /// <summary>
+        /// Gets or sets the exhaustive order in which compatible WebView adapters are attempted.
+        /// A null or empty list uses the platform default order.
+        /// </summary>
+        /// <remarks>
+        /// Set this property before the control is attached. Adapter preference is currently supported
+        /// for WebView1 and WebView2 on Windows, and WPE WebKit and WebKitGTK on Linux.
+        /// </remarks>
+        public IReadOnlyList<AvPlatform.WebViewAdapterType>? AdapterPreference { get; set; }
 
         /// <inheritdoc/>
         public event EventHandler<Core.WebViewNavigationCompletedEventArgs>? NavigationCompleted
@@ -451,7 +462,10 @@ namespace Avalonia.Xpf.Controls
             if (_controlHostImplTcs.Task.IsCompleted)
                 return;
 
-            var adapterFactory = await Core.WebViewAdapter.CreateFactory(args => EnvironmentRequested?.Invoke(this, args));
+            var adapterPreference = AdapterPreference?.ToArray();
+            var adapterFactory = await Core.WebViewAdapter.CreateFactory(
+                args => EnvironmentRequested?.Invoke(this, args),
+                adapterPreference);
             INativeWebViewControlImpl controlHostImpl = adapterFactory switch
             {
 #if !WPF

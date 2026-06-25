@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using Avalonia.Controls.Gtk;
@@ -442,6 +444,16 @@ namespace Avalonia.Xpf.Controls
         public event EventHandler<Core.WebViewAdapterEventArgs>? AdapterDestroyed;
         public event EventHandler<Core.WebViewEnvironmentRequestedEventArgs>? EnvironmentRequested;
 
+        /// <summary>
+        /// Gets or sets the exhaustive order in which compatible WebView adapters are attempted.
+        /// A null or empty list uses the platform default order.
+        /// </summary>
+        /// <remarks>
+        /// Set this property before the dialog is initialized. Adapter preference is currently supported
+        /// for WebView1 and WebView2 on Windows, and WPE WebKit and WebKitGTK on Linux.
+        /// </remarks>
+        public IReadOnlyList<AvPlatform.WebViewAdapterType>? AdapterPreference { get; set; }
+
         /// <inheritdoc/>
         public Core.NativeWebViewCommandManager? TryGetCommandManager() => TryGetAdapter() switch
         {
@@ -493,6 +505,7 @@ namespace Avalonia.Xpf.Controls
         private async Task Initialize()
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         {
+            var adapterPreference = AdapterPreference?.ToArray();
 #if ANDROID
             var dialogImpl = new Android.AndroidNativeWebViewDialog(args => EnvironmentRequested?.Invoke(this, args));
 #elif BROWSER
@@ -502,12 +515,51 @@ namespace Avalonia.Xpf.Controls
             // Special case for GTK, as we want to use GTK window instead of Avalonia window there.
             if (OperatingSystem.IsLinux() && !Core.WebViewAdapter.UseHeadless)
             {
-                dialogImpl = await GtkNativeWebViewDialog.CreateAsync(args => EnvironmentRequested?.Invoke(this, args));
+                if (adapterPreference is not { Length: > 0 })
+                {
+                    dialogImpl = await GtkNativeWebViewDialog.CreateAsync(
+                        args => EnvironmentRequested?.Invoke(this, args));
+                }
+                else
+                {
+                    Core.INativeWebViewDialog? preferredDialog = null;
+                    var adapterTypes = Core.WebViewAdapter.GetAdapterTypes(
+                        adapterPreference,
+                        Core.WebViewAdapter.LinuxDefaultOrder);
+                    foreach (var type in adapterTypes)
+                    {
+                        if (type == AvPlatform.WebViewAdapterType.WpeWebKit)
+                        {
+                            var factory = await Core.WebViewAdapter.CreateFactory(
+                                args => EnvironmentRequested?.Invoke(this, args),
+                                [type]);
+                            if (factory is not null)
+                            {
+                                preferredDialog = new WindowNativeWebViewDialog(Task.FromResult<Core.WebViewAdapter.AdapterFactory?>(factory));
+                                break;
+                            }
+                        }
+                        else if (type == AvPlatform.WebViewAdapterType.WebKitGtk)
+                        {
+                            if (!Core.Gtk.GtkWebViewAdapter.GetWebKitGtkInfo().IsInstalled)
+                                continue;
+
+                            preferredDialog = await GtkNativeWebViewDialog.CreateAsync(
+                                args => EnvironmentRequested?.Invoke(this, args));
+                            break;
+                        }
+                    }
+
+                    dialogImpl = preferredDialog ??
+                        new WindowNativeWebViewDialog(Task.FromResult<Core.WebViewAdapter.AdapterFactory?>(null));
+                }
             }
             else
             {
                 // Don't await factoryTask here, we want to get Window accessible as early as possible
-                var factoryTask = Core.WebViewAdapter.CreateFactory(args => EnvironmentRequested?.Invoke(this, args));   
+                var factoryTask = Core.WebViewAdapter.CreateFactory(
+                    args => EnvironmentRequested?.Invoke(this, args),
+                    adapterPreference);
                 dialogImpl = new WindowNativeWebViewDialog(factoryTask);
             }
 #endif

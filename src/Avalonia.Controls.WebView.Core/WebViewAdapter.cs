@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Avalonia.Platform;
 
@@ -6,6 +7,11 @@ namespace Avalonia.Controls;
 
 internal static class WebViewAdapter
 {
+    internal static readonly IReadOnlyList<WebViewAdapterType> WindowsDefaultOrder =
+        [WebViewAdapterType.WebView2, WebViewAdapterType.WebView1];
+    internal static readonly IReadOnlyList<WebViewAdapterType> LinuxDefaultOrder =
+        [WebViewAdapterType.WpeWebKit, WebViewAdapterType.WebKitGtk];
+
     public static bool UseHeadless { get; set; }
 
     public abstract record AdapterFactory(WebViewAdapterInfo Info);
@@ -19,7 +25,9 @@ internal static class WebViewAdapter
     public record CompositorHostAdapterFactory(OffscreenWebViewAdapterBuilder InvokeAsync, WebViewAdapterInfo Info) : AdapterFactory(Info);
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-    public static async Task<AdapterFactory?> CreateFactory(Action<WebViewEnvironmentRequestedEventArgs> environmentRequested)
+    public static async Task<AdapterFactory?> CreateFactory(
+        Action<WebViewEnvironmentRequestedEventArgs> environmentRequested,
+        IReadOnlyList<WebViewAdapterType>? adapterPreference = null)
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
     {
         var deferralManager = new DeferralManager();
@@ -83,79 +91,118 @@ internal static class WebViewAdapter
             }, Macios.MaciosWebViewAdapter.GetWkWebViewInfo());
         }
 
+        var hasExplicitPref = adapterPreference?.Count > 0;
+
         if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
         {
+            var adapterTypes = GetAdapterTypes(adapterPreference,
+                WindowsDefaultOrder);
+
+            foreach (var type in adapterTypes)
             {
-                var args = new WindowsWebView2EnvironmentRequestedEventArgs(deferralManager);
-                environmentRequested(args);
-                await deferralManager.WaitForDeferralsAsync();
-                if (!args.PreferWebView1Instead
-                    && Win.WebView2.CoreWebView2Environment.TryFindWebView2Runtime(args.BrowserExecutableFolder) !=
-                    IntPtr.Zero)
+                if (type == WebViewAdapterType.WebView2)
                 {
+                    var args = new WindowsWebView2EnvironmentRequestedEventArgs(deferralManager);
+                    environmentRequested(args);
+                    await deferralManager.WaitForDeferralsAsync();
+                    if ((!hasExplicitPref && args.PreferWebView1Instead)
+                        || Win.WebView2.CoreWebView2Environment.TryFindWebView2Runtime(args.BrowserExecutableFolder) ==
+                        IntPtr.Zero)
+                    {
+                        continue;
+                    }
+
                     if (args.ExperimentalOffscreen && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
                     {
-                        var info = Win.WebView2.WebView2BaseAdapter.GetWebView2Info(args.BrowserExecutableFolder, WebViewEmbeddingScenario.OffscreenRenderer);
+                        var info = Win.WebView2.WebView2BaseAdapter.GetWebView2Info(args.BrowserExecutableFolder,
+                            WebViewEmbeddingScenario.OffscreenRenderer);
                         var builder = await Win.WebView2.WebView2CompAdapter.CreateBuilder(args);
                         return new CompositorHostAdapterFactory(builder, info);
                     }
-                    else
-                    {
-                        var info = Win.WebView2.WebView2BaseAdapter.GetWebView2Info(args.BrowserExecutableFolder);
-                        var builder = await Win.WebView2.WebView2HwndAdapter.CreateBuilder(args);
-                        return new NativeHostAdapterFactory(builder, info);
-                    }
+
+                    var nativeInfo = Win.WebView2.WebView2BaseAdapter.GetWebView2Info(args.BrowserExecutableFolder);
+                    var nativeBuilder = await Win.WebView2.WebView2HwndAdapter.CreateBuilder(args);
+                    return new NativeHostAdapterFactory(nativeBuilder, nativeInfo);
                 }
-            }
-            {
-                var args = new WindowsWebView1EnvironmentRequestedEventArgs(deferralManager);
-                environmentRequested(args);
-                await deferralManager.WaitForDeferralsAsync();
-                if (Win.WebView1.WebView1Process.GetOrCreateProcess(args) is { } process)
+
+                if (type == WebViewAdapterType.WebView1)
                 {
-                    var builder = await Win.WebView1.WebView1Adapter.CreateBuilder(process);
-                    return new NativeHostAdapterFactory(
-                        builder,
-                        Win.WebView1.WebView1Adapter.GetWebView1Info());
+                    var args = new WindowsWebView1EnvironmentRequestedEventArgs(deferralManager);
+                    environmentRequested(args);
+                    await deferralManager.WaitForDeferralsAsync();
+                    if (Win.WebView1.WebView1Process.GetOrCreateProcess(args) is { } process)
+                    {
+                        var builder = await Win.WebView1.WebView1Adapter.CreateBuilder(process);
+                        return new NativeHostAdapterFactory(
+                            builder,
+                            Win.WebView1.WebView1Adapter.GetWebView1Info());
+                    }
                 }
             }
         }
 
         if (OperatingSystem.IsLinux())
         {
-            if (Linux.WpeWebViewAdapter.IsAvailable())
-            {
-                var args = new LinuxWpeWebViewEnvironmentRequestedEventArgs(deferralManager);
-                environmentRequested(args);
-                await deferralManager.WaitForDeferralsAsync();
+            var adapterTypes = GetAdapterTypes(adapterPreference,
+                LinuxDefaultOrder);
 
-                if (!args.PreferWebKitGtkInstead)
-                {
-                    var builder = await Linux.WpeWebViewAdapter.CreateBuilder(args);
-                    return new CompositorHostAdapterFactory(
-                        builder,
-                        Linux.WpeWebViewAdapter.GetWpeInfo());
-                }
-            }
-
+            foreach (var type in adapterTypes)
             {
-                var args = new GtkWebViewEnvironmentRequestedEventArgs(deferralManager);
-                environmentRequested(args);
-                await deferralManager.WaitForDeferralsAsync();
-                if (args.ExperimentalOffscreen)
+                if (type == WebViewAdapterType.WpeWebKit && Linux.WpeWebViewAdapter.IsAvailable())
                 {
-                    var builder = await Gtk.GtkOffscreenAvaloniaWebViewAdapter.CreateBuilder(args);
-                    return new CompositorHostAdapterFactory(builder, Gtk.GtkWebViewAdapter.GetWebKitGtkInfo(WebViewEmbeddingScenario.OffscreenRenderer));
+                    var args = new LinuxWpeWebViewEnvironmentRequestedEventArgs(deferralManager);
+                    environmentRequested(args);
+                    await deferralManager.WaitForDeferralsAsync();
+
+                    if (hasExplicitPref || !args.PreferWebKitGtkInstead)
+                    {
+                        var builder = await Linux.WpeWebViewAdapter.CreateBuilder(args);
+                        return new CompositorHostAdapterFactory(
+                            builder,
+                            Linux.WpeWebViewAdapter.GetWpeInfo());
+                    }
                 }
-                else
+
+                if (type == WebViewAdapterType.WebKitGtk)
                 {
-                    var builder = await Gtk.GtkX11WebViewAdapter.CreateBuilder(args);
-                    return new NativeHostAdapterFactory(builder, Gtk.GtkWebViewAdapter.GetWebKitGtkInfo());
+                    if (!Gtk.GtkWebViewAdapter.GetWebKitGtkInfo().IsInstalled)
+                        continue;
+
+                    var args = new GtkWebViewEnvironmentRequestedEventArgs(deferralManager);
+                    environmentRequested(args);
+                    await deferralManager.WaitForDeferralsAsync();
+                    if (args.ExperimentalOffscreen)
+                    {
+                        var builder = await Gtk.GtkOffscreenAvaloniaWebViewAdapter.CreateBuilder(args);
+                        return new CompositorHostAdapterFactory(builder,
+                            Gtk.GtkWebViewAdapter.GetWebKitGtkInfo(WebViewEmbeddingScenario.OffscreenRenderer));
+                    }
+
+                    var nativeBuilder = await Gtk.GtkX11WebViewAdapter.CreateBuilder(args);
+                    return new NativeHostAdapterFactory(nativeBuilder, Gtk.GtkWebViewAdapter.GetWebKitGtkInfo());
                 }
             }
         }
 #endif
 
         return null;
+    }
+
+    internal static IReadOnlyList<WebViewAdapterType> GetAdapterTypes(
+        IReadOnlyList<WebViewAdapterType>? preferredOrder,
+        IReadOnlyList<WebViewAdapterType> defaultOrder)
+    {
+        if (preferredOrder is null || preferredOrder.Count == 0)
+            return defaultOrder;
+
+        var supported = new HashSet<WebViewAdapterType>(defaultOrder);
+        var candidates = new List<WebViewAdapterType>(preferredOrder.Count);
+        foreach (var candidate in preferredOrder)
+        {
+            if (supported.Remove(candidate))
+                candidates.Add(candidate);
+        }
+
+        return candidates;
     }
 }
