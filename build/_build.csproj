@@ -14,6 +14,7 @@
     <PackageReference Include="Nuke.Common" Version="9.0.4"/>
     <PackageDownload Include="dotnet-ilrepack" Version="[1.0.0]" />
     <PackageDownload Include="Microsoft.Android.Ref.34" Version="[34.0.148]" />
+    <PackageDownload Include="CycloneDX" Version="[6.2.0]" />
   </ItemGroup>
 
   <ItemGroup>

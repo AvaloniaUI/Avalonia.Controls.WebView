@@ -18,6 +18,9 @@ class Build : NukeBuild
         Execute<Build>(x => x.CreateNugetPackages);
 
     [NuGetPackage("dotnet-ilrepack", "ILRepackTool.dll", Framework = "net8.0")] readonly Tool IlRepackTool = null!;
+    // net8.0 to match this build project's own TFM, so local packaging (which triggers
+    // CreateSbom) doesn't require a newer runtime than the build itself.
+    [NuGetPackage("CycloneDX", "CycloneDX.dll", Framework = "net8.0")] readonly Tool CycloneDx = null!;
 
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = Configuration.Release;
@@ -105,8 +108,41 @@ class Build : NukeBuild
             }
         });
 
+    // Runs whenever packages are produced (TriggeredBy), so the default CI target
+    // 'CreateNugetPackages' generates and embeds SBOMs without workflow changes.
+    // Avalonia.Controls.WebView.Core is IL-merged into both shipped packages (see IlMerge)
+    // rather than shipped on its own, so each package's SBOM is generated from the package's
+    // own project plus Core, making Core's dependencies part of both packages' SBOMs.
+    Target CreateSbom => _ => _
+        .DependsOn(CreateNugetPackages)
+        .TriggeredBy(CreateNugetPackages)
+        .Executes(() =>
+        {
+            var sbomRoot = RootDirectory / "artifacts" / "sbom";
+            sbomRoot.CreateOrCleanDirectory();
+
+            var version = GetVersion();
+            foreach (var packageId in new[] { "Avalonia.Controls.WebView", "Avalonia.Xpf.Controls.WebView" })
+            {
+                var packagePath = Output / $"{packageId}.{version}.nupkg";
+                if (!packagePath.FileExists())
+                    throw new InvalidOperationException($"SBOM: expected package {packagePath} was not built.");
+
+                SbomGenerator.GenerateForPackage(
+                    CycloneDx,
+                    RootDirectory,
+                    packagePath,
+                    sbomRoot,
+                    version,
+                    packageId,
+                    [packageId, "Avalonia.Controls.WebView.Core"]);
+            }
+        });
+
     Target CopyPackagesToNuGetCache => _ => _
         .DependsOn(CreateNugetPackages)
+        // CreateSbom embeds the SBOM into each .nupkg, so copy to the cache only afterwards.
+        .After(CreateSbom)
         .Executes(() => NugetCache.InstallLibraryToNuGetCache(
             Output.GlobFiles("*.nupkg"),
             RootDirectory,
