@@ -22,6 +22,8 @@ internal unsafe class AppleView : NSManagedObjectBase
     private static readonly IntPtr s_cut = Libobjc.sel_getUid("cut:");
     private static readonly IntPtr s_selectAll = Libobjc.sel_getUid("selectAll:");
     private static readonly IntPtr s_undoManager = Libobjc.sel_getUid("undoManager");
+    private static readonly IntPtr s_undoManagerCanRedo = Libobjc.sel_getUid("canRedo");
+    private static readonly IntPtr s_undoManagerCanUndo = Libobjc.sel_getUid("canUndo");
     private static readonly IntPtr s_undoManagerRedo = Libobjc.sel_getUid("redo");
     private static readonly IntPtr s_undoManagerUndo = Libobjc.sel_getUid("undo");
 
@@ -120,6 +122,9 @@ internal unsafe class AppleView : NSManagedObjectBase
     {
         var undoManagerPtr = Libobjc.intptr_objc_msgSend(Handle, s_undoManager);
         if (undoManagerPtr == IntPtr.Zero) return false;
+        // Report unhandled when there is nothing to undo, so the key equivalent can continue to other
+        // consumers (an NSView practically always has an undo manager, but not an undo stack).
+        if (Libobjc.int_objc_msgSend(undoManagerPtr, s_undoManagerCanUndo) == 0) return false;
         Libobjc.void_objc_msgSend(undoManagerPtr, s_undoManagerUndo);
         return true;
     }
@@ -127,6 +132,7 @@ internal unsafe class AppleView : NSManagedObjectBase
     {
         var undoManagerPtr = Libobjc.intptr_objc_msgSend(Handle, s_undoManager);
         if (undoManagerPtr == IntPtr.Zero) return false;
+        if (Libobjc.int_objc_msgSend(undoManagerPtr, s_undoManagerCanRedo) == 0) return false;
         Libobjc.void_objc_msgSend(undoManagerPtr, s_undoManagerRedo);
         return true;
     }
