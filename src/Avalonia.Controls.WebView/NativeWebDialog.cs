@@ -365,6 +365,17 @@ namespace Avalonia.Xpf.Controls
         public event EventHandler<Core.WebViewAdapterEventArgs>? AdapterDestroyed;
         public event EventHandler<Core.WebViewEnvironmentRequestedEventArgs>? EnvironmentRequested;
 
+        /// <summary>
+        ///     WebContentProcessTerminated dispatches after the web content process backing the webview terminates,
+        ///     for example after a crash or after the operating system reclaims its memory. The dialog stays open
+        ///     but renders nothing until the page is reloaded, so handle this event to <see cref="Navigate"/> again.
+        /// </summary>
+        /// <remarks>
+        ///     Raised by WebKit-based adapters (WKWebView on macOS and iOS). Other platforms do not raise this
+        ///     event yet.
+        /// </remarks>
+        public event EventHandler? WebContentProcessTerminated;
+
         /// <inheritdoc/>
         public Core.NativeWebViewCommandManager? TryGetCommandManager() => TryGetAdapter() switch
         {
@@ -465,6 +476,8 @@ namespace Avalonia.Xpf.Controls
             adapter.WebMessageReceived -= WebViewAdapterOnWebMessageReceived;
             adapter.WebResourceRequested -= WebViewAdapterOnWebResourceRequested;
             adapter.NewWindowRequested -= WebViewAdapterOnNewWindowRequested;
+            if (adapter is Core.IWebViewAdapterWithProcessTermination withProcessTermination)
+                withProcessTermination.WebContentProcessTerminated -= WebViewAdapterOnWebContentProcessTerminated;
             _dialogInitialized = false;
             AdapterDestroyed?.Invoke(this, e);
         }
@@ -492,6 +505,8 @@ namespace Avalonia.Xpf.Controls
                 adapter.WebResourceRequested += WebViewAdapterOnWebResourceRequested;
             if (_newWindowRequested is not null)
                 adapter.NewWindowRequested += WebViewAdapterOnNewWindowRequested;
+            if (adapter is Core.IWebViewAdapterWithProcessTermination withProcessTermination)
+                withProcessTermination.WebContentProcessTerminated += WebViewAdapterOnWebContentProcessTerminated;
             if (_initialSource is Uri url)
                 adapter.Source = url;
             else if (_initialSource is ValueTuple<string, Uri?> pair)
@@ -527,6 +542,11 @@ namespace Avalonia.Xpf.Controls
         private void WebViewAdapterOnNewWindowRequested(object? sender, Core.WebViewNewWindowRequestedEventArgs e)
         {
             _newWindowRequested?.Invoke(this, e);
+        }
+
+        private void WebViewAdapterOnWebContentProcessTerminated(object? sender, EventArgs e)
+        {
+            WebContentProcessTerminated?.Invoke(this, e);
         }
     }
 }

@@ -247,6 +247,18 @@ namespace Avalonia.Xpf.Controls
         /// <inheritdoc/>
         public event EventHandler<Core.WebViewAdapterEventArgs>? AdapterDestroyed;
 
+        /// <summary>
+        ///     WebContentProcessTerminated dispatches after the web content process backing the webview terminates,
+        ///     for example after a crash or after the operating system reclaims its memory. The native control stays
+        ///     alive but renders nothing until the page is reloaded, so handle this event to
+        ///     <see cref="Refresh"/> or <see cref="Navigate"/> again.
+        /// </summary>
+        /// <remarks>
+        ///     Raised by WebKit-based adapters (WKWebView on macOS and iOS). Other platforms do not raise this
+        ///     event yet.
+        /// </remarks>
+        public event EventHandler? WebContentProcessTerminated;
+
         /// <inheritdoc/>
         public Uri Source
         {
@@ -428,6 +440,12 @@ namespace Avalonia.Xpf.Controls
             _newWindowRequested?.Invoke(this, e);
         }
 
+        private void WebViewAdapterOnWebContentProcessTerminated(object? sender, EventArgs e)
+        {
+            Core.WebViewDispatcher.VerifyAccess();
+            WebContentProcessTerminated?.Invoke(this, e);
+        }
+
 #if AVALONIA
         protected override async void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
@@ -563,6 +581,10 @@ namespace Avalonia.Xpf.Controls
             {
                 withInput.Input -= WithInputOnInput;
             }
+            if (adapter is Core.IWebViewAdapterWithProcessTermination withProcessTermination)
+            {
+                withProcessTermination.WebContentProcessTerminated -= WebViewAdapterOnWebContentProcessTerminated;
+            }
 
             AdapterDestroyed?.Invoke(this, new Core.WebViewAdapterEventArgs(adapter));
         }
@@ -593,6 +615,11 @@ namespace Avalonia.Xpf.Controls
             if (adapter is Core.IWebViewAdapterWithInputRedirect withInput)
             {
                 withInput.Input += WithInputOnInput;
+            }
+
+            if (adapter is Core.IWebViewAdapterWithProcessTermination withProcessTermination)
+            {
+                withProcessTermination.WebContentProcessTerminated += WebViewAdapterOnWebContentProcessTerminated;
             }
 
             if (_initialSource is Uri url)

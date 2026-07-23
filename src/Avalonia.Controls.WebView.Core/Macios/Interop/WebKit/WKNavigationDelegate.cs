@@ -14,6 +14,8 @@ internal unsafe class WKNavigationDelegate : NSManagedObjectBase
         s_willPresentNotification = &OnDidFinishNavigation;
     private static readonly delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, IntPtr, IntPtr, void>
         s_decidePolicyForNavigationAction = &OnDecidePolicyForNavigationAction;
+    private static readonly delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void>
+        s_webContentProcessDidTerminate = &OnWebContentProcessDidTerminate;
 
     static WKNavigationDelegate()
     {
@@ -31,6 +33,10 @@ internal unsafe class WKNavigationDelegate : NSManagedObjectBase
         result = Libobjc.class_addMethod(delegateClass, didReceiveNotificationResponse, s_decidePolicyForNavigationAction, "v@:@@@");
         Debug.Assert(result == 1);
 
+        var webContentProcessDidTerminateSel = Libobjc.sel_getUid("webViewWebContentProcessDidTerminate:");
+        result = Libobjc.class_addMethod(delegateClass, webContentProcessDidTerminateSel, s_webContentProcessDidTerminate, "v@:@");
+        Debug.Assert(result == 1);
+
         result = RegisterManagedMembers(delegateClass) ? 1 : 0;
         Debug.Assert(result == 1);
 
@@ -45,12 +51,20 @@ internal unsafe class WKNavigationDelegate : NSManagedObjectBase
 
     public event EventHandler? DidFinishNavigation;
     public event EventHandler<DecidePolicyNavigationEventArgs>? DecidePolicyNavigation;
+    public event EventHandler? WebContentProcessDidTerminate;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void OnDidFinishNavigation(IntPtr self, IntPtr sel, IntPtr webView, IntPtr navigation)
     {
         var managed = ReadManagedSelf<WKNavigationDelegate>(self);
         managed?.DidFinishNavigation?.Invoke(managed, EventArgs.Empty);
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnWebContentProcessDidTerminate(IntPtr self, IntPtr sel, IntPtr webView)
+    {
+        var managed = ReadManagedSelf<WKNavigationDelegate>(self);
+        managed?.WebContentProcessDidTerminate?.Invoke(managed, EventArgs.Empty);
     }
 
     private static readonly IntPtr s_actionRequest = Libobjc.sel_getUid("request");
