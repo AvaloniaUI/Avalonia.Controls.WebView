@@ -385,6 +385,16 @@ internal interface IWebViewAdapterWithInputRedirect : IWebViewAdapter
     event Action<RoutedEventArgs> Input;
 }
 
+internal interface IWebViewAdapterWithProcessTermination : IWebViewAdapter
+{
+    /// <summary>
+    ///     WebContentProcessTerminated dispatches after the web content process backing the webview terminates,
+    ///     for example after a crash or after the operating system reclaims its memory. The native control stays
+    ///     alive but renders nothing until the page is reloaded.
+    /// </summary>
+    event EventHandler? WebContentProcessTerminated;
+}
+
 internal interface IWebViewAdapterWithCommands
 {
     void Copy();

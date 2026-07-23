@@ -18,7 +18,8 @@ namespace Avalonia.Controls.Macios;
 [SupportedOSPlatform("macos")]
 [SupportedOSPlatform("ios")]
 internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect,
-    IWebViewAdapterWithCookieManager, IWebViewAdapterWithCommands, IWebViewWithPrint, IAppleWKWebViewPlatformHandle
+    IWebViewAdapterWithCookieManager, IWebViewAdapterWithCommands, IWebViewAdapterWithProcessTermination,
+    IWebViewWithPrint, IAppleWKWebViewPlatformHandle
 {
     private const string DefaultPostAvWebViewMessageName = "postAvWebViewMessage";
 
@@ -73,6 +74,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _navDelegate = new WKNavigationDelegate();
         _navDelegate.DidFinishNavigation += OnDelegateOnDidFinishNavigation;
         _navDelegate.DecidePolicyNavigation += OnDelegateOnDecidePolicyNavigation;
+        _navDelegate.WebContentProcessDidTerminate += OnDelegateOnWebContentProcessDidTerminate;
 
         _webView = new WKWebView(_config) { NavigationDelegate = _navDelegate };
         _webView.Opaque = false;
@@ -157,6 +159,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
     public event EventHandler<WebResourceRequestedEventArgs>? WebResourceRequested;
     public event EventHandler? GotFocus;
     public event EventHandler<IWebViewAdapterWithFocus.LostFocusDirection>? LostFocus;
+    public event EventHandler? WebContentProcessTerminated;
     public event Action<RoutedEventArgs>? Input;
     public bool GoBack() => _webView.GoBack() != default;
     public bool GoForward() => _webView.GoForward() != default;
@@ -203,6 +206,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _scriptHandler.DidReceiveScriptMessage -= OnScriptHandlerOnDidReceiveScriptMessage;
         _navDelegate.DidFinishNavigation -= OnDelegateOnDidFinishNavigation;
         _navDelegate.DecidePolicyNavigation -= OnDelegateOnDecidePolicyNavigation;
+        _navDelegate.WebContentProcessDidTerminate -= OnDelegateOnWebContentProcessDidTerminate;
         _webView.PerformKeyEquivalent -= WebViewOnPerformKeyEquivalent;
         _webView.BecomeFirstResponder -= OnWebViewOnBecomeFirstResponder;
         _webView.ResignFirstResponder -= OnWebViewOnResignFirstResponder;
@@ -295,6 +299,11 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
         using var url = _webView.Url;
         NavigationCompleted?.Invoke(this, new WebViewNavigationCompletedEventArgs { Request = Uri.TryCreate(url!.AbsoluteString, UriKind.Absolute, out var uri) ? uri : null, IsSuccess = true });
+    }
+
+    private void OnDelegateOnWebContentProcessDidTerminate(object? sender, EventArgs args)
+    {
+        WebContentProcessTerminated?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnWebViewOnResignFirstResponder(object? o, EventArgs eventArgs)
