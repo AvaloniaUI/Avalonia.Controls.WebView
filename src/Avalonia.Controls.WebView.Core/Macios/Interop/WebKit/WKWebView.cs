@@ -43,7 +43,13 @@ internal class WKWebView : AppleView
 
     static unsafe WKWebView()
     {
-        var superclass = WebKit.objc_getClass("WKWebView");
+        var superclass = Libobjc.objc_getClass("WKWebView");
+        if (superclass == default)
+        {
+            throw new PlatformNotSupportedException(
+                "The WKWebView Objective-C class is not available, WebKit.framework failed to load.");
+        }
+
         var webViewClass = AllocateClassPair(superclass, "ManagedWKWebView");
 
         RegisterMethods(webViewClass);

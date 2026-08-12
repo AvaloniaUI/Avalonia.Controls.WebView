@@ -11,7 +11,7 @@ namespace Avalonia.Controls.Macios.Interop.AuthenticationServices;
 internal unsafe class ASWebAuthenticationSession : NSManagedObjectBase
 {
     private readonly ASWebAuthenticationSessionCallback? _callback;
-    private static readonly IntPtr s_class = AuthenticationServices.objc_getClass("ASWebAuthenticationSession");
+    private static readonly IntPtr s_class = Libobjc.objc_getClass("ASWebAuthenticationSession");
     private static readonly IntPtr s_initWithURL = Libobjc.sel_getUid("initWithURL:callback:completionHandler:");
     private static readonly IntPtr s_initWithURLOld = Libobjc.sel_getUid("initWithURL:callbackURLScheme:completionHandler:");
     private static readonly IntPtr s_start = Libobjc.sel_getUid("start");

@@ -29,6 +29,11 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
     private readonly WKNavigationDelegate _navDelegate;
     private readonly WKScriptMessageHandler _scriptHandler;
 
+    static MaciosWebViewAdapter()
+    {
+        WebKit.PreloadWebKit();
+    }
+
     public MaciosWebViewAdapter(AppleWKWebViewEnvironmentRequestedEventArgs options)
     {
         _scriptHandler = new WKScriptMessageHandler();

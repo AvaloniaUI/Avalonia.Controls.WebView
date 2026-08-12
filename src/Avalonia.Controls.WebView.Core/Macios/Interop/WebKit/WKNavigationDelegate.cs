@@ -19,7 +19,7 @@ internal unsafe class WKNavigationDelegate : NSManagedObjectBase
     {
         var delegateClass = AllocateClassPair("ManagedWKNavigationDelegate");
 
-        var protocol = WebKit.objc_getProtocol("WKNavigationDelegate");
+        var protocol = Libobjc.objc_getProtocol("WKNavigationDelegate");
         var result = Libobjc.class_addProtocol(delegateClass, protocol);
         Debug.Assert(result == 1);
 

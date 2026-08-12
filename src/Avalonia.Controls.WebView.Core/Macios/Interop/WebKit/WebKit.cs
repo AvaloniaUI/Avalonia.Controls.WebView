@@ -7,8 +7,11 @@ internal partial class WebKit
 {
     private const string WebKitFramework = "/System/Library/Frameworks/WebKit.framework/WebKit";
 
+    private static bool? s_isLoaded;
+
+    public static bool PreloadWebKit()
+        => s_isLoaded ??= objc_getClass("WKWebView") != IntPtr.Zero;
+
     [LibraryImport(WebKitFramework, StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr objc_getClass(string className);
-    [LibraryImport(WebKitFramework, StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr objc_getProtocol(string name);
+    private static partial IntPtr objc_getClass(string className);
 }

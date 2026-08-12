@@ -20,7 +20,7 @@ internal unsafe class WKScriptMessageHandler : NSManagedObjectBase
     {
         var delegateClass = AllocateClassPair("ManagedWKScriptMessageHandler");
 
-        var protocol = WebKit.objc_getProtocol("WKScriptMessageHandler");
+        var protocol = Libobjc.objc_getProtocol("WKScriptMessageHandler");
         var result = Libobjc.class_addProtocol(delegateClass, protocol);
         Debug.Assert(result == 1);
 

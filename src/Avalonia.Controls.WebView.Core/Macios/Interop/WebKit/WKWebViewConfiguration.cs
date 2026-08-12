@@ -4,7 +4,7 @@ namespace Avalonia.Controls.Macios.Interop.WebKit;
 
 internal class WKWebViewConfiguration : NSObject
 {
-    private static readonly IntPtr s_class = WebKit.objc_getClass("WKWebViewConfiguration");
+    private static readonly IntPtr s_class = Libobjc.objc_getClass("WKWebViewConfiguration");
     private static readonly IntPtr s_defaultWebpagePreferences = Libobjc.sel_getUid("defaultWebpagePreferences");
     private static readonly IntPtr s_setAllowsContentJavaScript = Libobjc.sel_getUid("setAllowsContentJavaScript:");
 

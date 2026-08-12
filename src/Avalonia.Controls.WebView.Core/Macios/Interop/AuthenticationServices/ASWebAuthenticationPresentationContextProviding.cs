@@ -14,9 +14,11 @@ internal unsafe class ASWebAuthenticationPresentationContextProviding(IntPtr win
 
     static ASWebAuthenticationPresentationContextProviding()
     {
+        AuthenticationServices.PreloadAuthenticationServices();
+
         var delegateClass = AllocateClassPair("ManagedASWebAuthenticationPresentationContextProviding");
 
-        var protocol = AuthenticationServices.objc_getProtocol("ASWebAuthenticationPresentationContextProviding");
+        var protocol = Libobjc.objc_getProtocol("ASWebAuthenticationPresentationContextProviding");
         var result = Libobjc.class_addProtocol(delegateClass, protocol);
         Debug.Assert(result == 1);
 
