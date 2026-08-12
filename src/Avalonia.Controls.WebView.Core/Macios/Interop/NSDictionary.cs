@@ -7,7 +7,7 @@ namespace Avalonia.Controls.Macios.Interop;
 internal class NSDictionary : NSObject
 {
     private static readonly IntPtr s_class = Libobjc.objc_getClass("NSDictionary");
-    private static readonly IntPtr s_count = Libobjc.objc_getClass("count");
+    private static readonly IntPtr s_count = Libobjc.sel_getUid("count");
     private static readonly IntPtr s_dictionaryWithObjects = Libobjc.sel_getUid("dictionaryWithObjects:forKeys:count:");
     private static readonly nint s_ObjectForKey = Libobjc.sel_getUid("objectForKey:");
 
