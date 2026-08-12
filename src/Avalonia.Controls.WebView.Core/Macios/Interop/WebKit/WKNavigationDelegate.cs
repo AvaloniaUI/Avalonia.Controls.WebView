@@ -18,8 +18,10 @@ internal unsafe class WKNavigationDelegate : NSManagedObjectBase
     {
         var delegateClass = AllocateClassPair("ManagedWKNavigationDelegate");
 
-        var protocol = Libobjc.objc_getProtocol("WKNavigationDelegate");
-        AddProtocol(delegateClass, protocol);
+        if (Libobjc.objc_getProtocol("WKNavigationDelegate") is var protocol and > 0)
+        {
+            AddProtocol(delegateClass, protocol);   
+        }
 
         var willPresentNotificationSel = Libobjc.sel_getUid("webView:didFinishNavigation:");
         AddMethod(delegateClass, willPresentNotificationSel, new IntPtr(s_willPresentNotification), "v@:@@");

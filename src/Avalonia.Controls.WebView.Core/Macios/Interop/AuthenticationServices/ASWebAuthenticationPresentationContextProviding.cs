@@ -17,8 +17,10 @@ internal unsafe class ASWebAuthenticationPresentationContextProviding(IntPtr win
 
         var delegateClass = AllocateClassPair("ManagedASWebAuthenticationPresentationContextProviding");
 
-        var protocol = Libobjc.objc_getProtocol("ASWebAuthenticationPresentationContextProviding");
-        AddProtocol(delegateClass, protocol);
+        if (Libobjc.objc_getProtocol("ASWebAuthenticationPresentationContextProviding") is var protocol and > 0)
+        {
+            AddProtocol(delegateClass, protocol);   
+        }
 
         AddMethod(delegateClass,
             Libobjc.sel_getUid("presentationAnchorForWebAuthenticationSession:"),
