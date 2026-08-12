@@ -28,7 +28,7 @@ internal unsafe class ASWebAuthenticationSession : NSManagedObjectBase
 
     public bool PrefersEphemeralWebBrowserSession
     {
-        get => Libobjc.int_objc_msgSend(Handle, s_prefersEphemeralWebBrowserSession) == 1;
+        get => Libobjc.byte_objc_msgSend(Handle, s_prefersEphemeralWebBrowserSession) != 0;
         set => Libobjc.void_objc_msgSend(Handle, s_setPrefersEphemeralWebBrowserSession, value ? 1 : 0);
     }
 

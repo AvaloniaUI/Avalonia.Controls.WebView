@@ -18,7 +18,7 @@ internal class NSError(IntPtr handle) : NSObject(handle, false)
             NSString.GetString(Libobjc.intptr_objc_msgSend(nsError, s_localizedDescription))!)
         {
             Domain = NSString.GetString(Libobjc.intptr_objc_msgSend(nsError, s_domain)),
-            Code = Libobjc.int_objc_msgSend(nsError, s_code)
+            Code = Libobjc.nint_objc_msgSend(nsError, s_code)
         };
         var data = NSDictionary.AsStringDictionary(Libobjc.intptr_objc_msgSend(nsError, s_userInfo));
         foreach (var pair in data)
@@ -33,5 +33,5 @@ internal class NSError(IntPtr handle) : NSObject(handle, false)
 internal class NSErrorException(string message) : Exception(message)
 {
     public string? Domain { get; init; }
-    public int Code { get; init; }
+    public nint Code { get; init; }
 }

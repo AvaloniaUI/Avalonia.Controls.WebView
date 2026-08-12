@@ -12,7 +12,7 @@ internal class NSPrintOperation(IntPtr handle, bool owns) : NSObject(handle, own
     private static readonly IntPtr s_runOperationModalForWindow = Libobjc.sel_getUid("runOperationModalForWindow:delegate:didRunSelector:contextInfo:");
 
     public bool RunOperation() => Libobjc
-        .int_objc_msgSend(Handle, s_runOperation) == 1;
+        .byte_objc_msgSend(Handle, s_runOperation) != 0;
     public async Task<bool> RunOperationModalForWindow(IntPtr window)
     {
         using var callback = new AvnNSPrintOperationCallback();

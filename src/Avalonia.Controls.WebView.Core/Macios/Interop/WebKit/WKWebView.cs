@@ -81,8 +81,8 @@ internal class WKWebView : AppleView
         new(handle, false) :
         null;
 
-    public bool CanGoBack => Libobjc.int_objc_msgSend(Handle, s_canGoBack) == 1;
-    public bool CanGoForward => Libobjc.int_objc_msgSend(Handle, s_canGoForward) == 1;
+    public bool CanGoBack => Libobjc.byte_objc_msgSend(Handle, s_canGoBack) != 0;
+    public bool CanGoForward => Libobjc.byte_objc_msgSend(Handle, s_canGoForward) != 0;
 
     public IntPtr GoBack() => Libobjc.intptr_objc_msgSend(Handle, s_goBack);
     public IntPtr GoForward() => Libobjc.intptr_objc_msgSend(Handle, s_goForward);

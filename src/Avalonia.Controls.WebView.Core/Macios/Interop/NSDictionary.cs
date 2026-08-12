@@ -58,7 +58,7 @@ internal class NSDictionary : NSObject
         fixed (void* keyPtrs = keys)
         {
             var handle = Libobjc.intptr_objc_msgSend(s_class, s_dictionaryWithObjects, new IntPtr(objPtrs),
-                new IntPtr(keyPtrs), (int)count);
+                new IntPtr(keyPtrs), new UIntPtr(count));
             return new NSDictionary(handle, true);
         }
     }

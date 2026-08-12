@@ -86,7 +86,7 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
             throw new ArgumentNullException(nameof(protocol));
         }
 
-        if (Libobjc.class_addProtocol(classHandle, protocol) != 1)
+        if (Libobjc.class_addProtocol(classHandle, protocol) == 0)
         {
             throw new ObjectDisposedException("objc_addProtocol returned an error");
         }
@@ -109,14 +109,14 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
             throw new ArgumentNullException(nameof(methodHandler));
         }
 
-        if (Libobjc.class_addMethod(classHandle, selector, methodHandler, types) != 1)
+        if (Libobjc.class_addMethod(classHandle, selector, methodHandler, types) == 0)
         {
             throw new ObjectDisposedException("objc_addMethod returned an error");
         }
     }
 
     public IntPtr Retain() => Libobjc.intptr_objc_msgSend(Handle, s_retainSel);
-    public int RetainCount() => Libobjc.int_objc_msgSend(Handle, s_retainCountSel);
+    public nuint RetainCount() => Libobjc.nuint_objc_msgSend(Handle, s_retainCountSel);
 
     protected void Init()
     {
@@ -125,12 +125,12 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
 
     public static bool ConformsToProtocol(IntPtr handle, IntPtr protocolHandle)
     {
-        return Libobjc.int_objc_msgSend(handle, s_conformsToProtocol, protocolHandle) == 1;
+        return Libobjc.byte_objc_msgSend(handle, s_conformsToProtocol, protocolHandle) != 0;
     }
 
     public static bool RespondsToSelector(IntPtr handle, IntPtr selectorHandle)
     {
-        return Libobjc.int_objc_msgSend(handle, s_respondsToSelector, selectorHandle) == 1;
+        return Libobjc.byte_objc_msgSend(handle, s_respondsToSelector, selectorHandle) != 0;
     }
 
     public static string? GetDescription(IntPtr handle) =>

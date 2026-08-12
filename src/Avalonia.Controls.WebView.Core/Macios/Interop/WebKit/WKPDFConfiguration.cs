@@ -23,7 +23,7 @@ internal class WKPDFConfiguration : NSObject
 
     public bool AllowTransparentBackground
     {
-        get => Libobjc.int_objc_msgSend(Handle, s_allowTransparentBackground) == 1;
+        get => Libobjc.byte_objc_msgSend(Handle, s_allowTransparentBackground) != 0;
         set => Libobjc.void_objc_msgSend(Handle, s_setAllowTransparentBackground, value ? 1 : 0);
     }
 }

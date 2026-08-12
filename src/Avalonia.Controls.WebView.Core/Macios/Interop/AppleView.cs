@@ -91,7 +91,7 @@ internal unsafe class AppleView : NSManagedObjectBase
 
     public bool Opaque
     {
-        get => Libobjc.int_objc_msgSend(Handle, s_opaque) == 1;
+        get => Libobjc.byte_objc_msgSend(Handle, s_opaque) != 0;
         set => Libobjc.void_objc_msgSend(Handle, s_setOpaque, value ? 1 : 0);
     }
 
@@ -132,7 +132,7 @@ internal unsafe class AppleView : NSManagedObjectBase
         var windowPtr = Libobjc.intptr_objc_msgSend(Handle, s_window);
         if (windowPtr != IntPtr.Zero)
         {
-            return Libobjc.int_objc_msgSend(windowPtr, s_windowMakeFirstResponder, Handle) == 1;
+            return Libobjc.byte_objc_msgSend(windowPtr, s_windowMakeFirstResponder, Handle) != 0;
         }
 
         return false;
@@ -148,7 +148,7 @@ internal unsafe class AppleView : NSManagedObjectBase
             var avViewPtr = Libobjc.intptr_objc_msgSend(Libobjc.intptr_objc_msgSend(Handle, s_superview), s_superview);
             if (avViewPtr != default && firstResponderPtr == Handle)
             {
-                return Libobjc.int_objc_msgSend(windowPtr, s_windowMakeFirstResponder, avViewPtr) == 1;   
+                return Libobjc.byte_objc_msgSend(windowPtr, s_windowMakeFirstResponder, avViewPtr) != 0;
             }
         }
 
@@ -178,7 +178,7 @@ internal unsafe class AppleView : NSManagedObjectBase
         if (args.Handled)
             return 1;
 
-        return Libobjc.int_objc_msgSendSuper(managedSelf.GetSuperRef(), sel, nsEvent);
+        return Libobjc.byte_objc_msgSendSuper(managedSelf.GetSuperRef(), sel, nsEvent) != 0 ? 1 : 0;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
@@ -195,7 +195,7 @@ internal unsafe class AppleView : NSManagedObjectBase
         if (managedSelf is null)
             return 0;
 
-        if (Libobjc.int_objc_msgSendSuper(managedSelf.GetSuperRef(), sel) == 0)
+        if (Libobjc.byte_objc_msgSendSuper(managedSelf.GetSuperRef(), sel) == 0)
             return 0;
 
         var args = new CancelEventArgs();
@@ -210,7 +210,7 @@ internal unsafe class AppleView : NSManagedObjectBase
         if (managedSelf is null)
             return 0;
 
-        if (Libobjc.int_objc_msgSendSuper(managedSelf.GetSuperRef(), sel) == 0)
+        if (Libobjc.byte_objc_msgSendSuper(managedSelf.GetSuperRef(), sel) == 0)
             return 0;
 
         var args = new CancelEventArgs();

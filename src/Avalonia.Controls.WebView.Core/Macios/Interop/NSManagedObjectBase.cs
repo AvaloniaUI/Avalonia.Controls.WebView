@@ -26,7 +26,7 @@ internal unsafe class NSManagedObjectBase : NSObject
     protected static void RegisterManagedMembers(IntPtr delegateClass)
     {
         var result = Libobjc.class_addIvar(delegateClass, "_managedSelf", new IntPtr(sizeof(IntPtr)), 0, "@");
-        if (result != 1)
+        if (result == 0)
         {
             throw new Exception("Failed to add managed static member");
         }
