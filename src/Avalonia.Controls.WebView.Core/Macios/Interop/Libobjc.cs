@@ -27,17 +27,17 @@ internal static unsafe partial class Libobjc
     public static partial IntPtr sel_getUid(string selector);
 
     [LibraryImport(libobjc, StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int class_addIvar(IntPtr classHandle, string ivarName, IntPtr size, byte alignment, string types);
+    public static partial byte class_addIvar(IntPtr classHandle, string ivarName, IntPtr size, byte alignment, string types);
 
     [LibraryImport(libobjc, StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr objc_allocateClassPair(IntPtr superclass, string selector, int extraBytes);
+    public static partial IntPtr objc_allocateClassPair(IntPtr superclass, string selector, nuint extraBytes);
 
     [LibraryImport(libobjc, StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr objc_getProtocol(string selector);
     [LibraryImport(libobjc)]
-    public static partial int class_addProtocol(IntPtr basePtr, IntPtr protocol);
+    public static partial byte class_addProtocol(IntPtr basePtr, IntPtr protocol);
     [LibraryImport(libobjc, StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int class_addMethod(IntPtr basePtr, IntPtr selector, IntPtr method, string types);
+    public static partial byte class_addMethod(IntPtr basePtr, IntPtr selector, IntPtr method, string types);
     [LibraryImport(libobjc, StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr class_getInstanceVariable(IntPtr basePtr, string variableName);
 
