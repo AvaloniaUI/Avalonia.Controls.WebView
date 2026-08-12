@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -41,20 +40,16 @@ internal unsafe class AppleView : NSManagedObjectBase
     protected static void RegisterMethods(IntPtr thisClass)
     {
         var performKeyEquivalentSel = Libobjc.sel_getUid("performKeyEquivalent:");
-        var result = Libobjc.class_addMethod(thisClass, performKeyEquivalentSel, s_performKeyEquivalent, "B@:@");
-        Debug.Assert(result == 1);
+        AddMethod(thisClass, performKeyEquivalentSel, new IntPtr(s_performKeyEquivalent), "B@:@");
 
         var acceptsFirstResponderSel = Libobjc.sel_getUid("acceptsFirstResponder");
-        result = Libobjc.class_addMethod(thisClass, acceptsFirstResponderSel, s_acceptsFirstResponder, "B@:");
-        Debug.Assert(result == 1);
+        AddMethod(thisClass, acceptsFirstResponderSel, new IntPtr(s_acceptsFirstResponder), "B@:");
 
         var becomeFirstResponderSel = Libobjc.sel_getUid("becomeFirstResponder");
-        result = Libobjc.class_addMethod(thisClass, becomeFirstResponderSel, s_becomeFirstResponder, "B@:");
-        Debug.Assert(result == 1);
+        AddMethod(thisClass, becomeFirstResponderSel, new IntPtr(s_becomeFirstResponder), "B@:");
 
         var resignFirstResponderSel = Libobjc.sel_getUid("resignFirstResponder");
-        result = Libobjc.class_addMethod(thisClass, resignFirstResponderSel, s_resignFirstResponder, "B@:");
-        Debug.Assert(result == 1);
+        AddMethod(thisClass, resignFirstResponderSel, new IntPtr(s_resignFirstResponder), "B@:");
     }
 
     public AppleView(IntPtr handle, bool owns) : base(handle, owns)

@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -40,12 +39,9 @@ internal class NSPrintOperation(IntPtr handle, bool owns) : NSObject(handle, own
         {
             var delegateClass = AllocateClassPair("AvnNSPrintOperationCallback");
 
-            
-            var result = Libobjc.class_addMethod(delegateClass, s_didRunSelector, s_callback, "v@:@i@");
-            Debug.Assert(result == 1);
+            AddMethod(delegateClass, s_didRunSelector, new IntPtr(s_callback), "v@:@i@");
 
-            result = RegisterManagedMembers(delegateClass) ? 1 : 0;
-            Debug.Assert(result == 1);
+            RegisterManagedMembers(delegateClass);
 
             Libobjc.objc_registerClassPair(delegateClass);
             s_class = delegateClass;

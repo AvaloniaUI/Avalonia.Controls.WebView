@@ -37,7 +37,7 @@ internal static unsafe partial class Libobjc
     [LibraryImport(libobjc)]
     public static partial int class_addProtocol(IntPtr basePtr, IntPtr protocol);
     [LibraryImport(libobjc, StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int class_addMethod(IntPtr basePtr, IntPtr selector, void* method, string types);
+    public static partial int class_addMethod(IntPtr basePtr, IntPtr selector, IntPtr method, string types);
     [LibraryImport(libobjc, StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr class_getInstanceVariable(IntPtr basePtr, string variableName);
 

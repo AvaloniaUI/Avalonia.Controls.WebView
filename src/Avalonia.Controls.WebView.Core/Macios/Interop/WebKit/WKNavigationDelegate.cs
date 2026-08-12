@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -20,19 +19,15 @@ internal unsafe class WKNavigationDelegate : NSManagedObjectBase
         var delegateClass = AllocateClassPair("ManagedWKNavigationDelegate");
 
         var protocol = Libobjc.objc_getProtocol("WKNavigationDelegate");
-        var result = Libobjc.class_addProtocol(delegateClass, protocol);
-        Debug.Assert(result == 1);
+        AddProtocol(delegateClass, protocol);
 
         var willPresentNotificationSel = Libobjc.sel_getUid("webView:didFinishNavigation:");
-        result = Libobjc.class_addMethod(delegateClass, willPresentNotificationSel, s_willPresentNotification, "v@:@@");
-        Debug.Assert(result == 1);
+        AddMethod(delegateClass, willPresentNotificationSel, new IntPtr(s_willPresentNotification), "v@:@@");
 
         var didReceiveNotificationResponse = Libobjc.sel_getUid("webView:decidePolicyForNavigationAction:decisionHandler:");
-        result = Libobjc.class_addMethod(delegateClass, didReceiveNotificationResponse, s_decidePolicyForNavigationAction, "v@:@@@");
-        Debug.Assert(result == 1);
+        AddMethod(delegateClass, didReceiveNotificationResponse, new IntPtr(s_decidePolicyForNavigationAction), "v@:@@@");
 
-        result = RegisterManagedMembers(delegateClass) ? 1 : 0;
-        Debug.Assert(result == 1);
+        RegisterManagedMembers(delegateClass);
 
         Libobjc.objc_registerClassPair(delegateClass);
         s_class = delegateClass;

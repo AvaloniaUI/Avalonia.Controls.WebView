@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -41,7 +40,7 @@ internal class WKWebView : AppleView
 
     internal static NSString UserAgentKey { get; } = NSString.Create("userAgent");
 
-    static unsafe WKWebView()
+    static WKWebView()
     {
         var superclass = Libobjc.objc_getClass("WKWebView");
         if (superclass == default)
@@ -54,8 +53,7 @@ internal class WKWebView : AppleView
 
         RegisterMethods(webViewClass);
 
-        var result = RegisterManagedMembers(webViewClass);
-        Debug.Assert(result);
+        RegisterManagedMembers(webViewClass);
 
         Libobjc.objc_registerClassPair(webViewClass);
         s_webViewClass = webViewClass;

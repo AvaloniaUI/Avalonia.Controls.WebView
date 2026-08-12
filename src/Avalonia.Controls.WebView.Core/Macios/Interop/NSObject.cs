@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Avalonia.Logging;
 
 namespace Avalonia.Controls.Macios.Interop;
 
@@ -26,8 +27,10 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
 
     protected NSObject(IntPtr handle, bool owns)
     {
-        if (handle == default)
+        if (handle == IntPtr.Zero)
+        {
             throw new ArgumentNullException(nameof(handle));
+        }
 
         Handle = handle;
         if (owns)
@@ -51,7 +54,66 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
     public static IntPtr AllocateClassPair(string className)
         => AllocateClassPair(s_class, className);
     public static IntPtr AllocateClassPair(IntPtr superclass, string className)
-        => Libobjc.objc_allocateClassPair(superclass, className, 0);
+    {
+        if (superclass == IntPtr.Zero)
+        {
+            throw new ArgumentNullException(nameof(superclass));
+        }
+
+        if (string.IsNullOrEmpty(className))
+        {
+            throw new ArgumentNullException(nameof(className));
+        }
+
+        var result = Libobjc.objc_allocateClassPair(superclass, className, 0);
+        if (result == 0)
+        {
+            throw new ObjectDisposedException(className, "objc_allocateClassPair returned null object");
+        }
+
+        return result;
+    }
+
+    protected static void AddProtocol(IntPtr classHandle, IntPtr protocol)
+    {
+        if (classHandle == IntPtr.Zero)
+        {
+            throw new ArgumentNullException(nameof(classHandle));
+        }
+
+        if (protocol == IntPtr.Zero)
+        {
+            throw new ArgumentNullException(nameof(protocol));
+        }
+
+        if (Libobjc.class_addProtocol(classHandle, protocol) != 1)
+        {
+            throw new ObjectDisposedException("objc_addProtocol returned an error");
+        }
+    }
+
+    protected static void AddMethod(IntPtr classHandle, IntPtr selector, IntPtr methodHandler, string types)
+    {
+        if (classHandle == IntPtr.Zero)
+        {
+            throw new ArgumentNullException(nameof(classHandle));
+        }
+
+        if (selector == IntPtr.Zero)
+        {
+            throw new ArgumentNullException(nameof(selector));
+        }
+
+        if (methodHandler == IntPtr.Zero)
+        {
+            throw new ArgumentNullException(nameof(methodHandler));
+        }
+
+        if (Libobjc.class_addMethod(classHandle, selector, methodHandler, types) != 1)
+        {
+            throw new ObjectDisposedException("objc_addMethod returned an error");
+        }
+    }
 
     public IntPtr Retain() => Libobjc.intptr_objc_msgSend(Handle, s_retainSel);
     public int RetainCount() => Libobjc.int_objc_msgSend(Handle, s_retainCountSel);
