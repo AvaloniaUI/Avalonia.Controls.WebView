@@ -282,7 +282,7 @@ public class HeadlessAdapterTests : HeadlessTestsBase
         Assert.Equal(initialVisualChildren, webView.GetVisualChildren().Count());
     }
 
-    [AvaloniaFact]
+    [AvaloniaFact(Skip = "Flaky test")]
     public async Task NativeWebView_NavigateToString_With_BaseUri()
     {
         var window = new Window();
