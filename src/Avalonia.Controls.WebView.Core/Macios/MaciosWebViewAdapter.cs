@@ -10,6 +10,7 @@ using Avalonia.Controls.Macios.Interop.WebKit;
 using Avalonia.Controls.Utils;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Logging;
 using Avalonia.Media;
 using Avalonia.Platform;
 
@@ -28,6 +29,11 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
     private readonly WKWebView _webView;
     private readonly WKNavigationDelegate _navDelegate;
     private readonly WKScriptMessageHandler _scriptHandler;
+
+    static MaciosWebViewAdapter()
+    {
+        WebKit.PreloadWebKit();
+    }
 
     public MaciosWebViewAdapter(AppleWKWebViewEnvironmentRequestedEventArgs options)
     {
@@ -493,8 +499,21 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
             return WebViewAdapterInfo.PlatformNotSupported(WebViewAdapterType.WkWebView);
         }
 
-        var isAvailable = OperatingSystem.IsMacOSVersionAtLeast(10, 10) ||
-                          OperatingSystem.IsIOSVersionAtLeast(8, 0);
+        string? unavailableReason = null;
+        bool isAvailable = true;
+
+        if (!OperatingSystem.IsMacOSVersionAtLeast(10, 10)
+            && !OperatingSystem.IsIOSVersionAtLeast(8, 0))
+        {
+            isAvailable = false;
+            unavailableReason = "WKWebView requires macOS 10.10+ or iOS 8.0+.";
+        }
+
+        if (isAvailable && !WebKit.PreloadWebKit())
+        {
+            isAvailable = false;
+            unavailableReason = "WebKit.framework is not loaded";
+        }
 
         return new DetailedWebViewAdapterInfo(
             WebViewAdapterType.WkWebView,
@@ -502,7 +521,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
             IsSupported: isAvailable,
             IsInstalled: isAvailable,
             Version: null,
-            UnavailableReason: isAvailable ? null : "WKWebView requires macOS 10.10+ or iOS 8.0+.",
+            UnavailableReason: unavailableReason,
             SupportedScenarios: isAvailable ? scenarios : WebViewEmbeddingScenario.None);
     }
 }

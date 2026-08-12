@@ -7,7 +7,7 @@ namespace Avalonia.Controls.Macios.Interop;
 internal class NSDictionary : NSObject
 {
     private static readonly IntPtr s_class = Libobjc.objc_getClass("NSDictionary");
-    private static readonly IntPtr s_count = Libobjc.objc_getClass("count");
+    private static readonly IntPtr s_count = Libobjc.sel_getUid("count");
     private static readonly IntPtr s_dictionaryWithObjects = Libobjc.sel_getUid("dictionaryWithObjects:forKeys:count:");
     private static readonly nint s_ObjectForKey = Libobjc.sel_getUid("objectForKey:");
 
@@ -58,7 +58,7 @@ internal class NSDictionary : NSObject
         fixed (void* keyPtrs = keys)
         {
             var handle = Libobjc.intptr_objc_msgSend(s_class, s_dictionaryWithObjects, new IntPtr(objPtrs),
-                new IntPtr(keyPtrs), (int)count);
+                new IntPtr(keyPtrs), new UIntPtr(count));
             return new NSDictionary(handle, true);
         }
     }

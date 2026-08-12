@@ -4,7 +4,7 @@ namespace Avalonia.Controls.Macios.Interop.WebKit;
 
 internal class WKPDFConfiguration : NSObject
 {
-    private static readonly IntPtr s_class = WebKit.objc_getClass("WKPDFConfiguration");
+    private static readonly IntPtr s_class = Libobjc.objc_getClass("WKPDFConfiguration");
     private static readonly IntPtr s_rect = Libobjc.sel_getUid("rect");
     private static readonly IntPtr s_setRect = Libobjc.sel_getUid("setRect:");
     private static readonly IntPtr s_allowTransparentBackground = Libobjc.sel_getUid("allowsTransparentBackground");
@@ -23,7 +23,7 @@ internal class WKPDFConfiguration : NSObject
 
     public bool AllowTransparentBackground
     {
-        get => Libobjc.int_objc_msgSend(Handle, s_allowTransparentBackground) == 1;
+        get => Libobjc.byte_objc_msgSend(Handle, s_allowTransparentBackground) != 0;
         set => Libobjc.void_objc_msgSend(Handle, s_setAllowTransparentBackground, value ? 1 : 0);
     }
 }

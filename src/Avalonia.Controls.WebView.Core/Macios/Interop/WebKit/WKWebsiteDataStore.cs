@@ -4,7 +4,7 @@ namespace Avalonia.Controls.Macios.Interop.WebKit;
 
 internal class WKWebsiteDataStore(IntPtr handle, bool owns) : NSObject(handle, owns)
 {
-    private static readonly IntPtr s_class = WebKit.objc_getClass("WKWebsiteDataStore");
+    private static readonly IntPtr s_class = Libobjc.objc_getClass("WKWebsiteDataStore");
     private static readonly IntPtr s_httpCookieStore = Libobjc.sel_getUid("httpCookieStore");
     private static readonly IntPtr s_defaultDataStore = Libobjc.sel_getUid("defaultDataStore");
     private static readonly IntPtr s_nonPersistentDataStore = Libobjc.sel_getUid("nonPersistentDataStore");

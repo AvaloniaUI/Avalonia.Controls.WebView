@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -41,15 +40,20 @@ internal class WKWebView : AppleView
 
     internal static NSString UserAgentKey { get; } = NSString.Create("userAgent");
 
-    static unsafe WKWebView()
+    static WKWebView()
     {
-        var superclass = WebKit.objc_getClass("WKWebView");
+        var superclass = Libobjc.objc_getClass("WKWebView");
+        if (superclass == default)
+        {
+            throw new PlatformNotSupportedException(
+                "The WKWebView Objective-C class is not available, WebKit.framework failed to load.");
+        }
+
         var webViewClass = AllocateClassPair(superclass, "ManagedWKWebView");
 
         RegisterMethods(webViewClass);
 
-        var result = RegisterManagedMembers(webViewClass);
-        Debug.Assert(result);
+        RegisterManagedMembers(webViewClass);
 
         Libobjc.objc_registerClassPair(webViewClass);
         s_webViewClass = webViewClass;
@@ -77,8 +81,8 @@ internal class WKWebView : AppleView
         new(handle, false) :
         null;
 
-    public bool CanGoBack => Libobjc.int_objc_msgSend(Handle, s_canGoBack) == 1;
-    public bool CanGoForward => Libobjc.int_objc_msgSend(Handle, s_canGoForward) == 1;
+    public bool CanGoBack => Libobjc.byte_objc_msgSend(Handle, s_canGoBack) != 0;
+    public bool CanGoForward => Libobjc.byte_objc_msgSend(Handle, s_canGoForward) != 0;
 
     public IntPtr GoBack() => Libobjc.intptr_objc_msgSend(Handle, s_goBack);
     public IntPtr GoForward() => Libobjc.intptr_objc_msgSend(Handle, s_goForward);

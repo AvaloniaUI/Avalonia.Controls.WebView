@@ -23,23 +23,13 @@ internal unsafe class NSManagedObjectBase : NSObject
         WriteManagedSelf();
     }
 
-    protected static bool RegisterManagedMembers(IntPtr delegateClass)
+    protected static void RegisterManagedMembers(IntPtr delegateClass)
     {
-        int result;
-
-#if DEBUG && FALSE
-        result = Libobjc.class_addMethod(delegateClass, Libobjc.sel_getUid("dealloc"), s_dealloc, "v@:");
-        Debug.Assert(result == 1);
-
-        result = Libobjc.class_addMethod(delegateClass, Libobjc.sel_getUid("retain"), s_retain, "@@:");
-        Debug.Assert(result == 1);
-
-        result = Libobjc.class_addMethod(delegateClass, Libobjc.sel_getUid("release"), s_release, "v@:");
-        Debug.Assert(result == 1);
-#endif
-
-        result = Libobjc.class_addIvar(delegateClass, "_managedSelf", new IntPtr(sizeof(IntPtr)), 0, "@");
-        return result == 1;
+        var result = Libobjc.class_addIvar(delegateClass, "_managedSelf", new IntPtr(sizeof(IntPtr)), 0, "@");
+        if (result == 0)
+        {
+            throw new Exception("Failed to add managed static member");
+        }
     }
 
     private void WriteManagedSelf()

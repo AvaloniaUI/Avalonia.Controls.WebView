@@ -4,7 +4,7 @@ namespace Avalonia.Controls.Macios.Interop.WebKit;
 
 internal class WKWebViewConfiguration : NSObject
 {
-    private static readonly IntPtr s_class = WebKit.objc_getClass("WKWebViewConfiguration");
+    private static readonly IntPtr s_class = Libobjc.objc_getClass("WKWebViewConfiguration");
     private static readonly IntPtr s_defaultWebpagePreferences = Libobjc.sel_getUid("defaultWebpagePreferences");
     private static readonly IntPtr s_setAllowsContentJavaScript = Libobjc.sel_getUid("setAllowsContentJavaScript:");
 
@@ -40,13 +40,13 @@ internal class WKWebViewConfiguration : NSObject
 
     public bool UpgradeKnownHostsToHTTPS
     {
-        get => Libobjc.int_objc_msgSend(Handle, s_upgradeKnownHostsToHTTPS) == 1;
+        get => Libobjc.byte_objc_msgSend(Handle, s_upgradeKnownHostsToHTTPS) != 0;
         set => Libobjc.void_objc_msgSend(Handle, s_setUpgradeKnownHostsToHTTPS, value ? 1 : 0);
     }
 
     public bool LimitsNavigationsToAppBoundDomains
     {
-        get => Libobjc.int_objc_msgSend(Handle, s_limitsNavigationsToAppBoundDomains) == 1;
+        get => Libobjc.byte_objc_msgSend(Handle, s_limitsNavigationsToAppBoundDomains) != 0;
         set => Libobjc.void_objc_msgSend(Handle, s_setLimitsNavigationsToAppBoundDomains, value ? 1 : 0);
     }
 

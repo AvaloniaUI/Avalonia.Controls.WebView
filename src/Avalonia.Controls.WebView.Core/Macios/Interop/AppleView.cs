@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -43,20 +42,16 @@ internal unsafe class AppleView : NSManagedObjectBase
     protected static void RegisterMethods(IntPtr thisClass)
     {
         var performKeyEquivalentSel = Libobjc.sel_getUid("performKeyEquivalent:");
-        var result = Libobjc.class_addMethod(thisClass, performKeyEquivalentSel, s_performKeyEquivalent, "B@:@");
-        Debug.Assert(result == 1);
+        AddMethod(thisClass, performKeyEquivalentSel, new IntPtr(s_performKeyEquivalent), "B@:@");
 
         var acceptsFirstResponderSel = Libobjc.sel_getUid("acceptsFirstResponder");
-        result = Libobjc.class_addMethod(thisClass, acceptsFirstResponderSel, s_acceptsFirstResponder, "B@:");
-        Debug.Assert(result == 1);
+        AddMethod(thisClass, acceptsFirstResponderSel, new IntPtr(s_acceptsFirstResponder), "B@:");
 
         var becomeFirstResponderSel = Libobjc.sel_getUid("becomeFirstResponder");
-        result = Libobjc.class_addMethod(thisClass, becomeFirstResponderSel, s_becomeFirstResponder, "B@:");
-        Debug.Assert(result == 1);
+        AddMethod(thisClass, becomeFirstResponderSel, new IntPtr(s_becomeFirstResponder), "B@:");
 
         var resignFirstResponderSel = Libobjc.sel_getUid("resignFirstResponder");
-        result = Libobjc.class_addMethod(thisClass, resignFirstResponderSel, s_resignFirstResponder, "B@:");
-        Debug.Assert(result == 1);
+        AddMethod(thisClass, resignFirstResponderSel, new IntPtr(s_resignFirstResponder), "B@:");
     }
 
     public AppleView(IntPtr handle, bool owns) : base(handle, owns)
@@ -98,7 +93,7 @@ internal unsafe class AppleView : NSManagedObjectBase
 
     public bool Opaque
     {
-        get => Libobjc.int_objc_msgSend(Handle, s_opaque) == 1;
+        get => Libobjc.byte_objc_msgSend(Handle, s_opaque) != 0;
         set => Libobjc.void_objc_msgSend(Handle, s_setOpaque, value ? 1 : 0);
     }
 
@@ -143,7 +138,7 @@ internal unsafe class AppleView : NSManagedObjectBase
         var windowPtr = Libobjc.intptr_objc_msgSend(Handle, s_window);
         if (windowPtr != IntPtr.Zero)
         {
-            return Libobjc.int_objc_msgSend(windowPtr, s_windowMakeFirstResponder, Handle) == 1;
+            return Libobjc.byte_objc_msgSend(windowPtr, s_windowMakeFirstResponder, Handle) != 0;
         }
 
         return false;
@@ -159,7 +154,7 @@ internal unsafe class AppleView : NSManagedObjectBase
             var avViewPtr = Libobjc.intptr_objc_msgSend(Libobjc.intptr_objc_msgSend(Handle, s_superview), s_superview);
             if (avViewPtr != default && firstResponderPtr == Handle)
             {
-                return Libobjc.int_objc_msgSend(windowPtr, s_windowMakeFirstResponder, avViewPtr) == 1;   
+                return Libobjc.byte_objc_msgSend(windowPtr, s_windowMakeFirstResponder, avViewPtr) != 0;
             }
         }
 
@@ -189,7 +184,7 @@ internal unsafe class AppleView : NSManagedObjectBase
         if (args.Handled)
             return 1;
 
-        return Libobjc.int_objc_msgSendSuper(managedSelf.GetSuperRef(), sel, nsEvent);
+        return Libobjc.byte_objc_msgSendSuper(managedSelf.GetSuperRef(), sel, nsEvent) != 0 ? 1 : 0;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
@@ -206,7 +201,7 @@ internal unsafe class AppleView : NSManagedObjectBase
         if (managedSelf is null)
             return 0;
 
-        if (Libobjc.int_objc_msgSendSuper(managedSelf.GetSuperRef(), sel) == 0)
+        if (Libobjc.byte_objc_msgSendSuper(managedSelf.GetSuperRef(), sel) == 0)
             return 0;
 
         var args = new CancelEventArgs();
@@ -221,7 +216,7 @@ internal unsafe class AppleView : NSManagedObjectBase
         if (managedSelf is null)
             return 0;
 
-        if (Libobjc.int_objc_msgSendSuper(managedSelf.GetSuperRef(), sel) == 0)
+        if (Libobjc.byte_objc_msgSendSuper(managedSelf.GetSuperRef(), sel) == 0)
             return 0;
 
         var args = new CancelEventArgs();

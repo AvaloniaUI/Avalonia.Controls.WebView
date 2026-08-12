@@ -7,7 +7,7 @@ namespace Avalonia.Controls.Macios.Interop.AuthenticationServices;
 [SupportedOSPlatform("ios17.4")]
 internal class ASWebAuthenticationSessionCallback : NSObject
 {
-    private static readonly IntPtr s_class = AuthenticationServices.objc_getClass("ASWebAuthenticationSessionCallback");
+    private static readonly IntPtr s_class = Libobjc.objc_getClass("ASWebAuthenticationSessionCallback");
     private static readonly IntPtr s_callbackWithCustomScheme = Libobjc.sel_getUid("callbackWithCustomScheme:");
 
     private ASWebAuthenticationSessionCallback(IntPtr handle, bool owns) : base(handle, owns)

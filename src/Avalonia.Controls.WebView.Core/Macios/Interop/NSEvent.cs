@@ -15,9 +15,10 @@ internal class NSEvent : NSObject
 
     public string? CharactersIgnoringModifiers =>
         NSString.GetString(Libobjc.intptr_objc_msgSend(Handle, s_charactersIgnoringModifiers));
-    public int KeyCode => Libobjc.int_objc_msgSend(Handle, s_keyCode); // ushort?
-    public NSEventModifierMask ModifierFlags => (NSEventModifierMask)Libobjc.int_objc_msgSend(Handle, s_modifierFlags);
-    public int Type => Libobjc.int_objc_msgSend(Handle, s_type);
+    public int KeyCode => Libobjc.ushort_objc_msgSend(Handle, s_keyCode);
+    public NSEventModifierMask ModifierFlags =>
+        (NSEventModifierMask)(uint)Libobjc.nuint_objc_msgSend(Handle, s_modifierFlags);
+    public int Type => (int)Libobjc.nuint_objc_msgSend(Handle, s_type);
 
     [Flags]
     public enum NSEventModifierMask : uint

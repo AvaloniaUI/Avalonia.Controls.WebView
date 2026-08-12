@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -20,16 +19,15 @@ internal unsafe class WKScriptMessageHandler : NSManagedObjectBase
     {
         var delegateClass = AllocateClassPair("ManagedWKScriptMessageHandler");
 
-        var protocol = WebKit.objc_getProtocol("WKScriptMessageHandler");
-        var result = Libobjc.class_addProtocol(delegateClass, protocol);
-        Debug.Assert(result == 1);
+        if (Libobjc.objc_getProtocol("WKScriptMessageHandler") is var protocol and > 0)
+        {
+            AddProtocol(delegateClass, protocol);   
+        }
 
         var willPresentNotificationSel = Libobjc.sel_getUid("userContentController:didReceiveScriptMessage:");
-        result = Libobjc.class_addMethod(delegateClass, willPresentNotificationSel, s_didReceiveScriptMessage, "v@:@@");
-        Debug.Assert(result == 1);
+        AddMethod(delegateClass, willPresentNotificationSel, new IntPtr(s_didReceiveScriptMessage), "v@:@@");
 
-        result = RegisterManagedMembers(delegateClass) ? 1 : 0;
-        Debug.Assert(result == 1);
+        RegisterManagedMembers(delegateClass);
 
         Libobjc.objc_registerClassPair(delegateClass);
         s_class = delegateClass;

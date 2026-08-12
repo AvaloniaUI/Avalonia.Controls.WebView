@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -14,20 +13,21 @@ internal unsafe class ASWebAuthenticationPresentationContextProviding(IntPtr win
 
     static ASWebAuthenticationPresentationContextProviding()
     {
+        AuthenticationServices.PreloadAuthenticationServices();
+
         var delegateClass = AllocateClassPair("ManagedASWebAuthenticationPresentationContextProviding");
 
-        var protocol = AuthenticationServices.objc_getProtocol("ASWebAuthenticationPresentationContextProviding");
-        var result = Libobjc.class_addProtocol(delegateClass, protocol);
-        Debug.Assert(result == 1);
+        if (Libobjc.objc_getProtocol("ASWebAuthenticationPresentationContextProviding") is var protocol and > 0)
+        {
+            AddProtocol(delegateClass, protocol);   
+        }
 
-        result = Libobjc.class_addMethod(delegateClass,
+        AddMethod(delegateClass,
             Libobjc.sel_getUid("presentationAnchorForWebAuthenticationSession:"),
-            s_presentationAnchorForWebAuthenticationSession,
+            new IntPtr(s_presentationAnchorForWebAuthenticationSession),
             "@@:@");
-        Debug.Assert(result == 1);
 
-        result = RegisterManagedMembers(delegateClass) ? 1 : 0;
-        Debug.Assert(result == 1);
+        RegisterManagedMembers(delegateClass);
 
         Libobjc.objc_registerClassPair(delegateClass);
         s_class = delegateClass;
