@@ -282,6 +282,76 @@ public class HeadlessAdapterTests : HeadlessTestsBase
         Assert.Equal(initialVisualChildren, webView.GetVisualChildren().Count());
     }
 
+    [AvaloniaFact]
+    public async Task NativeWebView_Reattach_Navigates_To_Source_Set_While_Attached()
+    {
+        var (window, panel, webView) = CreateReattachableWebView();
+        window.Show();
+
+        var first = new Uri("https://first.com/");
+        var second = new Uri("https://second.com/");
+
+        webView.Source = first;
+        await DoDelay();
+        Assert.Equal(first, webView.Source);
+
+        // Source is changed while the adapter is still alive, so it is applied on the adapter directly.
+        webView.Source = second;
+        await DoDelay();
+        Assert.Equal(second, webView.Source);
+
+        await ReattachAsync(panel, webView);
+
+        // Recreated adapter should navigate to the last source and not to the very first one.
+        Assert.Equal(second, webView.Source);
+    }
+
+    [AvaloniaFact]
+    public async Task NativeWebView_Reattach_Navigates_To_Source_Set_While_Detached()
+    {
+        var (window, panel, webView) = CreateReattachableWebView();
+        window.Show();
+
+        var first = new Uri("https://first.com/");
+        var second = new Uri("https://second.com/");
+
+        webView.Source = first;
+        await DoDelay();
+
+        panel.Children.Remove(webView);
+        await DoDelay();
+
+        webView.Source = second;
+
+        var adapterCreated = WaitForAdapterCreation(webView);
+        panel.Children.Add(webView);
+        await adapterCreated;
+        await DoDelay();
+
+        Assert.Equal(second, webView.Source);
+    }
+
+    private static (Window window, StackPanel panel, NativeWebView webView) CreateReattachableWebView()
+    {
+        var panel = new StackPanel();
+        var window = new Window { Content = panel };
+        var webView = new NativeWebView();
+        webView.EnvironmentRequested += (_, _) => { };
+        panel.Children.Add(webView);
+        return (window, panel, webView);
+    }
+
+    private async Task ReattachAsync(Panel panel, NativeWebView webView)
+    {
+        panel.Children.Remove(webView);
+        await DoDelay();
+
+        var adapterCreated = WaitForAdapterCreation(webView);
+        panel.Children.Add(webView);
+        await adapterCreated;
+        await DoDelay();
+    }
+
     [AvaloniaFact(Skip = "Flaky test")]
     public async Task NativeWebView_NavigateToString_With_BaseUri()
     {

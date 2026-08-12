@@ -42,7 +42,7 @@ namespace Avalonia.Xpf.Controls
     {
         private bool _ignoreNavigation;
         private bool _ignoreFocusChanges;
-        private object? _initialSource;
+        private object? _lastSource;
 
         private EventHandler<Core.WebViewNavigationCompletedEventArgs>? _navigationCompleted;
         private EventHandler<Core.WebViewNavigationStartingEventArgs>? _navigationStarted;
@@ -97,14 +97,21 @@ namespace Avalonia.Xpf.Controls
         {
             _navigationCompleted += (_, e) =>
             {
+                var source = e.Request ?? Core.WebViewHelper.EmptyPage;
+
                 _ignoreNavigation = true;
                 try
                 {
-                    SetCurrentValue(SourceProperty, e.Request ?? Core.WebViewHelper.EmptyPage);
+                    SetCurrentValue(SourceProperty, source);
                 }
                 finally
                 {
                     _ignoreNavigation = false;
+                }
+
+                if (_lastSource is not ValueTuple<string, Uri>)
+                {
+                    _lastSource = source;
                 }
             };
 
@@ -355,19 +362,15 @@ namespace Avalonia.Xpf.Controls
         /// <inheritdoc/>
         public void Navigate(Uri url)
         {
-            if (TryGetAdapter() is { } adapter)
-                adapter.Navigate(url);
-            else
-                _initialSource = url;
+            _lastSource = url;
+            TryGetAdapter()?.Navigate(url);
         }
 
         /// <inheritdoc/>
         public void NavigateToString([StringSyntax("html")] string text, Uri? baseUri = null)
         {
-            if (TryGetAdapter() is { } adapter)
-                adapter.NavigateToString(text, baseUri);
-            else
-                _initialSource = (text, baseUri);
+            _lastSource = (text, baseUri);
+            TryGetAdapter()?.NavigateToString(text, baseUri);
         }
 
         /// <inheritdoc/>
@@ -595,11 +598,11 @@ namespace Avalonia.Xpf.Controls
                 withInput.Input += WithInputOnInput;
             }
 
-            if (_initialSource is Uri url)
+            if (_lastSource is Uri url)
             {
                 adapter.Navigate(url);
             }
-            else if (_initialSource is ValueTuple<string, Uri> pair)
+            else if (_lastSource is ValueTuple<string, Uri> pair)
             {
                 adapter.NavigateToString(pair.Item1, pair.Item2);
             }

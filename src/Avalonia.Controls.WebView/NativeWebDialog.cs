@@ -33,7 +33,7 @@ namespace Avalonia.Xpf.Controls
         private EventHandler<Core.WebViewNewWindowRequestedEventArgs>? _newWindowRequested;
         private EventHandler<Core.WebMessageReceivedEventArgs>? _webMessageReceived;
         private EventHandler<Core.WebResourceRequestedEventArgs>? _webResourceRequested;
-        private object? _initialSource;
+        private object? _lastSource;
         private string? _initialTitle;
         private bool? _initialCanUserResize;
         private PixelSize? _initialSize;
@@ -79,16 +79,13 @@ namespace Avalonia.Xpf.Controls
         /// <inheritdoc/>
         public Uri Source
         {
-            get => TryGetAdapter()?.Source ?? _initialSource as Uri ?? Core.WebViewHelper.EmptyPage;
+            get => TryGetAdapter()?.Source ?? _lastSource as Uri ?? Core.WebViewHelper.EmptyPage;
             set
             {
+                _lastSource = value;
                 if (TryGetAdapter() is { } adapter)
                 {
                     adapter.Source = value;
-                }
-                else
-                {
-                    _initialSource = value;
                 }
             }
         }
@@ -225,19 +222,15 @@ namespace Avalonia.Xpf.Controls
         /// <inheritdoc/>
         public void Navigate(Uri url)
         {
-            if (TryGetAdapter() is { } adapter)
-                adapter.Navigate(url);
-            else
-                _initialSource = url;
+            _lastSource = url;
+            TryGetAdapter()?.Navigate(url);
         }
 
         /// <inheritdoc/>
         public void NavigateToString([StringSyntax("html")] string text, Uri? baseUri = null)
         {
-            if (TryGetAdapter() is { } adapter)
-                adapter.NavigateToString(text, baseUri);
-            else
-                _initialSource = (text, baseUri);
+            _lastSource = (text, baseUri);
+            TryGetAdapter()?.NavigateToString(text, baseUri);
         }
 
         /// <inheritdoc/>
@@ -492,9 +485,9 @@ namespace Avalonia.Xpf.Controls
                 adapter.WebResourceRequested += WebViewAdapterOnWebResourceRequested;
             if (_newWindowRequested is not null)
                 adapter.NewWindowRequested += WebViewAdapterOnNewWindowRequested;
-            if (_initialSource is Uri url)
+            if (_lastSource is Uri url)
                 adapter.Source = url;
-            else if (_initialSource is ValueTuple<string, Uri?> pair)
+            else if (_lastSource is ValueTuple<string, Uri?> pair)
                 adapter.NavigateToString(pair.Item1, pair.Item2);
             AdapterCreated?.Invoke(this, e);
         }
