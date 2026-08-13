@@ -397,7 +397,11 @@ public partial class MainView : UserControl
             Source = Uri.TryCreate(GridWebViewSource.Text, UriKind.Absolute, out var source) ?
                 source :
                 new Uri("about:blank"),
-            Title = "Avalonia WebView Demo" 
+            Title = "Avalonia WebView Demo"
+        };
+        dialog.EnvironmentRequested += (_, args) =>
+        {
+            args.EnableDevTools = true;
         };
         dialog.Show();
     }
