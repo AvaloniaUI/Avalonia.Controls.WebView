@@ -56,7 +56,10 @@ namespace Avalonia.Xpf.Controls
 
                 _controlHostImpl.AdapterCreated += (_, adapter) =>
                 {
-                    adapter.DefaultBackground = _initialDefaultBackground ?? Colors.Transparent;
+                    // Opaque by default, so web pages without their own background stay readable with a dark theme.
+                    var background = _initialDefaultBackground ?? Colors.White;
+                    adapter.DefaultBackground = background;
+                    ApplyWindowBackground(background);
                     AdapterCreated?.Invoke(this, new Core.WebViewAdapterEventArgs(adapter));
                 };
                 _controlHostImpl.AdapterDestroyed += (_, adapter) => AdapterDestroyed?.Invoke(this, new Core.WebViewAdapterEventArgs(adapter));
@@ -77,15 +80,24 @@ namespace Avalonia.Xpf.Controls
         {
             set
             {
+                _initialDefaultBackground = value;
                 if (_controlHostImpl?.TryGetAdapter() is { } adapter)
                 {
                     adapter.DefaultBackground = value;
                 }
-                else
-                {
-                    _initialDefaultBackground = value;
-                }
+                ApplyWindowBackground(value);
             }
+        }
+
+        // The webview may be composited into the window (or transparent on macOS),
+        // so the window itself has to use the same color.
+        private void ApplyWindowBackground(Color color)
+        {
+#if WPF
+            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(color.A, color.R, color.G, color.B));
+#elif AVALONIA
+            Background = new Media.SolidColorBrush(color);
+#endif
         }
 
         public void Dispose() => Close();

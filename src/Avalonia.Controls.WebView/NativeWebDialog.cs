@@ -7,6 +7,8 @@ using Avalonia.Controls.Gtk;
 using AvPlatform = Avalonia.Platform;
 using Core = Avalonia.Controls;
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
+using Color = Avalonia.Media.Color;
+using Colors = Avalonia.Media.Colors;
 #if WPF
 using AvaloniaUI.Xpf.WpfAbstractions;
 using Window = System.Windows.Window;
@@ -38,6 +40,7 @@ namespace Avalonia.Xpf.Controls
         private bool? _initialCanUserResize;
         private PixelSize? _initialSize;
         private PixelPoint? _initialPosition;
+        private Color? _initialDefaultBackground;
         private bool _disposed;
         private bool _dialogInitialized;
 
@@ -276,6 +279,24 @@ namespace Avalonia.Xpf.Controls
             }
         }
 
+        /// <summary>
+        /// Gets or sets the background color of the dialog and of the webview hosted inside of it.
+        /// If null, the owner background is used, falling back to white.
+        /// </summary>
+        public Color? DefaultBackground
+        {
+            get => _initialDefaultBackground;
+            set
+            {
+                _initialDefaultBackground = value;
+                if (value is { } background
+                    && TryGetImpl() is { } impl)
+                {
+                    impl.DefaultBackground = background;
+                }
+            }
+        }
+
         /// <inheritdoc cref="Core.INativeWebViewDialog.Closing"/>
         public event EventHandler? Closing;
         /// <inheritdoc cref="Core.INativeWebViewDialog.Show()"/>
@@ -294,6 +315,12 @@ namespace Avalonia.Xpf.Controls
 #endif
         {
             var impl = await GetOrInitialize();
+
+            // Not stored in _initialDefaultBackground, so the owner is still resolved again on the next Show call.
+            if (_initialDefaultBackground is null)
+            {
+                impl.DefaultBackground = GetOwnerBackground(owner);
+            }
 
 #if WPF
             var avTopLevel = XpfWpfAbstraction.GetAvaloniaTopLevelForWindow(owner);
@@ -316,6 +343,18 @@ namespace Avalonia.Xpf.Controls
                 impl.Show();
             }
         }
+
+#if WPF
+        private static Color GetOwnerBackground(Window owner) =>
+            owner.Background is System.Windows.Media.SolidColorBrush solid ?
+                new Color(solid.Color.A, solid.Color.R, solid.Color.G, solid.Color.B) :
+                Colors.White;
+#elif AVALONIA
+        private static Color GetOwnerBackground(TopLevel owner) =>
+            owner.Background is Media.ISolidColorBrush solid ?
+                solid.Color :
+                Colors.White;
+#endif
 
         private async Task<Core.INativeWebViewDialog> GetOrInitialize()
         {
@@ -439,6 +478,8 @@ namespace Avalonia.Xpf.Controls
                 dialogImpl.Move(position.X, position.Y);
             if (_initialSize is { } size)
                 dialogImpl.Resize(size.Width, size.Height);
+            if (_initialDefaultBackground is { } background)
+                dialogImpl.DefaultBackground = background;
 
             _implTcs.SetResult(dialogImpl);
 
