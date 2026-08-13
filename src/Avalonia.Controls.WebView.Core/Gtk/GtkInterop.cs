@@ -455,10 +455,11 @@ internal static unsafe partial class GtkInterop
         delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void> func,
         GCHandle user_data);
 
+    // Don't return string for SOUP headers, we don't want to auto-release them (as it's done by LibraryImport)
     [LibraryImport(LibSoup, StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string? soup_message_headers_get_list(IntPtr headers, string name);
+    public static partial IntPtr soup_message_headers_get_list(IntPtr headers, string name);
     [LibraryImport(LibSoup, StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string? soup_message_headers_get_one(IntPtr headers, string name);
+    public static partial IntPtr soup_message_headers_get_one(IntPtr headers, string name);
     [LibraryImport(LibSoup, StringMarshalling = StringMarshalling.Utf8)]
     public static partial void soup_message_headers_replace(IntPtr headers, string name, string value);
     [LibraryImport(LibSoup, StringMarshalling = StringMarshalling.Utf8)]
