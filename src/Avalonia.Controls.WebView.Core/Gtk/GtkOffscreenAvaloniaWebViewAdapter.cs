@@ -38,7 +38,7 @@ internal sealed class GtkOffscreenAvaloniaWebViewAdapter : GtkOffscreenWebViewAd
         // detached, so handing out a cached instance leaves a dead web view after a re-attach.
         WebViewAdapter.OffscreenWebViewAdapterBuilder builder = async parent =>
         {
-            using var backendScope = EnsureX11GdkBackendForGtkInit();
+            using var backendScope = PrepareGdkBackendForGtkInit(environmentArgs.ForceX11GdkBackend);
             var adapter = await RunOnGlibThreadAsync(() => new GtkOffscreenAvaloniaWebViewAdapter(environmentArgs));
             adapter.Parent = parent;
             return adapter;

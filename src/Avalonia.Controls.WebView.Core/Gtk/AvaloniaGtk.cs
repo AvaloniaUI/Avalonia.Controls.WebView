@@ -66,13 +66,11 @@ internal static partial class AvaloniaGtk
     public static bool HasSoup3 { get; }
 
     /// <summary>
-    /// Ensures GDK_BACKEND=x11 is in effect for the duration of the bridge call that
-    /// initializes GTK in Avalonia.X11.NativeDialogs.Gtk. The X11 GTK adapters in this
-    /// package use X11/GDK-X11-only entry points and require the X11 GDK backend; under
-    /// a Wayland session GDK_BACKEND is typically pre-set to "wayland" by the desktop,
-    /// which would otherwise cause `gtk_init` to fail with "Unable to initialize GTK".
+    /// Checks that GTK can initialize with the x11 GDK backend, which the GTK adapters require.
+    /// GDK_BACKEND replaces the backend list, while Avalonia only filters it with
+    /// gdk_set_allowed_backends("x11"), so any other explicit value makes gtk_init fail.
     /// </summary>
-    public static IDisposable EnsureX11GdkBackendForGtkInit()
+    public static IDisposable PrepareGdkBackendForGtkInit(bool forceX11)
     {
         if (!OperatingSystem.IsLinux())
             return EmptyScope.Instance;
@@ -81,11 +79,16 @@ internal static partial class AvaloniaGtk
         {
             if (s_overrideCount == 0)
             {
+                // Unset is fine: GDK then falls back to the backends Avalonia allowed, i.e. x11 only.
                 var current = Environment.GetEnvironmentVariable("GDK_BACKEND");
-                if (string.Equals(current, "x11", StringComparison.Ordinal))
+                if (current is not { Length: > 0 } || string.Equals(current, "x11", StringComparison.Ordinal))
                     return EmptyScope.Instance;
-                if (current is { Length: > 0 } && !string.Equals(current, "wayland", StringComparison.Ordinal))
+
+                if (!forceX11)
+                {
+                    ReportUnsupportedBackend(current);
                     return EmptyScope.Instance;
+                }
 
                 int rc;
                 try { rc = LibC.setenv("GDK_BACKEND", "x11", 1); }
@@ -94,9 +97,10 @@ internal static partial class AvaloniaGtk
                 if (rc != 0)
                 {
                     Logger.TryGet(LogEventLevel.Warning, "WebView")?.Log(null,
-                        "libc setenv(GDK_BACKEND, x11) returned {Rc}; gtk_init may still pick Wayland", rc);
+                        "libc setenv(GDK_BACKEND, x11) returned {Rc}; gtk_init may still fail", rc);
                     return EmptyScope.Instance;
                 }
+                // Keep the managed cache in step, it doesn't share storage with libc's environ.
                 Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
                 s_savedBackend = current;
             }
@@ -105,9 +109,22 @@ internal static partial class AvaloniaGtk
         return new RestoreGdkBackendScope();
     }
 
+    private static void ReportUnsupportedBackend(string current)
+    {
+        if (s_reportedUnsupportedBackend)
+            return;
+        s_reportedUnsupportedBackend = true;
+
+        Logger.TryGet(LogEventLevel.Error, "WebView")?.Log(null,
+            "GDK_BACKEND is set to {Backend}, but the GTK web view requires the x11 GDK backend, " +
+            "so GTK initialization is expected to fail. Either run with GDK_BACKEND=x11, or set " +
+            "ForceX11GdkBackend on GtkWebViewEnvironmentRequestedEventArgs.", current);
+    }
+
     private static readonly object s_overrideLock = new();
     private static int s_overrideCount;
     private static string? s_savedBackend;
+    private static bool s_reportedUnsupportedBackend;
 
     private sealed class EmptyScope : IDisposable
     {
@@ -126,15 +143,13 @@ internal static partial class AvaloniaGtk
             {
                 if (--s_overrideCount > 0)
                     return;
+                // Only ever set when GDK_BACKEND already had a value, so there is nothing to unset.
                 var previous = s_savedBackend;
                 s_savedBackend = null;
-                try
-                {
-                    if (previous is null)
-                        LibC.unsetenv("GDK_BACKEND");
-                    else
-                        LibC.setenv("GDK_BACKEND", previous, 1);
-                }
+                if (previous is null)
+                    return;
+
+                try { LibC.setenv("GDK_BACKEND", previous, 1); }
                 catch (DllNotFoundException) { }
                 catch (EntryPointNotFoundException) { }
                 Environment.SetEnvironmentVariable("GDK_BACKEND", previous);

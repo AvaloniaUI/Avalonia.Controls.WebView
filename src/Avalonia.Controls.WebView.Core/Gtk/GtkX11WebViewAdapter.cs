@@ -39,7 +39,7 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
         WebViewAdapter.NativeWebViewAdapterBuilder builder = (parent, _) =>
         {
             WebViewDispatcher.VerifyAccess();
-            using var backendScope = EnsureX11GdkBackendForGtkInit();
+            using var backendScope = PrepareGdkBackendForGtkInit(environmentArgs.ForceX11GdkBackend);
             var adapter = RunOnGlibThread(() => new GtkX11WebViewAdapter(environmentArgs));
             adapter.SetParent(parent);
             return new WebViewAdapter.AdapterWrapper(adapter, Task.FromResult<IWebViewAdapter>(adapter));
