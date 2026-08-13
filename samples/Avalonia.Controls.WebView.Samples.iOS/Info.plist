@@ -12,6 +12,10 @@
 	<string>1.0</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>The GetUserMedia sample page uses the camera to demonstrate WebView media capture.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The GetUserMedia sample page uses the microphone to demonstrate WebView media capture.</string>
 	<key>MinimumOSVersion</key>
 	<string>13.0</string>
 	<key>UIDeviceFamily</key>
