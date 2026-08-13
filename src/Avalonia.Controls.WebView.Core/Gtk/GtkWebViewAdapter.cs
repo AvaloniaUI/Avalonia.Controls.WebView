@@ -48,6 +48,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, IntPtr, void>)&ResourceLoadStartedCallback);
 
     private readonly IntPtr _settings;
+    private IntPtr _webViewHandle;
     private GtkSignal? _loadChangedSignal;
     private GtkSignal? _decidePolicySignal;
     private GtkSignal? _focusInSignal;
@@ -107,7 +108,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
             context = webkit_web_context_get_default();
         }
 
-        WebViewHandle = webkit_web_view_new_with_context(context);
+        _webViewHandle = webkit_web_view_new_with_context(context);
 
         var contentManager = webkit_web_view_get_user_content_manager(WebViewHandle);
         _scriptMessageReceivedSignal = new GtkSignal(contentManager, $"script-message-received::{PostAvWebViewMessageName}", s_scriptMessageReceivedCallback, this);
@@ -143,7 +144,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
         _resourceLoadStarted = new GtkSignal(WebViewHandle, "resource-load-started", s_resourceLoadStartedCallback, this);
     }
 
-    public IntPtr WebViewHandle { get; private set; }
+    public IntPtr WebViewHandle => _webViewHandle;
 
     IntPtr IPlatformHandle.Handle => WebViewHandle;
     string IPlatformHandle.HandleDescriptor => "WebKitWebView";
@@ -623,16 +624,21 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
             Interlocked.Exchange(ref _resourceLoadStarted, null)?.Dispose();
         }
 
-        WebViewHandle = IntPtr.Zero;
+        var webView = Interlocked.Exchange(ref _webViewHandle, IntPtr.Zero);
+        if (webView != IntPtr.Zero)
+        {
+            gtk_widget_destroy(webView);
+            g_object_unref(webView);
+        }
     }
 
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
         RunOnGlibThreadAsync(() =>
         {
             DisposeSafe(true);
         });
-        GC.SuppressFinalize(this);
     }
 
     ~GtkWebViewAdapter()
