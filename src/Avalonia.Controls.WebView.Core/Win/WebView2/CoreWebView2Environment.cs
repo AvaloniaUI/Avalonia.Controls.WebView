@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls.Win.WebView2.Interop;
 using Avalonia.Logging;
@@ -16,8 +17,13 @@ namespace Avalonia.Controls.Win.WebView2;
 internal static partial class CoreWebView2Environment
 {
     private enum WebView2RunTimeType { kInstalled = 0x0, kRedistributable = 0x1 }
+    private static readonly Dictionary<EnvironmentOptions, EnvironmentEntry> s_environments = new();
 
-    private static readonly Dictionary<EnvironmentOptions, TaskCompletionSource<ICoreWebView2Environment>> s_environments = new();
+    private sealed class EnvironmentEntry
+    {
+        public Task<ICoreWebView2Environment>? Pending;
+        public WeakReference<ICoreWebView2Environment>? Created;
+    }
 
     public static Task<ICoreWebView2Environment> CreateAsync(WindowsWebView2EnvironmentRequestedEventArgs environmentArgs)
     {
@@ -37,30 +43,50 @@ internal static partial class CoreWebView2Environment
 
     private static Task<ICoreWebView2Environment> GetOrCreateEnvForOptions(EnvironmentOptions options)
     {
-        if (!s_environments.TryGetValue(options, out var tcs))
+        if (!s_environments.TryGetValue(options, out var entry))
         {
-            var runtimeFunc = TryFindWebView2Runtime(options.BrowserExecutableFolder);
-            if (runtimeFunc == IntPtr.Zero)
-            {
-                tcs = new TaskCompletionSource<ICoreWebView2Environment>(TaskCreationOptions.RunContinuationsAsynchronously);
-                tcs.SetException(new InvalidOperationException("WebView2 runtime not found or CreateWebViewEnvironmentWithOptionsInternal not exported."));
-            }
-            else
-            {
-                var envCallback = new WebView2EnvHandler();
-                var res = (uint)CreateEnv(runtimeFunc, WebView2RunTimeType.kInstalled, options.UserDataFolder, options, envCallback);
-                if (res == 0x80010106)
-                {
-                    envCallback.Result.TrySetException(new InvalidOperationException("WebView2 requires UI thread to have STAThread flag/attribute set."));
-                }
-                else if (res != 0)
-                {
-                    envCallback.Result.TrySetException(Marshal.GetExceptionForHR((int)res) ?? new Win32Exception((int)res));
-                }
-                tcs = envCallback.Result;
-            }
-            s_environments[options] = tcs;
+            s_environments[options] = entry = new EnvironmentEntry();
         }
+        else if (entry.Created is { } created && created.TryGetTarget(out var env))
+        {
+            return Task.FromResult(env);
+        }
+        else if (entry.Pending is { } pending)
+        {
+            return pending;
+        }
+
+        TaskCompletionSource<ICoreWebView2Environment> tcs;
+        var runtimeFunc = TryFindWebView2Runtime(options.BrowserExecutableFolder);
+        if (runtimeFunc == IntPtr.Zero)
+        {
+            tcs = new TaskCompletionSource<ICoreWebView2Environment>(TaskCreationOptions.RunContinuationsAsynchronously);
+            tcs.SetException(new InvalidOperationException("WebView2 runtime not found or CreateWebViewEnvironmentWithOptionsInternal not exported."));
+        }
+        else
+        {
+            var envCallback = new WebView2EnvHandler();
+            var res = (uint)CreateEnv(runtimeFunc, WebView2RunTimeType.kInstalled, options.UserDataFolder, options, envCallback);
+            if (res == 0x80010106)
+            {
+                envCallback.Result.TrySetException(new InvalidOperationException("WebView2 requires UI thread to have STAThread flag/attribute set."));
+            }
+            else if (res != 0)
+            {
+                envCallback.Result.TrySetException(Marshal.GetExceptionForHR((int)res) ?? new Win32Exception((int)res));
+            }
+            tcs = envCallback.Result;
+        }
+
+        entry.Created = null;
+        entry.Pending = tcs.Task;
+
+        _ = tcs.Task.ContinueWith(static (task, state) =>
+        {
+            var entry = (EnvironmentEntry)state!;
+            entry.Pending = null;
+            entry.Created = task.IsCompletedSuccessfully ? new WeakReference<ICoreWebView2Environment>(task.Result) : null;
+        }, entry, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 
         return tcs.Task;
     }
