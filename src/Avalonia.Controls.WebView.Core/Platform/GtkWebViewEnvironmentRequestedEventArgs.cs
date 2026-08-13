@@ -21,6 +21,15 @@ public sealed class GtkWebViewEnvironmentRequestedEventArgs : WebViewEnvironment
     public bool ExperimentalOffscreen { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether GDK_BACKEND should be forced to "x11" while GTK is initialized.
+    /// The GTK adapters require the x11 GDK backend, and a Wayland desktop usually pre-sets GDK_BACKEND=wayland, which makes gtk_init fail.
+    /// </summary>
+    /// <remarks>
+    /// Disabled by default, as it temporarily mutates the process environment. The previous value is restored once GTK is initialized.
+    /// </remarks>
+    public bool ForceX11GdkBackend { get; set; }
+
+    /// <summary>
     /// Gets or sets a value indicating whether the webview should use an ephemeral data manager, handling all website data as non-persistent and not writing anything to client storage.
     /// </summary>
     /// <remarks>

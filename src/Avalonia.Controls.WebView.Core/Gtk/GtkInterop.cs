@@ -340,6 +340,10 @@ internal static unsafe partial class GtkInterop
     internal static extern IntPtr gdk_x11_window_get_xid(IntPtr window);
 
     [DllImport(LibGdk)]
+    internal static extern void gdk_x11_window_set_frame_sync_enabled(IntPtr window,
+        [MarshalAs(UnmanagedType.Bool)] bool frameSyncEnabled);
+
+    [DllImport(LibGdk)]
     internal static extern IntPtr gdk_display_get_default();
     [DllImport(LibGdk)]
     internal static extern IntPtr gdk_display_get_default_seat(IntPtr display);

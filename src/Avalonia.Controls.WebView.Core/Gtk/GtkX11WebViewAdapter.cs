@@ -23,7 +23,14 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
         gtk_container_add(_windowHandle, WebViewHandle);
         gtk_widget_show_all(WebViewHandle);
         gtk_widget_realize(_windowHandle);
-        _x11Window = gdk_x11_window_get_xid(gtk_widget_get_window(_windowHandle));
+
+        var gdkWindow = gtk_widget_get_window(_windowHandle);
+        _x11Window = gdk_x11_window_get_xid(gdkWindow);
+
+        // Reparenting this window into the Avalonia window takes it away from the window manager,
+        // so the _NET_WM_FRAME_DRAWN replies GDK throttles drawing on never arrive.
+        // Without this GTK paints one frame and then waits forever.
+        gdk_x11_window_set_frame_sync_enabled(gdkWindow, false);
     }
 
     public static Task<WebViewAdapter.NativeWebViewAdapterBuilder> CreateBuilder(
@@ -32,7 +39,7 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
         WebViewAdapter.NativeWebViewAdapterBuilder builder = (parent, _) =>
         {
             WebViewDispatcher.VerifyAccess();
-            using var backendScope = EnsureX11GdkBackendForGtkInit();
+            using var backendScope = PrepareGdkBackendForGtkInit(environmentArgs.ForceX11GdkBackend);
             var adapter = RunOnGlibThread(() => new GtkX11WebViewAdapter(environmentArgs));
             adapter.SetParent(parent);
             return new WebViewAdapter.AdapterWrapper(adapter, Task.FromResult<IWebViewAdapter>(adapter));
