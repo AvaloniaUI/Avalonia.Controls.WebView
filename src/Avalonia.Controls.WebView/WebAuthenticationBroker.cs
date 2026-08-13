@@ -146,7 +146,7 @@ namespace Avalonia.Xpf.Controls
         {
             var dialog = new NativeWebDialog();
             dialog.Title = "Authentication";
-            dialog.CanUserResize = false;
+            dialog.CanUserResize = true;
             dialog.Resize(600, 700);
             return dialog;
         }

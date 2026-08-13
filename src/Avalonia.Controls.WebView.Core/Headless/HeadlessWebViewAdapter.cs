@@ -66,10 +66,13 @@ internal partial class HeadlessWebViewAdapter : IWebViewAdapterWithOffscreenBuff
 
     public Color DefaultBackground
     {
-        set
-        {
-        }
+        set => LastDefaultBackground = value;
     }
+
+    /// <summary>
+    /// Last value assigned to <see cref="DefaultBackground"/>, useful with unit testing.
+    /// </summary>
+    internal Color? LastDefaultBackground { get; private set; }
 
     public string? UserAgent { get => null; set { } }
 

@@ -142,7 +142,7 @@ internal static unsafe partial class GtkInterop
     public static extern nint webkit_web_view_run_javascript_finish(IntPtr webView, IntPtr result, GError** error);
 
     [DllImport(LibWebKit)]
-    public static extern void webkit_web_view_set_background_color(IntPtr webView, GdkRGBA color);
+    public static extern void webkit_web_view_set_background_color(IntPtr webView, GdkRGBA* color);
 
     [DllImport(LibWebKit)]
     public static extern void webkit_javascript_result_unref(IntPtr jsResult);

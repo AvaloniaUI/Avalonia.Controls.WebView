@@ -1,4 +1,6 @@
-﻿using Avalonia.Headless.XUnit;
+﻿using Avalonia.Controls.Headless;
+using Avalonia.Headless.XUnit;
+using Avalonia.Media;
 using System;
 using System.Threading.Tasks;
 using Xunit;
@@ -55,6 +57,72 @@ public class NativeWebDialogTests : HeadlessTestsBase
         Assert.Equal(50, underlying.Position.X);
         Assert.Equal(60, underlying.Position.Y);
     }
+
+    [AvaloniaFact]
+    public async Task Should_Use_White_Background_Without_Owner()
+    {
+        var dialog = new NativeWebDialog();
+        dialog.Show();
+
+        await WaitForAdapterCreation(dialog);
+
+        Assert.Null(dialog.DefaultBackground);
+        Assert.Equal(Colors.White, GetAdapterBackground(dialog));
+        Assert.Equal(Colors.White, GetWindowBackground(dialog));
+    }
+
+    [AvaloniaFact]
+    public async Task Should_Use_Owner_Background_When_Not_Set()
+    {
+        var owner = new Window { Background = new SolidColorBrush(Colors.Blue) };
+        owner.Show();
+
+        var dialog = new NativeWebDialog();
+        dialog.Show(owner);
+
+        await WaitForAdapterCreation(dialog);
+
+        Assert.Null(dialog.DefaultBackground);
+        Assert.Equal(Colors.Blue, GetAdapterBackground(dialog));
+        Assert.Equal(Colors.Blue, GetWindowBackground(dialog));
+    }
+
+    [AvaloniaFact]
+    public async Task Should_Set_DefaultBackground_Before_Show()
+    {
+        var owner = new Window { Background = new SolidColorBrush(Colors.Blue) };
+        owner.Show();
+
+        var dialog = new NativeWebDialog();
+        dialog.DefaultBackground = Colors.Red;
+        dialog.Show(owner);
+
+        await WaitForAdapterCreation(dialog);
+
+        // Explicit value wins over the owner background.
+        Assert.Equal(Colors.Red, dialog.DefaultBackground);
+        Assert.Equal(Colors.Red, GetAdapterBackground(dialog));
+        Assert.Equal(Colors.Red, GetWindowBackground(dialog));
+    }
+
+    [AvaloniaFact]
+    public async Task Should_Set_DefaultBackground_After_Show()
+    {
+        var dialog = new NativeWebDialog();
+        dialog.Show();
+
+        await WaitForAdapterCreation(dialog);
+
+        dialog.DefaultBackground = Colors.Red;
+        Assert.Equal(Colors.Red, GetAdapterBackground(dialog));
+        Assert.Equal(Colors.Red, GetWindowBackground(dialog));
+    }
+
+    private static Color? GetAdapterBackground(NativeWebDialog dialog) =>
+        ((HeadlessWebViewAdapter)dialog.TryGetWebViewPlatformHandle()!).LastDefaultBackground;
+
+    private static Color? GetWindowBackground(NativeWebDialog dialog) =>
+        (dialog.TryGetWindow()!.Background as ISolidColorBrush)?.Color;
 
     [AvaloniaFact]
     public void Should_Expose_Platform_Handle()

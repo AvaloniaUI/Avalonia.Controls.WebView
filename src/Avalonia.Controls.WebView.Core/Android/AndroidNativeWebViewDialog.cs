@@ -21,7 +21,7 @@ internal class AndroidNativeWebViewDialog(Action<WebViewEnvironmentRequestedEven
 
     public IWebViewAdapter? TryGetAdapter() => AndroidWebViewDialogActivity.WebViewRegistry.Get(_webViewId);
 
-    public Color DefaultBackground { get; set; }
+    public Color DefaultBackground { get; set; } = Colors.White;
     public string? Title { get; set; }
 
     public bool CanUserResize { get => false; set { } }
