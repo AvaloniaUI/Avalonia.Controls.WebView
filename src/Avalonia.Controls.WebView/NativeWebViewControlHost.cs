@@ -1,6 +1,5 @@
 #if AVALONIA || WPF
 using System;
-using System.Diagnostics;
 using System.Threading.Tasks;
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
 using Core = Avalonia.Controls;
@@ -23,6 +22,7 @@ namespace Avalonia.Xpf.Controls
     {
         private TaskCompletionSource<IWebViewAdapter?>? _webViewReadyCompletion;
         private ReparentingScope? _reparentingScope;
+        private IPlatformHandle? _defaultChildHandle;
 
         /// <inheritdoc />
         public event EventHandler<IWebViewAdapter>? AdapterCreated;
@@ -37,11 +37,12 @@ namespace Avalonia.Xpf.Controls
                 return _reparentingScope.ReparentRequested(parent);
             }
 
-            _webViewReadyCompletion = new TaskCompletionSource<IWebViewAdapter?>(TaskCreationOptions.RunContinuationsAsynchronously);
             var completion = _webViewReadyCompletion =
                 new TaskCompletionSource<IWebViewAdapter?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            var adapterWrapper = factory.InvokeAsync(parent, p => base.CreateNativeControlCore(p));
+            IPlatformHandle? defaultChildHandle = null;
+            var adapterWrapper = factory.InvokeAsync(parent, p => defaultChildHandle = base.CreateNativeControlCore(p));
+            _defaultChildHandle = defaultChildHandle;
             CompleteAdapter(adapterWrapper);
             return adapterWrapper.AdapterHandle;
 
@@ -70,20 +71,26 @@ namespace Avalonia.Xpf.Controls
 
         protected override void DestroyNativeControlCore(IPlatformHandle control)
         {
-            if (control is IWebViewAdapter adapter)
+            var adapter = TryGetAdapter();
+            if (adapter is not null && _reparentingScope is not null)
             {
-                if (_reparentingScope is not null)
-                {
-                    _reparentingScope.SetDestroyingAdapter(adapter);
-                    return;
-                }
+                _reparentingScope.SetDestroyingAdapter(adapter);
+                return;
+            }
 
-                Debug.Assert(!(TryGetAdapter() is { } oldAdapter && oldAdapter != adapter));
+            _webViewReadyCompletion?.TrySetCanceled();
+            _webViewReadyCompletion = null;
 
-                _webViewReadyCompletion?.TrySetCanceled();
-                _webViewReadyCompletion = null;
+            if (adapter is not null)
+            {
                 AdapterDestroyed?.Invoke(this, adapter);
                 adapter.Dispose();
+            }
+
+            if (_defaultChildHandle is { } defaultChildHandle)
+            {
+                _defaultChildHandle = null;
+                base.DestroyNativeControlCore(defaultChildHandle);
             }
         }
 
