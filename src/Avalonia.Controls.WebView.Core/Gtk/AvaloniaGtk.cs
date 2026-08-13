@@ -72,29 +72,6 @@ internal static partial class AvaloniaGtk
     /// a Wayland session GDK_BACKEND is typically pre-set to "wayland" by the desktop,
     /// which would otherwise cause `gtk_init` to fail with "Unable to initialize GTK".
     /// </summary>
-    /// <remarks>
-    /// Only overrides the unset case and the implicit "wayland" case (the default under
-    /// a Wayland session). If the user has explicitly set some other backend like
-    /// "broadway", that's a deliberate choice in conflict with loading an X11-only
-    /// adapter, and we let `gtk_init` fail with its own error rather than silently
-    /// override.
-    ///
-    /// `Environment.SetEnvironmentVariable` alone is insufficient on Linux — it updates
-    /// the .NET managed env cache but does not propagate to libc's environ, which is
-    /// what `gtk_init` reads via `getenv`. A direct libc `setenv` call is required.
-    ///
-    /// The returned IDisposable restores the previous env value on Dispose. By that
-    /// point GTK has already locked in its backend choice for the process, so restoring
-    /// the env doesn't switch backends — it just keeps the rest of the process's env
-    /// state clean for any unrelated code that reads GDK_BACKEND.
-    ///
-    /// Concurrent calls share a single override window via refcounting: the first call
-    /// captures the previous env value and applies the override, subsequent overlapping
-    /// calls only refcount, and the override is restored when the last scope is
-    /// disposed. Without refcounting, two concurrent CreateBuilder calls could each
-    /// snapshot the other's already-overridden value and leave the env stuck at "x11"
-    /// after both restore.
-    /// </remarks>
     public static IDisposable EnsureX11GdkBackendForGtkInit()
     {
         if (!OperatingSystem.IsLinux())

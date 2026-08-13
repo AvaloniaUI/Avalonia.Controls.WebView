@@ -32,8 +32,6 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
         WebViewAdapter.NativeWebViewAdapterBuilder builder = (parent, _) =>
         {
             WebViewDispatcher.VerifyAccess();
-            // The scope has to wrap the RunOnGlibThread call itself: GTK is initialized lazily by the
-            // first call, which now happens here rather than in CreateBuilder.
             using var backendScope = EnsureX11GdkBackendForGtkInit();
             var adapter = RunOnGlibThread(() => new GtkX11WebViewAdapter(environmentArgs));
             adapter.SetParent(parent);
