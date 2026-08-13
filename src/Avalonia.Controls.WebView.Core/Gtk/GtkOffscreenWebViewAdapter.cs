@@ -325,8 +325,10 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
 
         if (window != IntPtr.Zero)
         {
-            g_object_unref(window);
+            // Destroy before releasing our reference: unreffing first can drop the last reference,
+            // and gtk_widget_destroy would then run against freed memory.
             gtk_widget_destroy(window);
+            g_object_unref(window);
         }
     }
 
