@@ -25,7 +25,33 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebView
     private bool _isShown;
 
     private sealed class DialogGtkWebViewAdapter(GtkWebViewEnvironmentRequestedEventArgs args)
-        : GtkWebViewAdapter(args);
+        : GtkWebViewAdapter(args)
+    {
+        public override Color DefaultBackground
+        {
+            set
+            {
+                var rgba = new GdkRGBA
+                {
+                    red = value.R / 255.0,
+                    green = value.G / 255.0,
+                    blue = value.B / 255.0,
+                    alpha = value.A / 255.0
+                };
+                RunOnGlibThreadAsync(() =>
+                {
+                    if (WebViewHandle == IntPtr.Zero)
+                        return;
+
+                    unsafe
+                    {
+                        var color = rgba;
+                        webkit_web_view_set_background_color(WebViewHandle, &color);
+                    }
+                });
+            }
+        }
+    }
 
     private GtkNativeWebViewDialog(GtkWebViewEnvironmentRequestedEventArgs args)
     {
