@@ -1,4 +1,4 @@
-﻿#if AVALONIA || WPF
+#if AVALONIA || WPF
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -511,15 +511,45 @@ namespace Avalonia.Xpf.Controls
             // Also WPF doesn't have an equivalent.
             // Keeping this hack makes some sort of a compromise, where on Ava 11.3 we have this property and and potentially reset by user if needed.
             var measured = base.MeasureOverride(availableSize);
+
+            ControlSize resolved;
 #if AVALONIA
             if (s_setSizing is not null)
-                return measured;
+                resolved = measured;
+            else
+#endif
+                resolved = new ControlSize(
+                    double.IsInfinity(availableSize.Width) ? measured.Width : availableSize.Width,
+                    double.IsInfinity(availableSize.Height) ? measured.Height : availableSize.Height);
+
+#if AVALONIA
+            // controlHostImpl is added via VisualChildren.Add, which does NOT make it a
+            // layout participant — Avalonia only measures/arranges visual children that
+            // the parent explicitly drives. Without this, the inner NativeControlHost's
+            // Bounds stay default(Rect) and the X11 INativeControlHostImpl never maps
+            // its slot (symptom: blank pane on Linux until the user resizes the window).
+            foreach (var child in VisualChildren)
+            {
+                if (child is global::Avalonia.Layout.Layoutable layoutable)
+                    layoutable.Measure(resolved);
+            }
 #endif
 
-            return new ControlSize(
-                double.IsInfinity(availableSize.Width) ? measured.Width : availableSize.Width,
-                double.IsInfinity(availableSize.Height) ? measured.Height : availableSize.Height);
+            return resolved;
         }
+
+#if AVALONIA
+        protected override ControlSize ArrangeOverride(ControlSize finalSize)
+        {
+            var arranged = base.ArrangeOverride(finalSize);
+            foreach (var child in VisualChildren)
+            {
+                if (child is global::Avalonia.Layout.Layoutable layoutable)
+                    layoutable.Arrange(new global::Avalonia.Rect(arranged));
+            }
+            return arranged;
+        }
+#endif
 
         private void WithFocusOnLostFocus(object? sender, Core.IWebViewAdapterWithFocus.LostFocusDirection e)
         {

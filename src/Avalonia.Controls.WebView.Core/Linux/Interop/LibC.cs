@@ -10,6 +10,14 @@ internal static unsafe partial class LibC
     [LibraryImport("libc", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int setenv(string name, string value, int overwrite);
 
+    [LibraryImport("libc", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int unsetenv(string name);
+
+    // libc owns the returned buffer — never free it. nint return keeps the
+    // ownership semantics explicit; callers convert with Marshal.PtrToStringUTF8.
+    [LibraryImport("libc", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial nint getenv(string name);
+
     [LibraryImport("libc")]
     public static partial int poll(GPollFD* fds, nint nfds, int timeout);
 
