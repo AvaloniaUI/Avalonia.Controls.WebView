@@ -2,6 +2,8 @@
 using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
+using Windows.Win32;
+using Windows.Win32.Foundation;
 using Avalonia.Controls.Win.WebView2.Interop;
 using Avalonia.Platform;
 
@@ -13,6 +15,14 @@ internal partial class WebView2HwndAdapter(IPlatformHandle handle, ICoreWebView2
 {
     public override IntPtr Handle { get; } = handle.Handle;
     public override string HandleDescriptor { get; } = handle.HandleDescriptor!; // Expected to be HWND always.
+
+    public override void SetParent(IPlatformHandle parent)
+    {
+        if (parent.HandleDescriptor != "HWND")
+            throw new InvalidOperationException("IPlatformHandle.HandleDescriptor must be HWND");
+
+        PInvoke.SetParent(new HWND(Handle), new HWND(parent.Handle));
+    }
 
     public static async Task<WebViewAdapter.NativeWebViewAdapterBuilder> CreateBuilder(
         WindowsWebView2EnvironmentRequestedEventArgs environmentArgs)
