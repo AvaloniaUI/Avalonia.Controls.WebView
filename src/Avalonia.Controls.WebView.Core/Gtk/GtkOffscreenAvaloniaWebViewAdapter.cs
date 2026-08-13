@@ -31,15 +31,19 @@ internal sealed class GtkOffscreenAvaloniaWebViewAdapter : GtkOffscreenWebViewAd
 
     public Control? Parent { get; private set; }
 
-    public static async Task<WebViewAdapter.OffscreenWebViewAdapterBuilder> CreateBuilder(
+    public static Task<WebViewAdapter.OffscreenWebViewAdapterBuilder> CreateBuilder(
         GtkWebViewEnvironmentRequestedEventArgs environmentArgs)
     {
-        var adapter = await RunOnGlibThreadAsync(() => new GtkOffscreenAvaloniaWebViewAdapter(environmentArgs));
-        return (parent) =>
+        // A fresh adapter per attachment: the host disposes the previous one when the control is
+        // detached, so handing out a cached instance leaves a dead web view after a re-attach.
+        WebViewAdapter.OffscreenWebViewAdapterBuilder builder = async parent =>
         {
+            var adapter = await RunOnGlibThreadAsync(() => new GtkOffscreenAvaloniaWebViewAdapter(environmentArgs));
             adapter.Parent = parent;
-            return Task.FromResult<IWebViewAdapterWithOffscreenBuffer>(adapter);
+            return adapter;
         };
+
+        return Task.FromResult(builder);
     }
 
     protected override void DisposeSafe(bool disposing)

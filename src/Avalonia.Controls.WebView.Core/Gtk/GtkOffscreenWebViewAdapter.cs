@@ -138,12 +138,12 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
 
     public override void SizeChanged(PixelSize containerSize)
     {
-        if (_windowHandle == IntPtr.Zero)
-            return;
-
         _sizeRequest = containerSize;
         RunOnGlibThreadAsync(() =>
         {
+            if (_windowHandle == IntPtr.Zero)
+                return;
+
             if (_experimentalOffscreen)
                 gtk_window_set_default_size(_windowHandle, _sizeRequest.Width, _sizeRequest.Height);
             else
