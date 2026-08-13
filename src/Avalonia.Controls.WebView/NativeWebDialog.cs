@@ -7,13 +7,15 @@ using Avalonia.Controls.Gtk;
 using AvPlatform = Avalonia.Platform;
 using Core = Avalonia.Controls;
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
-using Color = Avalonia.Media.Color;
-using Colors = Avalonia.Media.Colors;
 #if WPF
 using AvaloniaUI.Xpf.WpfAbstractions;
 using Window = System.Windows.Window;
+using Color = System.Windows.Media.Color;
+using Colors = System.Windows.Media.Colors;
 #elif AVALONIA
 using Window = Avalonia.Controls.Window;
+using Color = Avalonia.Media.Color;
+using Colors = Avalonia.Media.Colors;
 #endif
 
 #if AVALONIA
@@ -289,10 +291,10 @@ namespace Avalonia.Xpf.Controls
             set
             {
                 _initialDefaultBackground = value;
-                if (value is { } background
+                if (value is { } color
                     && TryGetImpl() is { } impl)
                 {
-                    impl.DefaultBackground = background;
+                    impl.DefaultBackground = new Media.Color(color.A,  color.R, color.G, color.B);
                 }
             }
         }
@@ -319,7 +321,8 @@ namespace Avalonia.Xpf.Controls
             // Not stored in _initialDefaultBackground, so the owner is still resolved again on the next Show call.
             if (_initialDefaultBackground is null)
             {
-                impl.DefaultBackground = GetOwnerBackground(owner);
+                var color = GetOwnerBackground(owner);
+                impl.DefaultBackground = new Media.Color(color.A, color.R, color.G, color.B);
             }
 
 #if WPF
@@ -347,13 +350,11 @@ namespace Avalonia.Xpf.Controls
 #if WPF
         private static Color GetOwnerBackground(Window owner) =>
             owner.Background is System.Windows.Media.SolidColorBrush solid ?
-                new Color(solid.Color.A, solid.Color.R, solid.Color.G, solid.Color.B) :
-                Colors.White;
+                solid.Color : Colors.White;
 #elif AVALONIA
         private static Color GetOwnerBackground(TopLevel owner) =>
             owner.Background is Media.ISolidColorBrush solid ?
-                solid.Color :
-                Colors.White;
+                solid.Color :Colors.White;
 #endif
 
         private async Task<Core.INativeWebViewDialog> GetOrInitialize()
@@ -478,8 +479,8 @@ namespace Avalonia.Xpf.Controls
                 dialogImpl.Move(position.X, position.Y);
             if (_initialSize is { } size)
                 dialogImpl.Resize(size.Width, size.Height);
-            if (_initialDefaultBackground is { } background)
-                dialogImpl.DefaultBackground = background;
+            if (_initialDefaultBackground is { } color)
+                dialogImpl.DefaultBackground = new Media.Color(color.A,  color.R, color.G, color.B);
 
             _implTcs.SetResult(dialogImpl);
 
