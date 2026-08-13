@@ -38,6 +38,8 @@ namespace Avalonia.Xpf.Controls
             }
 
             _webViewReadyCompletion = new TaskCompletionSource<IWebViewAdapter?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var completion = _webViewReadyCompletion =
+                new TaskCompletionSource<IWebViewAdapter?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             var adapterWrapper = factory.InvokeAsync(parent, p => base.CreateNativeControlCore(p));
             CompleteAdapter(adapterWrapper);
@@ -47,6 +49,12 @@ namespace Avalonia.Xpf.Controls
             async void CompleteAdapter(WebViewAdapter.AdapterWrapper wrapper)
             {
                 var adapter = await wrapper.AdapterInitializeTask;
+                if (!ReferenceEquals(_webViewReadyCompletion, completion))
+                {
+                    adapter.Dispose();
+                    return;
+                }
+
                 WebViewAdapterOnInitialized(adapter);
             }
         }
