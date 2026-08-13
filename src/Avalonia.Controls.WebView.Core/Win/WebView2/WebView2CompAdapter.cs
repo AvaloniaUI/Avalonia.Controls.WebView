@@ -128,6 +128,9 @@ internal partial class WebView2CompAdapter
         };
     }
 
+    public PixelFormat BufferPixelFormat => PixelFormats.Bgra8888;
+    public AlphaFormat BufferAlphaFormat => AlphaFormat.Premul;
+
     public async Task UpdateWriteableBitmap(PixelSize currentSize,
         FrameChainBase<WriteableBitmap, PixelSize>.IProducer producer)
     {

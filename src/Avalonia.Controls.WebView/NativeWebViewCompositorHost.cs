@@ -21,7 +21,7 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
     //private ReparentingScope? _reparentingScope;
     private bool _firstDraw;
     private CompositionCustomVisual? _customVisual;
-    private readonly BitmapFrameChain _frameChain = new(PixelFormats.Bgra8888);
+    private BitmapFrameChain? _frameChain;
 
     static NativeWebViewCompositorHost()
     {
@@ -67,16 +67,15 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
     {
         base.OnAttachedToVisualTree(e);
 
-        _webViewReadyCompletion = new TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var adapterTask = factory.InvokeAsync(this);
-        CompleteAdapter();
-
         var compositorVisual = ElementComposition.GetElementVisual(this)!;
         _firstDraw = true;
         _customVisual = compositorVisual.Compositor.CreateCustomVisual(new VisualHandler());
         _customVisual.Size = new Vector(Bounds.Width, Bounds.Height);
-        _customVisual.SendHandlerMessage(_frameChain.Consumer);
         ElementComposition.SetElementChildVisual(this, _customVisual);
+
+        _webViewReadyCompletion = new TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var adapterTask = factory.InvokeAsync(this);
+        CompleteAdapter();
 
         // ReSharper disable once AsyncVoidMethod - let it flow to the dispatcher
         async void CompleteAdapter()
@@ -112,10 +111,16 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
             ElementComposition.SetElementChildVisual(this, null);
             _customVisual = null;
         }
+
+        // Not disposed on purpose - the consumer might still be holding frames on the render thread.
+        _frameChain = null;
     }
 
     private void WebViewAdapterOnInitialized(IWebViewAdapterWithOffscreenBuffer adapter)
     {
+        _frameChain = new BitmapFrameChain(adapter.BufferPixelFormat, adapter.BufferAlphaFormat);
+        _customVisual?.SendHandlerMessage(_frameChain.Consumer);
+
         _webViewReadyCompletion?.TrySetResult(adapter);
         AdapterCreated?.Invoke(this, adapter);
         adapter.DrawRequested += OffscreenAdapter_OnDrawRequested;
@@ -132,7 +137,7 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
         try
         {
             var adapter = (IWebViewAdapterWithOffscreenBuffer?)TryGetAdapter();
-            if (adapter is null)
+            if (adapter is null || _frameChain is null)
                 return;
 
             var topLevel = TopLevel.GetTopLevel(this);
