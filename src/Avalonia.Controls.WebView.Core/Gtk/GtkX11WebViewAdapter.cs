@@ -16,6 +16,7 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
     private readonly IntPtr _x11Window;
     private IntPtr _windowHandle;
     private IntPtr _currentParent;
+    private PixelSize _sizeRequest;
 
     private GtkX11WebViewAdapter(GtkWebViewEnvironmentRequestedEventArgs environmentArgs) : base(environmentArgs)
     {
@@ -69,6 +70,21 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
 
             RunOnGlibThreadAsync(() => gtk_widget_show_all(_windowHandle));
         }
+    }
+
+    public override void SizeChanged(PixelSize containerSize)
+    {
+        if (containerSize.Width <= 0 || containerSize.Height <= 0)
+            return;
+
+        _sizeRequest = containerSize;
+        RunOnGlibThreadAsync(() =>
+        {
+            if (_windowHandle == IntPtr.Zero)
+                return;
+
+            gtk_window_resize(_windowHandle, _sizeRequest.Width, _sizeRequest.Height);
+        });
     }
 
     public override Color DefaultBackground

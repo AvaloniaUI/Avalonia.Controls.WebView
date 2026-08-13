@@ -694,12 +694,6 @@ namespace Avalonia.Xpf.Controls
             }
         }
 
-        protected override void OnSizeChanged(SizeChangedEventArgs e)
-        {
-            base.OnSizeChanged(e);
-            TryGetAdapter()?.SizeChanged(PixelSize.FromSize(e.NewSize, GetRenderScaling()));
-        }
-
         private void EnsureBackground(IBrush? background)
         {
             if (TryGetAdapter() is { } adapter)
