@@ -279,7 +279,7 @@ internal partial class WebView2CompAdapter
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        if (disposing && !Disposed)
         {
             _controller.SetRootVisualTarget(null);
         }

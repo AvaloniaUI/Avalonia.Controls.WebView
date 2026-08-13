@@ -5,6 +5,7 @@ using System.Net;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -426,12 +427,14 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
 
     protected virtual void Dispose(bool disposing)
     {
-        if (disposing)
+        if (!disposing || Disposed)
         {
-            Disposed = true;
-            controller?.Close();
-            _subscriptions?.Invoke();
+            return;
         }
+
+        Disposed = true;
+        Interlocked.Exchange(ref _subscriptions, null)?.Invoke();
+        controller?.Close();
     }
 
     public void Dispose()
