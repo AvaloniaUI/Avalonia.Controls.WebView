@@ -27,6 +27,11 @@ internal interface INativeWebViewControlImpl
     /// </summary>
     Task<IWebViewAdapter?> GetAdapterAsync();
 
+    /// <summary>
+    /// Moves keyboard focus to the hosted web content, if it's already initialized.
+    /// </summary>
+    void FocusWebView();
+
     /// <inheritdoc cref="NativeWebView.BeginReparenting"/>.
     IDisposable BeginReparenting(bool yieldOnLayoutBeforeExiting);
 

@@ -45,6 +45,8 @@ namespace Avalonia.Xpf.Controls
         private Color? _initialDefaultBackground;
         private bool _disposed;
         private bool _dialogInitialized;
+        private bool _shown;
+        private bool _focusRequested;
 
         static NativeWebDialog()
         {
@@ -299,10 +301,19 @@ namespace Avalonia.Xpf.Controls
             }
         }
 
+        /// <summary>
+        /// Gets or sets if the dialog moves keyboard focus to its web content when shown. Default is true.
+        /// </summary>
+        public bool ShowFocused { get; set; } = true;
+
         /// <inheritdoc cref="Core.INativeWebViewDialog.Closing"/>
         public event EventHandler? Closing;
         /// <inheritdoc cref="Core.INativeWebViewDialog.Show()"/>
-        public async void Show() => (await GetOrInitialize()).Show();
+        public async void Show()
+        {
+            (await GetOrInitialize()).Show();
+            OnShown();
+        }
 
 #if WPF
         /// <summary>
@@ -345,6 +356,39 @@ namespace Avalonia.Xpf.Controls
             {
                 impl.Show();
             }
+
+            OnShown();
+        }
+
+        /// <summary>
+        /// Activates the dialog and moves keyboard focus to the web content hosted inside of it.
+        /// </summary>
+        public void Focus()
+        {
+            _focusRequested = true;
+            TryApplyFocus();
+        }
+
+        private void OnShown()
+        {
+            _shown = true;
+            _focusRequested |= ShowFocused;
+            TryApplyFocus();
+        }
+
+        private void TryApplyFocus()
+        {
+            // The adapter is typically created only after the dialog window was shown,
+            // and native focus can't be moved before that.
+            if (!_focusRequested || !_shown
+                || TryGetImpl() is not { } impl
+                || impl.TryGetAdapter() is null)
+            {
+                return;
+            }
+
+            _focusRequested = false;
+            impl.Focus();
         }
 
 #if WPF
@@ -501,6 +545,7 @@ namespace Avalonia.Xpf.Controls
             adapter.WebResourceRequested -= WebViewAdapterOnWebResourceRequested;
             adapter.NewWindowRequested -= WebViewAdapterOnNewWindowRequested;
             _dialogInitialized = false;
+            _shown = false;
             AdapterDestroyed?.Invoke(this, e);
         }
 
@@ -532,6 +577,8 @@ namespace Avalonia.Xpf.Controls
             else if (_lastSource is ValueTuple<string, Uri?> pair)
                 adapter.NavigateToString(pair.Item1, pair.Item2);
             AdapterCreated?.Invoke(this, e);
+
+            TryApplyFocus();
         }
 
         private void DialogImplOnClosing(object? sender, EventArgs e)
