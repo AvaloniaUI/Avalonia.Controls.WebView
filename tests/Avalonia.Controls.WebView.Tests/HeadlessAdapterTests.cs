@@ -331,6 +331,44 @@ public class HeadlessAdapterTests : HeadlessTestsBase
         Assert.Equal(second, webView.Source);
     }
 
+    [AvaloniaFact]
+    public async Task NativeWebView_Offscreen_Host_Is_Laid_Out_After_Adapter_Creation()
+    {
+        var window = new Window { Width = 400, Height = 300 };
+        var webView = new NativeWebView();
+        webView.EnvironmentRequested += (_, _) => { };
+        window.Content = webView;
+        window.Show();
+
+        await WaitForAdapterCreation(webView);
+        await DoDelay();
+
+        var host = webView.GetVisualChildren().OfType<Control>().Single();
+        Assert.True(host.Bounds.Width > 0 && host.Bounds.Height > 0,
+            $"Host was not laid out: {host.Bounds}, web view: {webView.Bounds}");
+    }
+
+    [AvaloniaFact]
+    public async Task NativeWebView_Reattach_Creates_A_New_Adapter()
+    {
+        var (window, panel, webView) = CreateReattachableWebView();
+        window.Show();
+
+        await WaitForAdapterCreation(webView);
+        var first = webView.TryGetPlatformHandle();
+        Assert.NotNull(first);
+
+        var destroyed = false;
+        webView.AdapterDestroyed += (_, _) => destroyed = true;
+
+        await ReattachAsync(panel, webView);
+
+        Assert.True(destroyed);
+        var second = webView.TryGetPlatformHandle();
+        Assert.NotNull(second);
+        Assert.NotSame(first, second);
+    }
+
     private static (Window window, StackPanel panel, NativeWebView webView) CreateReattachableWebView()
     {
         var panel = new StackPanel();

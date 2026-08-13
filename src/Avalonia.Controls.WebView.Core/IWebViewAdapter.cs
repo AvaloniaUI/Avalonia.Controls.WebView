@@ -414,6 +414,9 @@ internal interface IWebViewAdapterWithOffscreenInput : IWebViewAdapter
 internal interface IWebViewAdapterWithOffscreenBuffer : IWebViewAdapter
 {
     event Action DrawRequested;
+    PixelFormat BufferPixelFormat { get; }
+    AlphaFormat BufferAlphaFormat { get; }
+
     Task UpdateWriteableBitmap(PixelSize currentSize, FrameChainBase<WriteableBitmap, PixelSize>.IProducer producer);
 }
 

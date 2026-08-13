@@ -94,7 +94,7 @@ internal struct GdkEventScroll
     public Double x_root, y_root;
     public Double delta_x;
     public Double delta_y;
-    public bool is_stop;//public guint is_stop : 1;
+    public UInt32 is_stop;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -110,7 +110,7 @@ internal struct GdkEventCrossing
     public Double x_root, y_root;
     public Int32 mode;
     public Int32 detail;
-    public bool focus;
+    public Int32 focus;
     public UInt32 state;
 }
 
@@ -154,5 +154,5 @@ internal unsafe struct GdkEventKey
     public Byte *_string;
     public UInt16 hardware_keycode;
     public Byte group;
-    public bool is_modifier;//public guint is_modifier : 1;
+    public UInt32 is_modifier;
 }

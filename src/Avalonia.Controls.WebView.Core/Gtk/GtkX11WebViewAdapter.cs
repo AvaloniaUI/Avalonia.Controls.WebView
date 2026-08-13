@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Media;
 using Avalonia.Platform;
@@ -13,7 +14,7 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
     private static readonly IntPtr s_display = XOpenDisplay(IntPtr.Zero);
 
     private readonly IntPtr _x11Window;
-    private readonly IntPtr _windowHandle;
+    private IntPtr _windowHandle;
     private IntPtr _currentParent;
 
     private GtkX11WebViewAdapter(GtkWebViewEnvironmentRequestedEventArgs environmentArgs) : base(environmentArgs)
@@ -25,16 +26,18 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
         _x11Window = gdk_x11_window_get_xid(gtk_widget_get_window(_windowHandle));
     }
 
-    public static async Task<WebViewAdapter.NativeWebViewAdapterBuilder> CreateBuilder(
+    public static Task<WebViewAdapter.NativeWebViewAdapterBuilder> CreateBuilder(
         GtkWebViewEnvironmentRequestedEventArgs environmentArgs)
     {
-        var adapter = await RunOnGlibThreadAsync(() => new GtkX11WebViewAdapter(environmentArgs));
-        return (parent, _) =>
+        WebViewAdapter.NativeWebViewAdapterBuilder builder = (parent, _) =>
         {
             WebViewDispatcher.VerifyAccess();
+            var adapter = RunOnGlibThread(() => new GtkX11WebViewAdapter(environmentArgs));
             adapter.SetParent(parent);
             return new WebViewAdapter.AdapterWrapper(adapter, Task.FromResult<IWebViewAdapter>(adapter));
         };
+
+        return Task.FromResult(builder);
     }
 
     public override void SetParent(IPlatformHandle parent)
@@ -75,6 +78,22 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
             // gtk_widget_set_app_paintable (_windowHandle, true);
 
             base.DefaultBackground = value;
+        }
+    }
+
+    protected override void DisposeSafe(bool disposing)
+    {
+        var window = Interlocked.Exchange(ref _windowHandle, IntPtr.Zero);
+        if (window != IntPtr.Zero)
+        {
+            gtk_container_remove(window, WebViewHandle);
+        }
+
+        base.DisposeSafe(disposing);
+
+        if (window != IntPtr.Zero)
+        {
+            gtk_widget_destroy(window);
         }
     }
 

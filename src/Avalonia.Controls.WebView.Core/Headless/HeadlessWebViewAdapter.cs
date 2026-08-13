@@ -299,6 +299,10 @@ internal partial class HeadlessWebViewAdapter : IWebViewAdapterWithOffscreenBuff
         => Task.FromResult(new HeadlessWebViewEnvironmentRequestedEventArgs.HttpResult(true, $"<html><body>HeadlessWebViewAdapter loaded {uri}</body></html>"));
 
     public event Action? DrawRequested;
+
+    public PixelFormat BufferPixelFormat => PixelFormats.Bgra8888;
+    public AlphaFormat BufferAlphaFormat => AlphaFormat.Premul;
+
     public Task UpdateWriteableBitmap(PixelSize currentSize, FrameChainBase<WriteableBitmap, PixelSize>.IProducer producer)
     {
         if (currentSize == default)

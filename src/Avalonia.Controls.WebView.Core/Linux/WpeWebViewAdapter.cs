@@ -591,6 +591,9 @@ internal sealed unsafe class WpeWebViewAdapter
 
     public event Action? DrawRequested;
 
+    public PixelFormat BufferPixelFormat => PixelFormats.Bgra8888;
+    public AlphaFormat BufferAlphaFormat => AlphaFormat.Premul;
+
     public Task UpdateWriteableBitmap(PixelSize currentSize, FrameChainBase<WriteableBitmap, PixelSize>.IProducer producer)
     {
         var shmBufPtr = _pendingShmExportedBuffer;

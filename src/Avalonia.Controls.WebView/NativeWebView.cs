@@ -469,6 +469,7 @@ namespace Avalonia.Xpf.Controls
 
 #if AVALONIA
             VisualChildren.Add((Control)controlHostImpl);
+            InvalidateMeasure();
 #elif WPF
             IsVisibleChanged += OnIsVisibleChanged;
             var visual = (System.Windows.Media.Visual)controlHostImpl;

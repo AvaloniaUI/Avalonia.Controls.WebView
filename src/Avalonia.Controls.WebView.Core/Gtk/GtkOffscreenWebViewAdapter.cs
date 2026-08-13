@@ -38,7 +38,10 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
     }
 
     public event Action? DrawRequested;
-    
+
+    public PixelFormat BufferPixelFormat => PixelFormats.Rgba8888;
+    public AlphaFormat BufferAlphaFormat => AlphaFormat.Unpremul;
+
     public Task UpdateWriteableBitmap(PixelSize _, FrameChainBase<WriteableBitmap, PixelSize>.IProducer producer)
     {
         if (_windowHandle == IntPtr.Zero)
@@ -65,11 +68,6 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
                 int wHeight = gtk_widget_get_allocated_height(_windowHandle);
 
                 pixbuf = gdk_pixbuf_get_from_window(gdkWindow, 0, 0, wWidth, wHeight);
-                if (pixbuf != IntPtr.Zero && gdk_pixbuf_get_n_channels(pixbuf) == 3)
-                {
-                    var pixbufRgba = gdk_pixbuf_add_alpha(pixbuf, false, 0, 0, 0);
-                    pixbuf = pixbufRgba;
-                }
             }
 
             if (pixbuf == IntPtr.Zero)
@@ -79,46 +77,73 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
 
             try
             {
+                // Windows without an alpha channel produce a three channel pixbuf.
+                if (gdk_pixbuf_get_n_channels(pixbuf) == 3)
+                {
+                    var pixbufRgba = gdk_pixbuf_add_alpha(pixbuf, false, 0, 0, 0);
+                    g_object_unref(pixbuf);
+                    pixbuf = pixbufRgba;
+
+                    if (pixbuf == IntPtr.Zero)
+                    {
+                        return;
+                    }
+                }
+
                 var width = gdk_pixbuf_get_width(pixbuf);
                 var height = gdk_pixbuf_get_height(pixbuf);
                 var stride = gdk_pixbuf_get_rowstride(pixbuf);
                 var channels = gdk_pixbuf_get_n_channels(pixbuf);
                 var pixelsPtr = gdk_pixbuf_get_pixels(pixbuf);
 
+                if (width <= 0 || height <= 0 || channels != 4 || pixelsPtr == IntPtr.Zero)
+                {
+                    return;
+                }
+
                 var size = new PixelSize(width, height);
 
-                if (channels == 4)
+                using (producer.GetNextFrame(size, out var frame))
                 {
-                    using (producer.GetNextFrame(size, out var frame))
-                    {
-                        using var buf = frame.Lock();
-                        var bytesPerRow = Math.Min(stride, buf.RowBytes);
-                        var totalBytes = bytesPerRow * height;
+                    using var buf = frame.Lock();
+                    var dstStride = buf.RowBytes;
 
-                        Buffer.MemoryCopy(
-                            source: (void*)pixelsPtr,
-                            destination: (void*)buf.Address,
-                            destinationSizeInBytes: buf.RowBytes * height,
-                            sourceBytesToCopy: totalBytes
-                        );
+                    if (stride == dstStride)
+                    {
+                        Buffer.MemoryCopy((void*)pixelsPtr, (void*)buf.Address,
+                            (long)height * dstStride, (long)height * stride);
+                    }
+                    else
+                    {
+                        var copyBytes = Math.Min(stride, dstStride);
+                        for (var y = 0; y < height; y++)
+                        {
+                            Buffer.MemoryCopy(
+                                (byte*)pixelsPtr + (long)y * stride,
+                                (byte*)buf.Address + (long)y * dstStride,
+                                dstStride, copyBytes);
+                        }
                     }
                 }
             }
             finally
             {
-                g_object_unref(pixbuf);
+                if (pixbuf != IntPtr.Zero)
+                {
+                    g_object_unref(pixbuf);
+                }
             }
         });
     }
 
     public override void SizeChanged(PixelSize containerSize)
     {
-        if (_windowHandle == IntPtr.Zero)
-            return;
-
         _sizeRequest = containerSize;
         RunOnGlibThreadAsync(() =>
         {
+            if (_windowHandle == IntPtr.Zero)
+                return;
+
             if (_experimentalOffscreen)
                 gtk_window_set_default_size(_windowHandle, _sizeRequest.Width, _sizeRequest.Height);
             else
@@ -300,8 +325,10 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
 
         if (window != IntPtr.Zero)
         {
-            g_object_unref(window);
+            // Destroy before releasing our reference: unreffing first can drop the last reference,
+            // and gtk_widget_destroy would then run against freed memory.
             gtk_widget_destroy(window);
+            g_object_unref(window);
         }
     }
 

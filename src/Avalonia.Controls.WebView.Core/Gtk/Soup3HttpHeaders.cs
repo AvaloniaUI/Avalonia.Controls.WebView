@@ -23,7 +23,7 @@ internal sealed class Soup3HttpHeaders(IntPtr headers, bool immutable) : INative
         var userData = GCHandle.Alloc(boxedCount);
         try
         {
-            soup_message_headers_foreach(headers, &MessageHeadersForeachFunc, userData);
+            soup_message_headers_foreach(headers, &MessageHeadersForeachFunc, GCHandle.ToIntPtr(userData));
         }
         finally
         {
@@ -47,12 +47,12 @@ internal sealed class Soup3HttpHeaders(IntPtr headers, bool immutable) : INative
 
     public string? GetHeader(string name)
     {
-        return soup_message_headers_get_list(headers, name);
+        return Marshal.PtrToStringUTF8(soup_message_headers_get_list(headers, name));
     }
 
     public bool Contains(string name)
     {
-        var value = soup_message_headers_get_one(headers, name);
+        var value = Marshal.PtrToStringUTF8(soup_message_headers_get_one(headers, name));
         return !string.IsNullOrEmpty(value);
     }
 
@@ -83,7 +83,7 @@ internal sealed class Soup3HttpHeaders(IntPtr headers, bool immutable) : INative
         var userData = GCHandle.Alloc(dictionary);
         try
         {
-            soup_message_headers_foreach(headers, &MessageHeadersForeachFunc, userData);
+            soup_message_headers_foreach(headers, &MessageHeadersForeachFunc, GCHandle.ToIntPtr(userData));
         }
         finally
         {

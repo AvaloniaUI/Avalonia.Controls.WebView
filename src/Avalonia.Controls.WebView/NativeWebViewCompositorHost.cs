@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls.Rendering;
 using Avalonia.Input;
 using Avalonia.Input.TextInput;
+using Avalonia.Logging;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -19,9 +20,9 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
     private WebViewTextInputMethodClient? _imClient;
     private TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer?>? _webViewReadyCompletion;
     //private ReparentingScope? _reparentingScope;
-    private bool _firstDraw;
     private CompositionCustomVisual? _customVisual;
-    private readonly BitmapFrameChain _frameChain = new(PixelFormats.Bgra8888);
+    private BitmapFrameChain? _frameChain;
+    private PixelSize _adapterSize;
 
     static NativeWebViewCompositorHost()
     {
@@ -60,23 +61,35 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
         {
             _customVisual.Size = new Vector(size.Width, size.Height);
         }
+        UpdateAdapterSize(size);
         return size;
+    }
+
+    private void UpdateAdapterSize(Size size)
+    {
+        if (TryGetAdapter() is not { } adapter || TopLevel.GetTopLevel(this) is not { } topLevel)
+            return;
+
+        var pixelSize = PixelSize.FromSize(size, topLevel.RenderScaling);
+        if (pixelSize.Width <= 0 || pixelSize.Height <= 0 || pixelSize == _adapterSize)
+            return;
+
+        _adapterSize = pixelSize;
+        adapter.SizeChanged(pixelSize);
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
 
+        var compositorVisual = ElementComposition.GetElementVisual(this)!;
+        _customVisual = compositorVisual.Compositor.CreateCustomVisual(new VisualHandler());
+        _customVisual.Size = new Vector(Bounds.Width, Bounds.Height);
+        ElementComposition.SetElementChildVisual(this, _customVisual);
+
         _webViewReadyCompletion = new TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var adapterTask = factory.InvokeAsync(this);
         CompleteAdapter();
-
-        var compositorVisual = ElementComposition.GetElementVisual(this)!;
-        _firstDraw = true;
-        _customVisual = compositorVisual.Compositor.CreateCustomVisual(new VisualHandler());
-        _customVisual.Size = new Vector(Bounds.Width, Bounds.Height);
-        _customVisual.SendHandlerMessage(_frameChain.Consumer);
-        ElementComposition.SetElementChildVisual(this, _customVisual);
 
         // ReSharper disable once AsyncVoidMethod - let it flow to the dispatcher
         async void CompleteAdapter()
@@ -112,14 +125,22 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
             ElementComposition.SetElementChildVisual(this, null);
             _customVisual = null;
         }
+
+        // Not disposed on purpose - the consumer might still be holding frames on the render thread.
+        _frameChain = null;
+        _adapterSize = default;
     }
 
     private void WebViewAdapterOnInitialized(IWebViewAdapterWithOffscreenBuffer adapter)
     {
+        _frameChain = new BitmapFrameChain(adapter.BufferPixelFormat, adapter.BufferAlphaFormat);
+        _customVisual?.SendHandlerMessage(_frameChain.Consumer);
+
         _webViewReadyCompletion?.TrySetResult(adapter);
         AdapterCreated?.Invoke(this, adapter);
         adapter.DrawRequested += OffscreenAdapter_OnDrawRequested;
-        
+
+        UpdateAdapterSize(Bounds.Size);
         if (adapter is IWebViewAdapterWithExplicitCursor cursorAdapter)
         {
             Cursor = new Cursor(cursorAdapter.CurrentCursorType);
@@ -132,7 +153,7 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
         try
         {
             var adapter = (IWebViewAdapterWithOffscreenBuffer?)TryGetAdapter();
-            if (adapter is null)
+            if (adapter is null || _frameChain is null)
                 return;
 
             var topLevel = TopLevel.GetTopLevel(this);
@@ -140,17 +161,19 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
                 return;
 
             var adapterSize = PixelSize.FromSize(Bounds.Size, topLevel.RenderScaling);
-            if (_firstDraw)
-            {
-                _firstDraw = false;
-                adapter.SizeChanged(adapterSize);
-            }
+            if (adapterSize == default)
+                return;
+
+            // Covers a draw that arrives before the host was arranged for the first time.
+            UpdateAdapterSize(Bounds.Size);
 
             await adapter.UpdateWriteableBitmap(adapterSize, _frameChain.Producer);
             _customVisual?.SendHandlerMessage(VisualHandler.DrawRequested);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Logger.TryGet(LogEventLevel.Warning, "WebView")?.Log(this,
+                "OffscreenAdapter.OnDrawRequested failed with an error: {Exception}", ex);
         }
     }
 

@@ -85,7 +85,7 @@ internal static unsafe partial class GtkInterop
     [DllImport(LibWebKit)]
     internal static extern IntPtr webkit_web_view_get_uri(IntPtr webView);
 
-    [DllImport(LibGio)]
+    [DllImport(LibGLib)]
     internal static extern void g_free(IntPtr ptr);
 
     [DllImport(LibGio)]
@@ -95,7 +95,7 @@ internal static unsafe partial class GtkInterop
     internal static extern IntPtr g_main_context_default();
 
     [LibraryImport(LibGLib)]
-    [return: MarshalAs(UnmanagedType.I1)]
+    [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool g_main_context_is_owner(IntPtr context);
 
     [DllImport(LibWebKit)]
@@ -105,7 +105,7 @@ internal static unsafe partial class GtkInterop
     internal static extern void webkit_user_content_manager_add_script(IntPtr manager, IntPtr userScript);
 
     [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
-    [return: MarshalAs(UnmanagedType.I1)]
+    [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool webkit_user_content_manager_register_script_message_handler(IntPtr manager, string messageHandler);
 
     [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
@@ -174,10 +174,10 @@ internal static unsafe partial class GtkInterop
     [DllImport(LibWebKit)]
     public static extern void webkit_print_operation_set_page_setup(IntPtr operation, IntPtr pageSetup);
 
-    [DllImport(LibWebKit)]
+    [DllImport(LibGtk)]
     public static extern IntPtr gtk_print_settings_new();
 
-    [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    [LibraryImport(LibGtk, StringMarshalling = StringMarshalling.Utf8)]
     internal static partial void gtk_print_settings_set(IntPtr settings, string key, string value);
 
     [DllImport(LibGtk)]
@@ -218,8 +218,8 @@ internal static unsafe partial class GtkInterop
     [DllImport(LibGtk)]
     internal static extern void gtk_widget_destroy(IntPtr widget);
 
-    [DllImport(LibGObject)]
-    internal static extern ulong g_error_free(GError* error);
+    [DllImport(LibGLib)]
+    internal static extern void g_error_free(GError* error);
 
     [DllImport(LibGObject)]
     internal static extern IntPtr g_object_ref(IntPtr handle);
@@ -230,8 +230,8 @@ internal static unsafe partial class GtkInterop
     [DllImport (LibGObject)]
     internal static extern void g_object_unref(IntPtr handle);
 
-    [LibraryImport(LibGObject, StringMarshalling = StringMarshalling.Utf8)]
-    internal static partial void g_variant_get(IntPtr variant, string formatString, out string? result);
+    [LibraryImport(LibGLib, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial void g_variant_get(IntPtr variant, string formatString, out IntPtr result);
 
     [DllImport(LibGtk)]
     internal static extern IntPtr gtk_window_new(int type);
@@ -312,7 +312,7 @@ internal static unsafe partial class GtkInterop
     internal static extern IntPtr gdk_keymap_get_for_display(IntPtr display);
 
     [LibraryImport (LibGdk)]
-    [return: MarshalAs(UnmanagedType.I1)]
+    [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool gdk_keymap_translate_keyboard_state(IntPtr keymap, uint hardware_keycode, GdkModifierType state, int group, out uint keyval, out int effective_group, out int level, out int consumed_modifiers);
 
     [DllImport(LibGdk)]
@@ -351,10 +351,10 @@ internal static unsafe partial class GtkInterop
     [DllImport(LibGdk)]
     public static extern IntPtr gdk_event_new(GdkEventType type);
 
-    [DllImport(LibGdk)]
+    [DllImport(LibGtk)]
     public static extern bool gtk_widget_event(IntPtr widget, IntPtr gdkEvent);
 
-    [DllImport(LibGdk)]
+    [DllImport(LibGtk)]
     public static extern void gtk_main_do_event(IntPtr gdkEvent);
 
     [DllImport(LibGdk)]
@@ -453,12 +453,13 @@ internal static unsafe partial class GtkInterop
     public static extern void soup_message_headers_foreach(
         IntPtr headers,
         delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void> func,
-        GCHandle user_data);
+        IntPtr user_data);
 
+    // Don't return string for SOUP headers, we don't want to auto-release them (as it's done by LibraryImport)
     [LibraryImport(LibSoup, StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string? soup_message_headers_get_list(IntPtr headers, string name);
+    public static partial IntPtr soup_message_headers_get_list(IntPtr headers, string name);
     [LibraryImport(LibSoup, StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string? soup_message_headers_get_one(IntPtr headers, string name);
+    public static partial IntPtr soup_message_headers_get_one(IntPtr headers, string name);
     [LibraryImport(LibSoup, StringMarshalling = StringMarshalling.Utf8)]
     public static partial void soup_message_headers_replace(IntPtr headers, string name, string value);
     [LibraryImport(LibSoup, StringMarshalling = StringMarshalling.Utf8)]
@@ -555,9 +556,11 @@ internal static unsafe partial class GtkInterop
         public int width, height;
     }
 
+    [Flags]
     public enum GConnectFlags : int
     {
-        AFTER,
-        SWAPPED
+        NONE = 0,
+        AFTER = 1 << 0,
+        SWAPPED = 1 << 1
     }
 }
