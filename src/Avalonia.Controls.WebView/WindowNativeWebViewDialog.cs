@@ -88,7 +88,7 @@ namespace Avalonia.Xpf.Controls
             }
         }
 
-        public void Dispose() {}
+        public void Dispose() => Close();
 
         event EventHandler? Core.INativeWebViewDialog.Closing
         {
