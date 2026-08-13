@@ -21,7 +21,7 @@ internal class BrowserWindowNativeWebViewDialog(Action<WebViewEnvironmentRequest
     private IWebViewAdapter? _adapter;
     private Action? _unsubClose;
     private string? _title;
-    private Color _defaultBackground;
+    private Color _defaultBackground = Colors.White;
     private bool _disposed;
 
     public IWebViewAdapter? TryGetAdapter() => _adapter;
