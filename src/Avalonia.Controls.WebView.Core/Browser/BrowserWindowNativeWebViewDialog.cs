@@ -94,6 +94,13 @@ internal class BrowserWindowNativeWebViewDialog(Action<WebViewEnvironmentRequest
         return true;
     }
 
+    public void Focus()
+    {
+        if (_popup is { } popup)
+            WebViewInterop.FocusDialogWindow(popup);
+        (_adapter as IWebViewAdapterWithFocus)?.Focus();
+    }
+
     public void Close()
     {
         if (_popup is { } popup)

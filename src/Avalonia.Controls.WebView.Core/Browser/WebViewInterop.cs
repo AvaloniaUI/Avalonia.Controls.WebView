@@ -96,6 +96,9 @@ internal static partial class WebViewInterop
     [JSImport("closeDialogWindow", "av-webview")]
     public static partial void CloseDialogWindow(JSObject popup);
 
+    [JSImport("focusDialogWindow", "av-webview")]
+    public static partial void FocusDialogWindow(JSObject popup);
+
     [JSImport("resizeDialogWindow", "av-webview")]
     public static partial bool ResizeDialogWindow(JSObject popup, int width, int height);
 

@@ -27,6 +27,8 @@ internal class EmptyNativeWebViewControlImpl : Control, INativeWebViewControlImp
 
     public Task<IWebViewAdapter?> GetAdapterAsync() => Task.FromResult<IWebViewAdapter?>(null);
 
+    public void FocusWebView() { }
+
     public IDisposable BeginReparenting(bool yieldOnLayoutBeforeExiting) => EmptyDisposable.Instance;
     public IAsyncDisposable BeginReparentingAsync() => EmptyDisposable.Instance;
 

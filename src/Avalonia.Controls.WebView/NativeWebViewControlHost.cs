@@ -72,6 +72,9 @@ namespace Avalonia.Xpf.Controls
             _webViewReadyCompletion.Task.Result :
             null;
 
+        /// <inheritdoc />
+        public void FocusWebView() => (TryGetAdapter() as Core.IWebViewAdapterWithFocus)?.Focus();
+
         protected override void DestroyNativeControlCore(IPlatformHandle control)
         {
             var adapter = TryGetAdapter();

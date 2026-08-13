@@ -113,6 +113,24 @@ namespace Avalonia.Xpf.Controls
 
         bool Core.INativeWebViewDialog.Show(IPlatformHandle _) => false;
 
+        void Core.INativeWebViewDialog.Focus()
+        {
+            Activate();
+            _controlHostImpl?.FocusWebView();
+
+            if (!IsActive)
+            {
+                Activated -= OnActivatedFocusWebView;
+                Activated += OnActivatedFocusWebView;
+            }
+        }
+
+        private void OnActivatedFocusWebView(object? sender, EventArgs e)
+        {
+            Activated -= OnActivatedFocusWebView;
+            _controlHostImpl?.FocusWebView();
+        }
+
         public bool Resize(int width, int height)
         {
             Width = width;

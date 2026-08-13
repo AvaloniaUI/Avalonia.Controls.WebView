@@ -45,6 +45,9 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
         null;
 
     /// <inheritdoc />
+    public void FocusWebView() => Focus();
+
+    /// <inheritdoc />
     public async Task<IWebViewAdapter?> GetAdapterAsync() =>
         _webViewReadyCompletion is null ? null : await _webViewReadyCompletion.Task;
 
