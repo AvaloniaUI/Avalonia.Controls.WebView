@@ -23,6 +23,9 @@ namespace Avalonia.Xpf.Controls
         private TaskCompletionSource<IWebViewAdapter?>? _webViewReadyCompletion;
         private ReparentingScope? _reparentingScope;
         private IPlatformHandle? _defaultChildHandle;
+#if AVALONIA
+        private PixelSize _adapterSize;
+#endif
 
         /// <inheritdoc />
         public event EventHandler<IWebViewAdapter>? AdapterCreated;
@@ -80,6 +83,9 @@ namespace Avalonia.Xpf.Controls
 
             _webViewReadyCompletion?.TrySetCanceled();
             _webViewReadyCompletion = null;
+#if AVALONIA
+            _adapterSize = default;
+#endif
 
             if (adapter is not null)
             {
@@ -108,6 +114,28 @@ namespace Avalonia.Xpf.Controls
             }
 #endif
         }
+
+#if AVALONIA
+        protected override void OnSizeChanged(SizeChangedEventArgs e)
+        {
+            base.OnSizeChanged(e);
+            UpdateAdapterSize(e.NewSize);
+        }
+
+        // Native control host only moves and resizes the native handle, the adapter needs to be notified separately.
+        private void UpdateAdapterSize(Size size)
+        {
+            if (TryGetAdapter() is not { } adapter || TopLevel.GetTopLevel(this) is not { } topLevel)
+                return;
+
+            var pixelSize = PixelSize.FromSize(size, topLevel.RenderScaling);
+            if (pixelSize.Width <= 0 || pixelSize.Height <= 0 || pixelSize == _adapterSize)
+                return;
+
+            _adapterSize = pixelSize;
+            adapter.SizeChanged(pixelSize);
+        }
+#endif
 
         /// <inheritdoc />
         public IDisposable BeginReparenting(bool yieldOnLayoutBeforeExiting = true)
