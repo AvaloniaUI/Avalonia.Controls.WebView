@@ -23,7 +23,7 @@ internal sealed class Soup3HttpHeaders(IntPtr headers, bool immutable) : INative
         var userData = GCHandle.Alloc(boxedCount);
         try
         {
-            soup_message_headers_foreach(headers, &MessageHeadersForeachFunc, userData);
+            soup_message_headers_foreach(headers, &MessageHeadersForeachFunc, GCHandle.ToIntPtr(userData));
         }
         finally
         {
@@ -83,7 +83,7 @@ internal sealed class Soup3HttpHeaders(IntPtr headers, bool immutable) : INative
         var userData = GCHandle.Alloc(dictionary);
         try
         {
-            soup_message_headers_foreach(headers, &MessageHeadersForeachFunc, userData);
+            soup_message_headers_foreach(headers, &MessageHeadersForeachFunc, GCHandle.ToIntPtr(userData));
         }
         finally
         {

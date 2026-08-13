@@ -457,7 +457,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
             return;
         }
 
-        GError* err;
+        GError* err = null;
         var jsResult = webkit_web_view_run_javascript_finish(webView, result, &err);
         if (jsResult == IntPtr.Zero)
         {
@@ -601,7 +601,14 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
             return null;
         }
 
-        return Marshal.PtrToStringAuto(p);
+        try
+        {
+            return Marshal.PtrToStringUTF8(p);
+        }
+        finally
+        {
+            g_free(p);
+        }
     }
 
     protected virtual void DisposeSafe(bool disposing)
