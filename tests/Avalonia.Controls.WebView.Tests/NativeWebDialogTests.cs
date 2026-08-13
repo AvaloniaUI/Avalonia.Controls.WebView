@@ -165,6 +165,56 @@ public class NativeWebDialogTests : HeadlessTestsBase
     }
 
     [AvaloniaFact]
+    public async Task Should_Focus_WebView_On_Show_By_Default()
+    {
+        var dialog = new NativeWebDialog();
+        dialog.Show();
+
+        await WaitForAdapterCreation(dialog);
+
+        var window = dialog.TryGetWindow()!;
+        Assert.Same(window.Content, window.FocusManager?.GetFocusedElement());
+    }
+
+    [AvaloniaFact]
+    public async Task Should_Not_Focus_WebView_When_ShowFocused_Is_False()
+    {
+        var dialog = new NativeWebDialog { ShowFocused = false };
+        dialog.Show();
+
+        await WaitForAdapterCreation(dialog);
+
+        var window = dialog.TryGetWindow()!;
+        Assert.Null(window.FocusManager?.GetFocusedElement());
+    }
+
+    [AvaloniaFact]
+    public async Task Should_Focus_WebView_On_Demand()
+    {
+        var dialog = new NativeWebDialog { ShowFocused = false };
+        dialog.Show();
+
+        await WaitForAdapterCreation(dialog);
+        dialog.Focus();
+
+        var window = dialog.TryGetWindow()!;
+        Assert.Same(window.Content, window.FocusManager?.GetFocusedElement());
+    }
+
+    [AvaloniaFact]
+    public async Task Should_Apply_Focus_Requested_Before_Adapter_Creation()
+    {
+        var dialog = new NativeWebDialog { ShowFocused = false };
+        dialog.Show();
+        dialog.Focus();
+
+        await WaitForAdapterCreation(dialog);
+
+        var window = dialog.TryGetWindow()!;
+        Assert.Same(window.Content, window.FocusManager?.GetFocusedElement());
+    }
+
+    [AvaloniaFact]
     public async Task Should_Raise_AdapterCreated_And_AdapterDestroyed()
     {
         var dialog = new NativeWebDialog();
