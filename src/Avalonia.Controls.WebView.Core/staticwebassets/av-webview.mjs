@@ -170,6 +170,12 @@ export function closeDialogWindow(popup) {
     } catch { }
 }
 
+export function focusDialogWindow(popup) {
+    try {
+        popup.focus();
+    } catch { }
+}
+
 export function resizeDialogWindow(popup, width, height) {
     try {
         popup.resizeTo(width, height);

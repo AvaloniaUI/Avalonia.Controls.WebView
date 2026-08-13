@@ -215,6 +215,12 @@ internal sealed class GtkNativeWebViewDialog : INativeWebViewDialog, IGtkWebView
         return true;
     }
 
+    public void Focus() => RunOnGlibThreadAsync(() =>
+    {
+        gtk_window_present(_windowHandle);
+        _nativeWebView?.Focus();
+    });
+
     public void Close()
     {
         // Closing is invoked in two places for the GTK webview:

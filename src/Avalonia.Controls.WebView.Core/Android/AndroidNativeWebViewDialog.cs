@@ -80,6 +80,8 @@ internal class AndroidNativeWebViewDialog(Action<WebViewEnvironmentRequestedEven
         _isOpen = true;
     }
 
+    public void Focus() => (TryGetAdapter() as IWebViewAdapterWithFocus)?.Focus();
+
     public void Close()
     {
         if (!_isOpen || _context is null) return;

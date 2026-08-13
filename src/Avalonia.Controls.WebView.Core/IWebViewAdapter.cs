@@ -179,6 +179,11 @@ internal interface INativeWebViewDialog : IDisposable
     void Close();
 
     /// <summary>
+    /// Activates the dialog and moves keyboard focus to the hosted web content.
+    /// </summary>
+    void Focus();
+
+    /// <summary>
     /// Resizes the WebView dialog.
     /// </summary>
     bool Resize(int width, int height);
