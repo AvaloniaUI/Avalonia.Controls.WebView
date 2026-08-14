@@ -45,14 +45,8 @@ internal partial class WebViewCallbacks(WeakReference<WebView1Adapter> weakAdapt
         {
             try
             {
-                var initScript =
-                    """
-                    window.invokeCSharpAction = function(data) {
-                        var message = typeof data === 'object' ? JSON.stringify(data) : data;
-                        window.external.notify(message);
-                    };
-                    """;
-                await adapter.InvokeScript(initScript);
+                await adapter.InvokeScript(WebViewHelper.BuildInvokeCSharpActionScript(
+                    "window.external", postMethod: "notify", stringify: true));
             }
             catch (Exception ex)
             {
