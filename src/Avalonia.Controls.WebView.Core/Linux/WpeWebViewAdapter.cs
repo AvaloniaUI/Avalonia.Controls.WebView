@@ -33,6 +33,7 @@ internal sealed unsafe class WpeWebViewAdapter
     private IntPtr _exportable;
     private IntPtr _viewBackend;
     private IntPtr _networkSession;
+    private IntPtr _userContentManager;
     private IntPtr _cookieManager;
     private bool _exportableOwnedByWebKit; // true when webkit_web_view_backend_new took ownership
     private PixelSize _currentSize;
@@ -231,14 +232,31 @@ internal sealed unsafe class WpeWebViewAdapter
         else
             _networkSession = WpeInterop.webkit_network_session_get_default();
 
+        _userContentManager = WpeInterop.webkit_user_content_manager_new();
+        if (_userContentManager == IntPtr.Zero)
+            throw new InvalidOperationException("webkit_user_content_manager_new failed.");
+
         var webViewType = WpeInterop.webkit_web_view_get_type();
         var wkBackendType = WpeInterop.webkit_web_view_backend_get_type();
         var networkSessionType = WpeInterop.webkit_network_session_get_type();
-        var keys = new[] { "backend", "network-session" };
-        var values = new[] { new GValue(wkBackendType, wkBackend), new GValue(networkSessionType, _networkSession) };
-        _webView = WpeInterop.g_object_new_with_properties(webViewType, 2, keys, values);
+        var contentManagerType = WpeInterop.webkit_user_content_manager_get_type();
+        var keys = new[] { "backend", "network-session", "user-content-manager" };
+        var values = new[]
+        {
+            new GValue(wkBackendType, wkBackend),
+            new GValue(networkSessionType, _networkSession),
+            new GValue(contentManagerType, _userContentManager)
+        };
+        _webView = WpeInterop.g_object_new_with_properties(webViewType, 3, keys, values);
         if (_webView == IntPtr.Zero)
             throw new InvalidOperationException("webkit_web_view_new failed.");
+
+        var viewContentManager = WpeInterop.webkit_web_view_get_user_content_manager(_webView);
+        if (viewContentManager != IntPtr.Zero && viewContentManager != _userContentManager)
+        {
+            WpeInterop.g_object_unref(_userContentManager);
+            _userContentManager = WpeInterop.g_object_ref(viewContentManager);
+        }
 
         // 5. Start GLib pump (WebKit needs it for internal IPC)
         WpeGLibIntegration.Start();
@@ -258,11 +276,17 @@ internal sealed unsafe class WpeWebViewAdapter
         ConnectSignal(_webView, "decide-policy", Marshal.GetFunctionPointerForDelegate(_decidePolicyCallback), selfPtr);
         ConnectSignal(_webView, "create", Marshal.GetFunctionPointerForDelegate(_createCallback), selfPtr);
 
-        // 8. Register invokeCSharpAction message handler
-        var contentManager = WpeInterop.webkit_web_view_get_user_content_manager(_webView);
-        WpeInterop.webkit_user_content_manager_register_script_message_handler(contentManager, "invokeCSharpAction", null);
-        ConnectSignal(contentManager, "script-message-received::invokeCSharpAction",
+        // 8. Register the message handler, connecting before registering so that no message can arrive unhandled.
+        ConnectSignal(_userContentManager, $"script-message-received::{WebViewHelper.PostAvWebViewMessageName}",
             Marshal.GetFunctionPointerForDelegate(_scriptMessageCallback), selfPtr);
+        WpeInterop.webkit_user_content_manager_register_script_message_handler(
+            _userContentManager, WebViewHelper.PostAvWebViewMessageName, null);
+
+        // Inject the invokeCSharpAction wrapper into all frames at document start.
+        var bridgeScript = WpeInterop.webkit_user_script_new(
+            WebViewHelper.BuildWebKitInvokeCSharpActionScript(), 0, 0, IntPtr.Zero, IntPtr.Zero);
+        WpeInterop.webkit_user_content_manager_add_script(_userContentManager, bridgeScript);
+        WpeInterop.webkit_user_script_unref(bridgeScript);
 
         // 9. Apply settings
         var settings = WpeInterop.webkit_web_view_get_settings(_webView);
@@ -1017,6 +1041,12 @@ internal sealed unsafe class WpeWebViewAdapter
             // GDestroyNotify callback we passed to webkit_web_view_backend_new.
             WpeInterop.g_object_unref(_webView);
             _webView = IntPtr.Zero;
+        }
+
+        if (_userContentManager != IntPtr.Zero)
+        {
+            WpeInterop.g_object_unref(_userContentManager);
+            _userContentManager = IntPtr.Zero;
         }
 
         if (!_exportableOwnedByWebKit && _exportable != IntPtr.Zero)
