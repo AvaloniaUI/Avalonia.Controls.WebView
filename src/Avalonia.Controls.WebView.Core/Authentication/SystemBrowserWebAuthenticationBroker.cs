@@ -16,6 +16,7 @@ internal static class SystemBrowserWebAuthenticationBroker
         Uri redirectUri,
         TimeSpan timeout,
         Func<Uri, Task<bool>> launcher,
+        Func<Uri, bool>? callbackFilter,
         Func<Uri, BrowserResponse, Task>? responseFactory,
         CancellationToken cancellationToken)
     {
@@ -42,7 +43,7 @@ internal static class SystemBrowserWebAuthenticationBroker
 
         // Start accepting before the browser is launched. The callback can arrive as soon as the
         // browser opens, and a launcher is not required to return before that happens.
-        var callbackTask = listener.WaitForCallbackAsync(responseFactory, linkedCts.Token);
+        var callbackTask = listener.WaitForCallbackAsync(callbackFilter, responseFactory, linkedCts.Token);
 
         try
         {
@@ -68,8 +69,13 @@ internal static class SystemBrowserWebAuthenticationBroker
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested &&
                                                  !cancellationToken.IsCancellationRequested)
         {
+            // A filter that never matches otherwise presents as a silent wait until the timeout.
+            var rejected = listener.RejectedCallbackCount > 0
+                ? $" {listener.RejectedCallbackCount} callback(s) were rejected by the callback filter."
+                : "";
+
             throw new OperationCanceledException(
-                $"Timed out after {timeout} waiting for the authentication callback.");
+                $"Timed out after {timeout} waiting for the authentication callback.{rejected}");
         }
         finally
         {

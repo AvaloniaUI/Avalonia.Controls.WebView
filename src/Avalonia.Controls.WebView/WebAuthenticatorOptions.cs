@@ -78,7 +78,19 @@ public enum WebAuthenticatorMode
     /// Opens the authentication flow in the user's default web browser and uses a local HTTP listener to receive the redirect.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Requires <see cref="WebAuthenticatorOptions.RedirectUri"/> to be an <c>http</c> loopback address.
+    /// </para>
+    /// <para>
+    /// The redirect is received on a local socket.
+    /// Any process on the machine can connect to it, so <see cref="WebAuthenticationResult.CallbackUri"/> is untrusted input.
+    /// The caller must validate its <c>code</c>, <c>state</c> and <c>error</c> parameters.
+    /// </para>
+    /// <para>
+    /// PKCE is strongly recommended (RFC 8252, section 8.1).
+    /// It is what makes an injected authorization code unusable at the token endpoint.
+    /// Use <see cref="BrowserOptions.CallbackFilter"/> to keep the listener waiting when a request does not belong to the flow.
+    /// </para>
     /// </remarks>
     [UnsupportedOSPlatform("browser")]
     Browser
@@ -104,6 +116,21 @@ public record BrowserOptions
     public BrowserResponseHandler? ResponseHandler { get; init; }
 
     /// <summary>
+    /// Gets or sets a callback that decides whether a request to the redirect path belongs to this authentication flow.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The local listener accepts connections from any process on the machine.
+    /// A request that reaches the redirect path is therefore not necessarily the browser's.
+    /// </para>
+    /// <para>
+    /// The usual implementation compares the <c>state</c> query parameter against the value sent in the authorization request.
+    /// The caller still has to check <c>code</c>, <c>state</c> and <c>error</c> on the returned <see cref="WebAuthenticationResult.CallbackUri"/>.
+    /// </para>
+    /// </remarks>
+    public BrowserCallbackFilter? CallbackFilter { get; init; }
+
+    /// <summary>
     /// Handles the HTTP response sent to the browser after the authentication callback
     /// is received.
     /// </summary>
@@ -116,4 +143,16 @@ public record BrowserOptions
     public delegate Task BrowserResponseHandler(
         WebAuthenticationResult result,
         BrowserResponse response);
+
+    /// <summary>
+    /// Decides whether a request received on the redirect path belongs to the authentication flow.
+    /// </summary>
+    /// <param name="callbackUri">
+    /// The candidate callback uri.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> to complete the flow with <paramref name="callbackUri"/>;
+    /// <see langword="false"/> to reject it and keep waiting.
+    /// </returns>
+    public delegate bool BrowserCallbackFilter(Uri callbackUri);
 }

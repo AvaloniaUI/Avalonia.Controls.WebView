@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -40,6 +42,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
                 await GetAsync(RedirectUriOf(uri) + "?code=123&state=xyz");
                 return true;
             },
+            null,
             null,
             TestContext.Current.CancellationToken);
 
@@ -84,6 +87,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
                 return true;
             },
             null,
+            null,
             TestContext.Current.CancellationToken);
 
         // An explicit port needs no coercion, so the request uri is passed through untouched.
@@ -108,6 +112,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
                 body = await GetAsync(RedirectUriOf(uri) + "?code=123");
                 return true;
             },
+            null,
             async (uri, response) =>
             {
                 handlerUri = uri;
@@ -117,6 +122,122 @@ public class SystemBrowserWebAuthenticationBrokerTests
 
         Assert.Equal("<html>done</html>", body);
         Assert.Equal(callbackUri, handlerUri);
+    }
+
+    [Fact]
+    public async Task Should_Ignore_A_Forged_Callback_That_Arrives_Before_The_Real_One()
+    {
+        var port = GetFreePort();
+        var redirectUri = new Uri($"http://127.0.0.1:{port}/callback");
+        var rejected = new List<Uri>();
+
+        var callbackUri = await SystemBrowserWebAuthenticationBroker.AuthenticateAsync(
+            new Uri("http://input.com/authorize?client_id=abc&state=mine"),
+            redirectUri,
+            s_timeout,
+            async _ =>
+            {
+                // Any local process can reach the port and race the browser to it.
+                await GetAsync($"{redirectUri}?code=evil&state=theirs");
+                await GetAsync($"{redirectUri}?code=real&state=mine");
+                return true;
+            },
+            uri =>
+            {
+                var accepted = HttpUtility.ParseQueryString(uri.Query)["state"] == "mine";
+                if (!accepted)
+                {
+                    rejected.Add(uri);
+                }
+
+                return accepted;
+            },
+            null,
+            TestContext.Current.CancellationToken);
+
+        // The forged callback must neither complete nor kill the flow.
+        Assert.Equal("?code=real&state=mine", callbackUri.Query);
+        Assert.Equal("?code=evil&state=theirs", Assert.Single(rejected).Query);
+    }
+
+    [Fact]
+    public async Task Should_Not_Invoke_The_Response_Handler_For_A_Rejected_Callback()
+    {
+        var port = GetFreePort();
+        var redirectUri = new Uri($"http://127.0.0.1:{port}/callback");
+        var handlerCalls = 0;
+
+        var callbackUri = await SystemBrowserWebAuthenticationBroker.AuthenticateAsync(
+            new Uri("http://input.com/authorize?client_id=abc&state=mine"),
+            redirectUri,
+            s_timeout,
+            async _ =>
+            {
+                await GetAsync($"{redirectUri}?code=evil&state=theirs");
+                await GetAsync($"{redirectUri}?code=real&state=mine");
+                return true;
+            },
+            uri => HttpUtility.ParseQueryString(uri.Query)["state"] == "mine",
+            (_, _) =>
+            {
+                handlerCalls++;
+                return Task.CompletedTask;
+            },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("?code=real&state=mine", callbackUri.Query);
+        Assert.Equal(1, handlerCalls);
+    }
+
+    [Fact]
+    public async Task Should_Report_Rejected_Callbacks_In_The_Timeout_Message()
+    {
+        var port = GetFreePort();
+        var redirectUri = new Uri($"http://127.0.0.1:{port}/callback");
+
+        var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => SystemBrowserWebAuthenticationBroker.AuthenticateAsync(
+                new Uri("http://input.com/authorize?client_id=abc"),
+                redirectUri,
+                TimeSpan.FromSeconds(2),
+                async _ =>
+                {
+                    await GetAsync($"{redirectUri}?code=one");
+                    await GetAsync($"{redirectUri}?code=two");
+                    return true;
+                },
+                _ => false,
+                null,
+                TestContext.Current.CancellationToken));
+
+        // A filter that never matches must not present as a silent wait.
+        Assert.Contains("2 callback(s) were rejected by the callback filter.", exception.Message);
+    }
+
+    [Fact]
+    public async Task Should_Surface_An_Exception_Thrown_By_The_Callback_Filter()
+    {
+        var port = GetFreePort();
+        var redirectUri = new Uri($"http://127.0.0.1:{port}/callback");
+        var expected = new InvalidOperationException("bad filter");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => SystemBrowserWebAuthenticationBroker.AuthenticateAsync(
+                new Uri("http://input.com/authorize?client_id=abc"),
+                redirectUri,
+                s_timeout,
+                async _ =>
+                {
+                    // The listener faults before writing a response, so send raw rather than waiting on
+                    // HttpClient for a reply that never comes.
+                    await SendRawCallbackAsync(port, "/callback?code=abc");
+                    return true;
+                },
+                _ => throw expected,
+                null,
+                TestContext.Current.CancellationToken));
+
+        Assert.Same(expected, exception);
     }
 
     [Theory]
@@ -131,6 +252,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
                 new Uri(redirectUri),
                 s_timeout,
                 _ => throw new InvalidOperationException("Browser should not be launched."),
+                null,
                 null,
                 TestContext.Current.CancellationToken));
 
@@ -149,6 +271,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
                 s_timeout,
                 _ => throw new InvalidOperationException("Browser should not be launched."),
                 null,
+                null,
                 TestContext.Current.CancellationToken));
     }
 
@@ -161,6 +284,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
                 new Uri($"http://127.0.0.1:{GetFreePort()}/callback"),
                 s_timeout,
                 _ => Task.FromResult(false),
+                null,
                 null,
                 TestContext.Current.CancellationToken));
 
@@ -179,6 +303,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
                 s_timeout,
                 _ => throw expected,
                 null,
+                null,
                 TestContext.Current.CancellationToken));
 
         Assert.Same(expected, exception.InnerException);
@@ -194,6 +319,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
                 new Uri($"http://127.0.0.1:{GetFreePort()}/callback"),
                 TimeSpan.FromMilliseconds(200),
                 _ => Task.FromResult(true),
+                null,
                 null,
                 TestContext.Current.CancellationToken));
     }
@@ -212,6 +338,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
                 cts.Cancel();
                 return Task.FromResult(true);
             },
+            null,
             null,
             cts.Token);
 
@@ -234,6 +361,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
                 TimeSpan.FromMilliseconds(200),
                 _ => Task.FromResult(true),
                 null,
+                null,
                 TestContext.Current.CancellationToken));
 
         // The listener must not keep the port bound after the flow is over.
@@ -245,9 +373,28 @@ public class SystemBrowserWebAuthenticationBrokerTests
         HttpUtility.ParseQueryString(requestUri.Query)["redirect_uri"] ??
         throw new InvalidOperationException("The launched uri has no redirect_uri.");
 
+    /// <summary>
+    /// Sends a callback request without expecting a well formed reply, and returns once the listener
+    /// closes the connection.
+    /// </summary>
+    private static async Task SendRawCallbackAsync(int port, string target)
+    {
+        using var client = new TcpClient();
+        await client.ConnectAsync(IPAddress.Loopback, port);
+
+        var stream = client.GetStream();
+        await stream.WriteAsync(Encoding.ASCII.GetBytes($"GET {target} HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"));
+        await stream.FlushAsync();
+
+        using var drain = new MemoryStream();
+        await stream.CopyToAsync(drain);
+    }
+
     private static async Task<string> GetAsync(string uri)
     {
-        using var http = new HttpClient();
+        // Short timeout so a listener that stopped accepting fails the test quickly
+        // instead of waiting out HttpClient's 100 second default.
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         using var response = await http.GetAsync(uri);
         return await response.Content.ReadAsStringAsync();
     }

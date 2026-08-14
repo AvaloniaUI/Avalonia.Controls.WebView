@@ -54,7 +54,13 @@ internal sealed class LoopbackHttpListener : IDisposable
     /// </summary>
     public int Port => ((IPEndPoint)_listener.LocalEndpoint).Port;
 
+    /// <summary>
+    /// Number of requests to the redirect path that <c>callbackFilter</c> rejected.
+    /// </summary>
+    public int RejectedCallbackCount { get; private set; }
+
     public async Task<Uri> WaitForCallbackAsync(
+        Func<Uri, bool>? callbackFilter,
         Func<Uri, BrowserResponse, Task>? responseFactory,
         CancellationToken cancellationToken)
     {
@@ -73,6 +79,12 @@ internal sealed class LoopbackHttpListener : IDisposable
                     continue;
 
                 var found = requestUri.AbsolutePath == _redirectPath;
+
+                if (found && callbackFilter is not null && !callbackFilter(requestUri))
+                {
+                    found = false;
+                    RejectedCallbackCount++;
+                }
 
                 BrowserResponse? response;
                 if (found && responseFactory is not null)

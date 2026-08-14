@@ -36,7 +36,7 @@ public class LoopbackHttpListenerTests
         using var listener = new LoopbackHttpListener(0, RedirectPath);
         using var cts = new CancellationTokenSource(s_timeout);
 
-        var waitTask = listener.WaitForCallbackAsync(Html("<html>ok</html>"), cts.Token);
+        var waitTask = listener.WaitForCallbackAsync(null, Html("<html>ok</html>"), cts.Token);
 
         using var http = new HttpClient();
         using var response = await http.GetAsync(
@@ -69,7 +69,7 @@ public class LoopbackHttpListenerTests
         using var listener = new LoopbackHttpListener(0, RedirectPath);
         using var cts = new CancellationTokenSource(s_timeout);
 
-        var waitTask = listener.WaitForCallbackAsync(null, cts.Token);
+        var waitTask = listener.WaitForCallbackAsync(null, null, cts.Token);
 
         using var http = new HttpClient();
         using var response = await http.GetAsync(
@@ -91,6 +91,7 @@ public class LoopbackHttpListenerTests
         using var cts = new CancellationTokenSource(s_timeout);
 
         var waitTask = listener.WaitForCallbackAsync(
+            null,
             (_, response) =>
             {
                 Interlocked.Increment(ref handlerCalls);
@@ -125,7 +126,7 @@ public class LoopbackHttpListenerTests
         using var listener = new LoopbackHttpListener(0, RedirectPath);
         using var cts = new CancellationTokenSource(s_timeout);
 
-        var waitTask = listener.WaitForCallbackAsync(Html("<html>custom body</html>"), cts.Token);
+        var waitTask = listener.WaitForCallbackAsync(null, Html("<html>custom body</html>"), cts.Token);
 
         using var http = new HttpClient();
         using var response = await http.GetAsync(
@@ -147,6 +148,7 @@ public class LoopbackHttpListenerTests
         using var cts = new CancellationTokenSource(s_timeout);
 
         var waitTask = listener.WaitForCallbackAsync(
+            null,
             (uri, response) =>
             {
                 handlerUri = uri;
@@ -173,6 +175,7 @@ public class LoopbackHttpListenerTests
         using var cts = new CancellationTokenSource(s_timeout);
 
         var waitTask = listener.WaitForCallbackAsync(
+            null,
             (_, response) =>
             {
                 response.Redirect(location);
@@ -201,7 +204,7 @@ public class LoopbackHttpListenerTests
         using var listener = new LoopbackHttpListener(0, RedirectPath);
         using var cts = new CancellationTokenSource(s_timeout);
 
-        var waitTask = listener.WaitForCallbackAsync(Html("<html>ok</html>"), cts.Token);
+        var waitTask = listener.WaitForCallbackAsync(null, Html("<html>ok</html>"), cts.Token);
 
         // An absolute-form target must not be concatenated into a spoofed callback uri.
         await SendRawRequestAsync(listener.Port,
@@ -230,7 +233,7 @@ public class LoopbackHttpListenerTests
         using var listener = new LoopbackHttpListener(0, RedirectPath);
         using var cts = new CancellationTokenSource(s_timeout);
 
-        var waitTask = listener.WaitForCallbackAsync(Html("<html>ok</html>"), cts.Token);
+        var waitTask = listener.WaitForCallbackAsync(null, Html("<html>ok</html>"), cts.Token);
 
         // Any local process can connect to the port and claim any authority it likes; the callback
         // uri handed to the application must describe the socket the request actually arrived on.
@@ -246,12 +249,69 @@ public class LoopbackHttpListenerTests
     }
 
     [Fact]
+    public async Task Should_Reject_A_Filtered_Callback_And_Keep_Listening()
+    {
+        var handlerCalls = 0;
+
+        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var cts = new CancellationTokenSource(s_timeout);
+
+        var waitTask = listener.WaitForCallbackAsync(
+            uri => uri.Query.Contains("state=mine", StringComparison.Ordinal),
+            (_, response) =>
+            {
+                Interlocked.Increment(ref handlerCalls);
+                return WriteAsync(response, "<html>ok</html>");
+            },
+            cts.Token);
+
+        using var http = new HttpClient();
+
+        // A callback that isn't ours must be indistinguishable from a request to an unrelated path.
+        using var rejected = await http.GetAsync(
+            $"http://127.0.0.1:{listener.Port}{RedirectPath}?code=evil&state=theirs", cts.Token);
+        Assert.Equal(HttpStatusCode.NotFound, rejected.StatusCode);
+        Assert.False(waitTask.IsCompleted, "A rejected callback must not end the flow.");
+        Assert.Equal(0, Volatile.Read(ref handlerCalls));
+        Assert.Equal(1, listener.RejectedCallbackCount);
+
+        // The real callback still completes it.
+        using var accepted = await http.GetAsync(
+            $"http://127.0.0.1:{listener.Port}{RedirectPath}?code=real&state=mine", cts.Token);
+        Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+
+        var uri = await waitTask;
+        Assert.Equal("?code=real&state=mine", uri.Query);
+        Assert.Equal(1, Volatile.Read(ref handlerCalls));
+        Assert.Equal(1, listener.RejectedCallbackCount);
+    }
+
+    [Fact]
+    public async Task Should_Surface_An_Exception_Thrown_By_The_Filter()
+    {
+        var expected = new InvalidOperationException("bad filter");
+
+        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var cts = new CancellationTokenSource(s_timeout);
+
+        var waitTask = listener.WaitForCallbackAsync(_ => throw expected, null, cts.Token);
+
+        // The listener faults before writing a response, so send raw rather than waiting on HttpClient
+        // for a reply that never comes.
+        await SendRawRequestAsync(listener.Port,
+            $"GET {RedirectPath}?code=abc HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n",
+            cts.Token);
+
+        Assert.Same(expected, await Assert.ThrowsAsync<InvalidOperationException>(() => waitTask));
+    }
+
+    [Fact]
     public async Task Should_Respect_Cancellation()
     {
         using var listener = new LoopbackHttpListener(0, RedirectPath);
         using var cts = new CancellationTokenSource();
 
-        var waitTask = listener.WaitForCallbackAsync(null, cts.Token);
+        var waitTask = listener.WaitForCallbackAsync(null, null, cts.Token);
 
         await cts.CancelAsync();
 

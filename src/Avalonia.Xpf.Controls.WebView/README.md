@@ -46,4 +46,6 @@ Native web dialog that provides a way to display web content in a separate windo
 WebAuthenticationBroker is a utility class that facilitates OAuth and other web-based authentication flows by providing a secure way to handle web authentication in desktop applications.
 Set `WebAuthenticatorMode.Browser` to run the flow in the user's default browser and capture the callback on a local loopback HTTP listener, which is required by providers that reject embedded webviews.
 
+That listener accepts connections from any process on the machine, so the returned `CallbackUri` is untrusted input: validate its `code`, `state` and `error` parameters, and use PKCE.
+
 **Documentation**: https://docs.avaloniaui.net/accelerate/components/webview/webauthenticationbroker
