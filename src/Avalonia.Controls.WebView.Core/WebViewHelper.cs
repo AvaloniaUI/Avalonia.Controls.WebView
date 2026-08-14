@@ -4,7 +4,32 @@ namespace Avalonia.Controls;
 
 internal static class WebViewHelper
 {
+    internal const string PostAvWebViewMessageName = "postAvWebViewMessage";
+
     public static Uri EmptyPage { get; } = new("about:blank");
+
+    internal static string BuildWebKitInvokeCSharpActionScript(
+        string messageName = PostAvWebViewMessageName, bool stringify = true) =>
+        BuildInvokeCSharpActionScript("window.webkit.messageHandlers." + messageName, stringify: stringify);
+
+    /// <param name="postObject">Target object to send message to.</param>
+    /// <param name="postMethod">Method on the <see cref="postObject"/> that should be invoked to pass the message.</param>
+    /// <param name="stringify">
+    /// Defines if post data should be JSON serialized,
+    /// some backends do that automatically when marshall objects to the C# handlers.
+    /// </param>
+    internal static string BuildInvokeCSharpActionScript(string postObject,
+        string postMethod = "postMessage", bool stringify = true)
+    {
+        return stringify ?
+            "function invokeCSharpAction(data){" +
+            "var message = typeof data === 'object' ? JSON.stringify(data) : data;" +
+            $"{postObject}.{postMethod}(message);" +
+            "}" :
+            "function invokeCSharpAction(data){" +
+            $"{postObject}.{postMethod}(data);" +
+            "}";
+    }
 
     internal static bool IsAnchorNavigation(Uri? currentUrl, Uri? newUrl)
     {

@@ -21,8 +21,6 @@ namespace Avalonia.Controls.Macios;
 internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect,
     IWebViewAdapterWithCookieManager, IWebViewAdapterWithCommands, IWebViewWithPrint, IAppleWKWebViewPlatformHandle
 {
-    private const string DefaultPostAvWebViewMessageName = "postAvWebViewMessage";
-
     private readonly string _scriptHandlerMessageName;
     private readonly NSString _scriptHandlerMessageNameNative;
     private readonly WKWebViewConfiguration _config;
@@ -40,7 +38,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _scriptHandler = new WKScriptMessageHandler();
         _scriptHandler.DidReceiveScriptMessage += OnScriptHandlerOnDidReceiveScriptMessage;
 
-        _scriptHandlerMessageName = options.ScriptHandlerMessageName ?? DefaultPostAvWebViewMessageName;
+        _scriptHandlerMessageName = options.ScriptHandlerMessageName ?? WebViewHelper.PostAvWebViewMessageName;
         _scriptHandlerMessageNameNative = NSString.Create(_scriptHandlerMessageName);
         _config = new WKWebViewConfiguration { JavaScriptEnabled = true };
         _config.AddScriptMessageHandler(_scriptHandler, _scriptHandlerMessageNameNative);
@@ -297,7 +295,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
     private async void OnDelegateOnDidFinishNavigation(object? sender, EventArgs args)
     {
-        _ = await InvokeScript($"function invokeCSharpAction(data){{window.webkit.messageHandlers.{_scriptHandlerMessageName}.postMessage(data);}}");
+        _ = await InvokeScript(WebViewHelper.BuildWebKitInvokeCSharpActionScript(_scriptHandlerMessageName, stringify: true));
 
         using var url = _webView.Url;
         NavigationCompleted?.Invoke(this, new WebViewNavigationCompletedEventArgs { Request = Uri.TryCreate(url!.AbsoluteString, UriKind.Absolute, out var uri) ? uri : null, IsSuccess = true });

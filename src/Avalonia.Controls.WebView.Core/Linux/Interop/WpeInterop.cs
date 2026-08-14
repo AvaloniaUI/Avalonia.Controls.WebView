@@ -137,10 +137,26 @@ internal static unsafe partial class WpeInterop
     [LibraryImport(LibWpeWebKit)]
     public static partial IntPtr webkit_web_view_get_user_content_manager(IntPtr webView);
 
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_user_content_manager_get_type();
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_user_content_manager_new();
+
     [LibraryImport(LibWpeWebKit, StringMarshalling = StringMarshalling.Utf8)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool webkit_user_content_manager_register_script_message_handler(
         IntPtr manager, string name, string? worldName);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial void webkit_user_content_manager_add_script(IntPtr manager, IntPtr userScript);
+
+    [LibraryImport(LibWpeWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr webkit_user_script_new(
+        string source, int injectedFrames, int injectionTime, IntPtr allowList, IntPtr blockList);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial void webkit_user_script_unref(IntPtr userScript);
 
     [LibraryImport(LibWpeWebKit, StringMarshalling = StringMarshalling.Utf8)]
     public static partial void webkit_settings_set_user_agent(IntPtr settings, string? userAgent);

@@ -16,8 +16,6 @@ namespace Avalonia.Controls.Gtk;
 
 internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatformHandle, IWebViewWithPrintWithOptions
 {
-    private const string PostAvWebViewMessageName = "postAvWebViewMessage";
-
     internal enum WebKitLoadEvent
     {
         Started,
@@ -111,17 +109,11 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
         _webViewHandle = webkit_web_view_new_with_context(context);
 
         var contentManager = webkit_web_view_get_user_content_manager(WebViewHandle);
-        _scriptMessageReceivedSignal = new GtkSignal(contentManager, $"script-message-received::{PostAvWebViewMessageName}", s_scriptMessageReceivedCallback, this);
-        webkit_user_content_manager_register_script_message_handler(contentManager, PostAvWebViewMessageName);
+        _scriptMessageReceivedSignal = new GtkSignal(contentManager, $"script-message-received::{WebViewHelper.PostAvWebViewMessageName}", s_scriptMessageReceivedCallback, this);
+        webkit_user_content_manager_register_script_message_handler(contentManager, WebViewHelper.PostAvWebViewMessageName);
 
         var script = webkit_user_script_new(
-            $$"""
-              function invokeCSharpAction(data)
-              {
-                var message = typeof data === 'object' ? JSON.stringify(data) : data;
-                window.webkit.messageHandlers.{{PostAvWebViewMessageName}}.postMessage(message);
-              }
-              """,
+            WebViewHelper.BuildWebKitInvokeCSharpActionScript(),
             0, 0, IntPtr.Zero, IntPtr.Zero);
         webkit_user_content_manager_add_script(contentManager, script);
 

@@ -30,7 +30,6 @@ namespace Avalonia.Controls.Android;
 internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect,
     IWebViewAdapterWithCookieManager, IAndroidWebViewPlatformHandle, IWebViewWithPrintWithOptions
 {
-    private const string PostAvWebViewMessageName = "postAvWebViewMessage";
     private static bool s_canSetDataDirectorySuffix = true;
     private readonly JavaScriptInterface _jsInterface;
     private WebView? _webView;
@@ -93,7 +92,7 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
             _webView.Settings.LoadWithOverviewMode = true;
             _webView.Settings.UseWideViewPort = true;
         }
-        _webView.AddJavascriptInterface(_jsInterface, PostAvWebViewMessageName);
+        _webView.AddJavascriptInterface(_jsInterface, WebViewHelper.PostAvWebViewMessageName);
         _webView.SetWebViewClient(new AvaloniaWebViewClient(this));
         _webView.SetWebChromeClient(new WebChromeClient());
 
@@ -661,14 +660,7 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
                 return;
 
             adapter._webView.EvaluateJavascript(
-                """
-                 function invokeCSharpAction(data)
-                 {
-                    var message = typeof data === 'object' ? JSON.stringify(data) : data;
-                    postAvWebViewMessage.postMessage(message);
-                 }
-                 """
-                , null);
+                WebViewHelper.BuildInvokeCSharpActionScript(WebViewHelper.PostAvWebViewMessageName, stringify: true), null);
 
             if (!_lastNavigationCompleted)
             {

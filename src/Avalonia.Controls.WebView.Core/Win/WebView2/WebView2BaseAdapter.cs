@@ -297,7 +297,7 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
         var addScriptCompletion = new AddScriptToExecuteOnDocumentCreatedCompletedHandler();
         var webView = TryGetWebView2() ?? throw new InvalidOperationException("WebView2 is not initialized.");
         webView.AddScriptToExecuteOnDocumentCreated(
-            "function invokeCSharpAction(data){window.chrome.webview.postMessage(data);}", addScriptCompletion);
+            WebViewHelper.BuildInvokeCSharpActionScript("window.chrome.webview", stringify: false), addScriptCompletion);
         _ = await addScriptCompletion.Result.Task;
 
         controller.SetIsVisible(1);
