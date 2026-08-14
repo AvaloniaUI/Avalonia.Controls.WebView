@@ -5,7 +5,7 @@ namespace Avalonia.Controls.OAuth2;
 /// <summary>
 /// OAuth 2.0 Authorization Server Metadata per <see href="https://www.rfc-editor.org/rfc/rfc8414">RFC 8414</see>.
 /// </summary>
-public sealed class AuthorizationServerMetadata
+internal sealed class AuthorizationServerMetadata
 {
     /// <summary>Gets the required issuer identifier.</summary>
     [JsonPropertyName("issuer")]
