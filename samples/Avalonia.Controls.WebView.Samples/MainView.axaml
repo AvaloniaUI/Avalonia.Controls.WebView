@@ -127,9 +127,10 @@
                          PlaceholderText="Redirect Uri" />
                 <ComboBox x:Name="AuthMode"
                           SelectedIndex="0">
-                    <ComboBoxItem Content="Default" />
+                    <ComboBoxItem Content="Auto" />
+                    <ComboBoxItem Content="System" />
                     <ComboBoxItem Content="NativeWebDialog" />
-                    <ComboBoxItem Content="SystemBrowser" />
+                    <ComboBoxItem Content="Browser" />
                 </ComboBox>
                 <Button Content="Go" Click="WebAuthenticationBrokerButton_OnClick" />
                 <TextBox x:Name="CallbackUri"

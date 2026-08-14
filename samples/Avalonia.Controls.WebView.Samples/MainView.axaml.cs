@@ -221,8 +221,9 @@ public partial class MainView : UserControl
 #pragma warning disable CA1416
                 Mode = AuthMode.SelectedIndex switch
                 {
-                    1 => WebAuthenticatorMode.NativeWebDialog,
-                    2 => WebAuthenticatorMode.Browser,
+                    1 => WebAuthenticatorMode.System,
+                    2 => WebAuthenticatorMode.NativeWebDialog,
+                    3 => WebAuthenticatorMode.Browser,
                     _ => WebAuthenticatorMode.Auto
                 }
 #pragma warning restore CA1416
