@@ -214,7 +214,19 @@ public partial class MainView : UserControl
 #elif WPF
             var topLevel = Window.GetWindow(this);
 #endif
-            var options = new WebAuthenticatorOptions(new Uri(RequestUri.Text!), new Uri(RedirectUri.Text!, UriKind.RelativeOrAbsolute));
+            var requestUri = new Uri(RequestUri.Text!);
+            var options = new WebAuthenticatorOptions(requestUri, new Uri(RedirectUri.Text!, UriKind.RelativeOrAbsolute))
+            {
+                // The combo box order doesn't match the enum order, so map it explicitly.
+#pragma warning disable CA1416
+                Mode = AuthMode.SelectedIndex switch
+                {
+                    1 => WebAuthenticatorMode.NativeWebDialog,
+                    2 => WebAuthenticatorMode.Browser,
+                    _ => WebAuthenticatorMode.Auto
+                }
+#pragma warning restore CA1416
+            };
 
             var result = await WebAuthenticationBroker.AuthenticateAsync(topLevel!, options);
 
@@ -236,7 +248,7 @@ public partial class MainView : UserControl
                 "com.AvaloniaUI.WebView.Samples:/oauth2redirect" :
                 OperatingSystem.IsBrowser() ?
                     href?.TrimEnd('/') + "/oauth2redirect" :
-                    "http://localhost";
+                    "http://127.0.0.1";
         var clientId = OperatingSystem.IsIOS() ?
             "457602913817-kd2547t40mrvqi63c4m7lphs5s6s5lt2.apps.googleusercontent.com" :
             OperatingSystem.IsAndroid() ?

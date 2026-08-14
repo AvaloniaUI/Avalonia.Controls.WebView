@@ -132,6 +132,12 @@
             <StackPanel>
                 <TextBox x:Name="RequestUri" />
                 <TextBox x:Name="RedirectUri" />
+                <ComboBox x:Name="AuthMode"
+                          SelectedIndex="0">
+                    <ComboBoxItem Content="Default" />
+                    <ComboBoxItem Content="NativeWebDialog" />
+                    <ComboBoxItem Content="SystemBrowser" />
+                </ComboBox>
                 <Button Content="Go" Click="WebAuthenticationBrokerButton_OnClick" />
                 <TextBox x:Name="CallbackUri"
                          AcceptsReturn="True" />
