@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
-using Avalonia.Controls.Authentication;
+using Avalonia.Controls;
 
 #if AVALONIA
 namespace Avalonia.Controls;
@@ -83,8 +83,9 @@ public enum WebAuthenticatorMode
     /// </para>
     /// <para>
     /// The redirect is received on a local socket.
-    /// Any process on the machine can connect to it, so <see cref="WebAuthenticationResult.CallbackUri"/> is untrusted input.
-    /// The caller must validate its <c>code</c>, <c>state</c> and <c>error</c> parameters.
+    /// Any process on the machine can connect to it, so the result is untrusted input.
+    /// The caller must check <see cref="WebAuthenticationResult.State"/> against the value it sent, and handle
+    /// <see cref="WebAuthenticationResult.Error"/> before using <see cref="WebAuthenticationResult.Code"/>.
     /// </para>
     /// <para>
     /// PKCE is strongly recommended (RFC 8252, section 8.1).
@@ -124,8 +125,8 @@ public record BrowserOptions
     /// A request that reaches the redirect path is therefore not necessarily the browser's.
     /// </para>
     /// <para>
-    /// The usual implementation compares the <c>state</c> query parameter against the value sent in the authorization request.
-    /// The caller still has to check <c>code</c>, <c>state</c> and <c>error</c> on the returned <see cref="WebAuthenticationResult.CallbackUri"/>.
+    /// The usual implementation compares <see cref="WebAuthenticationResult.State"/> against the value sent in the authorization request.
+    /// The caller still has to check the returned result, as a filter that accepts a request does not make it trusted.
     /// </para>
     /// </remarks>
     public BrowserCallbackFilter? CallbackFilter { get; init; }

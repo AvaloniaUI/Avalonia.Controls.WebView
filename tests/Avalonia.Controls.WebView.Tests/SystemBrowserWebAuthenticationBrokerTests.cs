@@ -7,8 +7,8 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
-using Avalonia.Controls.Authentication;
+using Avalonia.Controls.OAuth2.Loopback;
+using Avalonia.Controls.Utils;
 using Xunit;
 
 namespace Avalonia.Controls.WebView.Tests;
@@ -55,10 +55,10 @@ public class SystemBrowserWebAuthenticationBrokerTests
         Assert.NotEqual(80, actualRedirectUri.Port);
 
         // ...without dropping the rest of the authorization request.
-        var query = HttpUtility.ParseQueryString(launchedUri.Query);
-        Assert.Equal("abc", query["client_id"]);
-        Assert.Equal("openid", query["scope"]);
-        Assert.Equal("xyz", query["state"]);
+        var query = UriQuery.Parse(launchedUri);
+        Assert.Equal("abc", query.GetValueOrDefault("client_id"));
+        Assert.Equal("openid", query.GetValueOrDefault("scope"));
+        Assert.Equal("xyz", query.GetValueOrDefault("state"));
         Assert.Equal("input.com", launchedUri.Host);
         Assert.Equal("/authorize", launchedUri.AbsolutePath);
 
@@ -178,7 +178,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
             },
             uri =>
             {
-                var accepted = HttpUtility.ParseQueryString(uri.Query)["state"] == "mine";
+                var accepted = UriQuery.Parse(uri).GetValueOrDefault("state") == "mine";
                 if (!accepted)
                 {
                     rejected.Add(uri);
@@ -211,7 +211,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
                 await GetAsync($"{redirectUri}?code=real&state=mine");
                 return true;
             },
-            uri => HttpUtility.ParseQueryString(uri.Query)["state"] == "mine",
+            uri => UriQuery.Parse(uri).GetValueOrDefault("state") == "mine",
             (_, _) =>
             {
                 handlerCalls++;
@@ -404,7 +404,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
     }
 
     private static string RedirectUriOf(Uri requestUri) =>
-        HttpUtility.ParseQueryString(requestUri.Query)["redirect_uri"] ??
+        UriQuery.Parse(requestUri).GetValueOrDefault("redirect_uri") ??
         throw new InvalidOperationException("The launched uri has no redirect_uri.");
 
     /// <summary>

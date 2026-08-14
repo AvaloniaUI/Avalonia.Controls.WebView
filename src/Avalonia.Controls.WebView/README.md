@@ -1,4 +1,4 @@
-﻿# Avalonia WebView
+# Avalonia WebView
 
 The Avalonia WebView component provides native web browser functionality for your Avalonia applications. Unlike embedded WebView solutions that require bundling Chromium, this implementation leverages the platform's native web rendering capabilities, resulting in smaller application size and better performance.
 
@@ -41,6 +41,30 @@ Native web dialog that provides a way to display web content in a separate windo
 WebAuthenticationBroker is a utility class that facilitates OAuth and other web-based authentication flows by providing a secure way to handle web authentication in desktop applications.
 Set `WebAuthenticatorMode.Browser` to run the flow in the user's default browser and capture the callback on a local loopback HTTP listener, which is required by providers that reject embedded webviews.
 
-That listener accepts connections from any process on the machine, so the returned `CallbackUri` is untrusted input: validate its `code`, `state` and `error` parameters, and use PKCE.
+That listener accepts connections from any process on the machine, so the result is untrusted input. `WebAuthenticationResult` parses the callback query into `Code`, `State`, `Error` and `ErrorDescription` (and the full `Parameters` set); check `State` against the value you sent, and use PKCE.
 
 **Documentation**: https://docs.avaloniaui.net/accelerate/components/webview/webauthenticationbroker
+
+### OAuth 2.0 authorization code flow with PKCE
+
+`AuthorizationCodePkceSession` runs the flow against an OAuth 2.0 authorization server: it discovers the endpoints from the issuer, builds the authorization request with PKCE (RFC 7636), validates the callback, and exchanges the code for tokens.
+
+```csharp
+var session = await AuthorizationCodePkceSession.CreateAsync(
+    "https://id.example.com", clientId, "http://127.0.0.1:5000/callback", "openid profile");
+
+var options = new WebAuthenticatorOptions(session.AuthorizationUri, session.RedirectUri)
+{
+    Mode = WebAuthenticatorMode.Browser,
+    BrowserOptions = new BrowserOptions { CallbackFilter = session.IsCallbackFor },
+};
+
+var result = await WebAuthenticationBroker.AuthenticateAsync(topLevel, options);
+var token = await session.ExchangeCodeAsync(result);
+```
+
+Discovery follows RFC 8414 (`/.well-known/oauth-authorization-server`) and falls back to OpenID Connect discovery. The issuer and every endpoint taken from the metadata document must be `https`, and the document must declare the issuer it was requested for. Use `AuthorizationCodePkceSession.Create` instead when the server publishes no metadata and you know the endpoints.
+
+The `id_token` in the response is returned as received and is not validated.
+
+**Sample**: `samples/Avalonia.Controls.WebView.Samples.Oidc`

@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Controls.Authentication;
+using Avalonia.Controls.OAuth2.Loopback;
 using Avalonia.Platform;
 using Core = Avalonia.Controls;
 #if WPF
@@ -211,7 +211,4 @@ namespace Avalonia.Xpf.Controls
             return dialog;
         }
     }
-
-    /// <param name="CallbackUri">The response URI containing authentication data.</param>
-    public record WebAuthenticationResult(Uri CallbackUri);
 }
