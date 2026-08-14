@@ -13,7 +13,7 @@ internal static class WebViewHelper
         BuildInvokeCSharpActionScript("window.webkit.messageHandlers." + messageName, stringify: stringify);
 
     /// <param name="postObject">Target object to send message to.</param>
-    /// <param name="postMethod">Method on the <see cref="postObject"/> that should be invoked to pass the message.</param>
+    /// <param name="postMethod">Method on the <paramref name="postObject"/> that should be invoked to pass the message.</param>
     /// <param name="stringify">
     /// Defines if post data should be JSON serialized,
     /// some backends do that automatically when marshall objects to the C# handlers.
