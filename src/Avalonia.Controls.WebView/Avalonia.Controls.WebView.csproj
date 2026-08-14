@@ -20,6 +20,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Avalonia.Controls.WebView.Tests, PublicKey=$(AvaloniaPublicKey)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="build\**\*" PackagePath="build;buildTransitive" />
   </ItemGroup>
 

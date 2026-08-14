@@ -152,6 +152,53 @@ public sealed class AuthorizationCodePkceSession
             codeVerifier);
     }
 
+    /// <summary>
+    /// Returns true when <paramref name="result"/> carries the <c>state</c> of this session.
+    /// </summary>
+    public bool IsCallbackFor(WebAuthenticationResult result) =>
+        result is not null && string.Equals(result.State, State, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Validates the callback and exchanges its authorization code for tokens.
+    /// </summary>
+    /// <param name="result">The result returned by <see cref="WebAuthenticationBroker"/>.</param>
+    /// <param name="clientSecret">Optional client secret for confidential clients.</param>
+    /// <param name="httpClient">Optional <see cref="HttpClient"/> used for the token request.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    public async Task<OAuth2TokenResponse> ExchangeCodeAsync(
+        WebAuthenticationResult result,
+        string? clientSecret = null,
+        HttpClient? httpClient = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (result is null)
+            throw new ArgumentNullException(nameof(result));
+
+        // State is checked first: anything else in the callback, including an error response,
+        // may have been sent by a process that is not part of this flow.
+        if (!IsCallbackFor(result))
+            throw new InvalidOperationException("The callback state does not match the authorization request.");
+
+        if (result.Error is { } error)
+        {
+            throw new InvalidOperationException(
+                result.ErrorDescription is { } description ? $"{error}: {description}" : error);
+        }
+
+        if (result.Code is not { } code)
+            throw new InvalidOperationException("The callback has no authorization code.");
+
+        return await AuthorizationServerTokenClient.ExchangeAuthorizationCodeAsync(
+            _tokenEndpoint,
+            _clientId,
+            code,
+            _redirectUriString,
+            _codeVerifier,
+            httpClient,
+            clientSecret,
+            cancellationToken).ConfigureAwait(false);
+    }
+
     private static Uri AppendQuery(Uri endpoint, string query)
     {
         var builder = new UriBuilder(endpoint);
