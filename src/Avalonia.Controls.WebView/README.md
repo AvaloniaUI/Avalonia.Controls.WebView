@@ -1,4 +1,4 @@
-﻿# Avalonia WebView
+# Avalonia WebView
 
 The Avalonia WebView component provides native web browser functionality for your Avalonia applications. Unlike embedded WebView solutions that require bundling Chromium, this implementation leverages the platform's native web rendering capabilities, resulting in smaller application size and better performance.
 
@@ -44,3 +44,9 @@ Set `WebAuthenticatorMode.Browser` to run the flow in the user's default browser
 That listener accepts connections from any process on the machine, so the returned `CallbackUri` is untrusted input: validate its `code`, `state` and `error` parameters, and use PKCE.
 
 **Documentation**: https://docs.avaloniaui.net/accelerate/components/webview/webauthenticationbroker
+
+### OAuth 2.0 Authorization Server Metadata (RFC 8414)
+
+The `Avalonia.Controls.OAuth2` namespace provides discovery at `/.well-known/oauth-authorization-server`, PKCE (RFC 7636), building an authorization code request against `authorization_endpoint`, parsing the redirect, and exchanging the code at `token_endpoint`. Use it together with `WebAuthenticationBroker` when you want standards-based metadata instead of hand-built authorize URLs.
+
+**Sample**: `samples/Avalonia.Controls.WebView.Samples.Oidc`
