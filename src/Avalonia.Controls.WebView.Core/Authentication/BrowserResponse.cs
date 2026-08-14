@@ -28,9 +28,20 @@ public sealed class BrowserResponse
 
     /// <summary>
     /// Configures the response to redirect the browser to the specified URI.
+    /// Sets <see cref="StatusCode"/> to <see cref="HttpStatusCode.Found"/>.
     /// </summary>
+    /// <param name="uri">Absolute uri to redirect the browser to.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="uri"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="uri"/> is not absolute.</exception>
     public void Redirect(Uri uri)
     {
+        ArgumentNullException.ThrowIfNull(uri);
+
+        if (!uri.IsAbsoluteUri)
+        {
+            throw new ArgumentException("Redirect uri must be absolute.", nameof(uri));
+        }
+
         _redirect = uri;
         StatusCode = HttpStatusCode.Found;
     }
