@@ -1,6 +1,6 @@
 using System;
 
-namespace Avalonia.Controls.OAuth2;
+namespace Avalonia.Controls.OAuth2.MetadataClient;
 
 /// <summary>
 /// Checks that URLs used to carry authorization codes, PKCE verifiers and client secrets are transport secured.

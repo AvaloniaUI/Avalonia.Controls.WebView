@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Avalonia.Controls.OAuth2;
+namespace Avalonia.Controls.OAuth2.MetadataClient;
 
 /// <summary>System.Text.Json source generation context for OAuth 2.0 metadata and token JSON.</summary>
 [JsonSourceGenerationOptions(

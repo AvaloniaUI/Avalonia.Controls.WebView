@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using System.Web;
 #if AVALONIA
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -218,7 +219,7 @@ public partial class MainView : UserControl
 
             // Read the state back out of the request we are about to send, so an edited request uri
             // stays consistent with the filter below.
-            var state = new WebAuthenticationResult(requestUri).State;
+            var state = HttpUtility.ParseQueryString(requestUri.Query)["state"];
 
             var options = new WebAuthenticatorOptions(requestUri, new Uri(RedirectUri.Text!, UriKind.RelativeOrAbsolute))
             {

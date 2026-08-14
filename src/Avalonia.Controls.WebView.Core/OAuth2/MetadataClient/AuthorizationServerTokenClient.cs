@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Avalonia.Controls.OAuth2;
+namespace Avalonia.Controls.OAuth2.MetadataClient;
 
 /// <summary>Exchanges an authorization code for tokens at the <c>token_endpoint</c>.</summary>
 internal static class AuthorizationServerTokenClient

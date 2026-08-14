@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Avalonia.Controls.OAuth2;
+namespace Avalonia.Controls.OAuth2.MetadataClient;
 
 /// <summary>
 /// Successful token endpoint response (subset of fields commonly used with authorization code + PKCE).

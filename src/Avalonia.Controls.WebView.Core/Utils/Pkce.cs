@@ -2,7 +2,7 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Avalonia.Controls.OAuth2;
+namespace Avalonia.Controls.Utils;
 
 /// <summary>
 /// Proof Key for Code Exchange (PKCE) helpers per <see href="https://www.rfc-editor.org/rfc/rfc7636">RFC 7636</see>.

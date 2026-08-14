@@ -4,6 +4,8 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Controls.OAuth2.MetadataClient;
+using Avalonia.Controls.Utils;
 
 namespace Avalonia.Controls.OAuth2;
 
@@ -12,8 +14,7 @@ namespace Avalonia.Controls.OAuth2;
 /// checks the callback, and exchanges the code for tokens.
 /// </summary>
 /// <remarks>
-/// Pass <see cref="AuthorizationUri"/> and <see cref="RedirectUri"/> to
-/// <see cref="WebAuthenticationBroker"/>, then hand the result to <see cref="ExchangeCodeAsync"/>.
+/// Pass <see cref="AuthorizationUri"/> and <see cref="RedirectUri"/> to <c>WebAuthenticationBroker</c>, then hand the result to <see cref="ExchangeCodeAsync"/>.
 /// </remarks>
 public sealed class AuthorizationCodePkceSession
 {
@@ -161,7 +162,7 @@ public sealed class AuthorizationCodePkceSession
     /// <summary>
     /// Validates the callback and exchanges its authorization code for tokens.
     /// </summary>
-    /// <param name="result">The result returned by <see cref="WebAuthenticationBroker"/>.</param>
+    /// <param name="result">The result returned by <c>WebAuthenticationBroker</c>.</param>
     /// <param name="clientSecret">Optional client secret for confidential clients.</param>
     /// <param name="httpClient">Optional <see cref="HttpClient"/> used for the token request.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>

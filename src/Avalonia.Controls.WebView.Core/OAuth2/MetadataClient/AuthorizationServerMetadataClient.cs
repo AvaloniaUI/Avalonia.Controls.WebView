@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Avalonia.Controls.OAuth2;
+namespace Avalonia.Controls.OAuth2.MetadataClient;
 
 /// <summary>
 /// Fetches <see cref="AuthorizationServerMetadata"/> from the issuer's well-known URL.

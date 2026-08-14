@@ -2,7 +2,8 @@
 using System.IO;
 using System.Net;
 
-namespace Avalonia.Controls.Authentication;
+// ReSharper disable once CheckNamespace
+namespace Avalonia.Controls;
 
 /// <summary>
 /// Represents the HTTP response sent to the browser after the authentication callback is received.

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
-using Avalonia.Controls.Authentication;
+using Avalonia.Controls;
 
 #if AVALONIA
 namespace Avalonia.Controls;

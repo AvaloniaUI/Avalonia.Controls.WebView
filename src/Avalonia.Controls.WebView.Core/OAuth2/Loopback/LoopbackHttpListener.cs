@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Avalonia.Controls.Authentication;
+namespace Avalonia.Controls.OAuth2.Loopback;
 
 /// <summary>
 /// Local HTTP listener that captures an OAuth redirect callback from the browser.

@@ -7,7 +7,8 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Controls.Authentication;
+using Avalonia.Controls.OAuth2.Loopback;
+using Avalonia.Controls.Utils;
 using Xunit;
 
 namespace Avalonia.Controls.WebView.Tests;

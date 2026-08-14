@@ -4,6 +4,8 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls.OAuth2;
+using Avalonia.Controls.OAuth2.MetadataClient;
+using Avalonia.Controls.Utils;
 using Xunit;
 
 namespace Avalonia.Controls.WebView.Tests;

@@ -2,8 +2,9 @@ using System;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Controls.Utils;
 
-namespace Avalonia.Controls.Authentication;
+namespace Avalonia.Controls.OAuth2.Loopback;
 
 /// <summary>
 /// Authentication flow that opens the request in the user's browser and captures the callback on a loopback HTTP listener.

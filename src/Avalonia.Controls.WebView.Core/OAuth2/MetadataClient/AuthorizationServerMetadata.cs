@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Avalonia.Controls.OAuth2;
+namespace Avalonia.Controls.OAuth2.MetadataClient;
 
 /// <summary>
 /// OAuth 2.0 Authorization Server Metadata per <see href="https://www.rfc-editor.org/rfc/rfc8414">RFC 8414</see>.

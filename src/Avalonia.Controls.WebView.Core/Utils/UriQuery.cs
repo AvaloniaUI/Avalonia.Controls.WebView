@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Avalonia.Controls.Authentication;
+namespace Avalonia.Controls.Utils;
 
 /// <summary>
 /// Parses URI query strings for authentication callbacks and requests.
