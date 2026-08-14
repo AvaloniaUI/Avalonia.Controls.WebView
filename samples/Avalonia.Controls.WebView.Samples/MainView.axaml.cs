@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using System.Web;
 #if AVALONIA
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -219,7 +218,7 @@ public partial class MainView : UserControl
 
             // Read the state back out of the request we are about to send, so an edited request uri
             // stays consistent with the filter below.
-            var state = HttpUtility.ParseQueryString(requestUri.Query)["state"];
+            var state = new WebAuthenticationResult(requestUri).State;
 
             var options = new WebAuthenticatorOptions(requestUri, new Uri(RedirectUri.Text!, UriKind.RelativeOrAbsolute))
             {
@@ -239,8 +238,7 @@ public partial class MainView : UserControl
                 {
                     // The loopback listener is reachable by any local process, so ignore anything that
                     // doesn't carry the state we sent instead of letting it end the flow.
-                    CallbackFilter = result =>
-                        HttpUtility.ParseQueryString(result.CallbackUri.Query)["state"] == state
+                    CallbackFilter = result => result.State == state
                 }
             };
 

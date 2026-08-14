@@ -1,7 +1,7 @@
 using System;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 
 namespace Avalonia.Controls.Authentication;
 
@@ -88,21 +88,36 @@ internal static class SystemBrowserWebAuthenticationBroker
 
     private static Uri ReplaceRedirectUri(Uri requestUri, Uri redirectUri)
     {
-        var builder = new UriBuilder(requestUri);
+        var pairs = UriQuery.Split(requestUri.Query);
+        var replacements = 0;
+        var query = new StringBuilder();
 
-        var query = HttpUtility.ParseQueryString(requestUri.Query);
+        foreach (var (name, pair) in pairs)
+        {
+            if (query.Length > 0)
+                query.Append('&');
 
-        if (query.GetValues("redirect_uri") is not { Length: 1 })
+            if (name != "redirect_uri")
+            {
+                query.Append(pair);
+                continue;
+            }
+
+            replacements++;
+
+            var separator = pair.IndexOf('=');
+            query.Append(pair, 0, separator < 0 ? pair.Length : separator)
+                .Append('=')
+                .Append(Uri.EscapeDataString(redirectUri.AbsoluteUri));
+        }
+
+        if (replacements != 1)
         {
             throw new InvalidOperationException(
                 "The request URI must contain exactly one 'redirect_uri' query parameter.");
         }
 
-        query["redirect_uri"] = redirectUri.AbsoluteUri;
-
-        builder.Query = query.ToString();
-
-        return builder.Uri;
+        return new UriBuilder(requestUri) { Query = query.ToString() }.Uri;
     }
 
     private static void ValidateRedirectUri(Uri redirectUri)
