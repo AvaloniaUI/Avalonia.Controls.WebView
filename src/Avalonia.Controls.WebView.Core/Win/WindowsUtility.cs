@@ -18,8 +18,8 @@ internal static class WindowsUtility
         // This combination ensures:
         // 1. WS_EX_TRANSPARENT: Makes the window visually transparent but still blocks content from behind the application
         // 2. Removing WS_EX_LAYERED: Prevents the window from creating its own compositing surface with default black background
-        PInvoke.SetWindowLong(p, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE, 
-            (exStyle | (int)0x00000020L) ^ (int)0x00080000L);
+        PInvoke.SetWindowLong(p, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE,
+            (exStyle | (int)0x00000020L) & ~(int)0x00080000L);
     }
 
     internal static StandardCursorType MapCursor(uint systemCursorId)
