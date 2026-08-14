@@ -26,41 +26,36 @@ public partial class MainWindow : Window
             return;
         }
 
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null)
+        {
+            AppendLog("TopLevel not found.");
+            return;
+        }
+
         try
         {
-            AppendLog($"GET {AuthorizationServerMetadataClient.GetWellKnownMetadataUrl(issuer)}");
-            var metadata = await AuthorizationServerMetadataClient.GetAsync(issuer).ConfigureAwait(true);
-            if (metadata.AuthorizationEndpoint is { } ae)
-                AppendLog($"authorization_endpoint: {ae}");
-            if (metadata.TokenEndpoint is { } te)
-                AppendLog($"token_endpoint: {te}");
-
-            var session = AuthorizationCodePkceSession.Create(metadata, clientId, redirectText, scope);
+            AppendLog($"Discovering {issuer}…");
+            var session = await AuthorizationCodePkceSession
+                .CreateAsync(issuer, clientId, redirectText, scope)
+                .ConfigureAwait(true);
+            AppendLog($"authorization_endpoint: {session.AuthorizationUri.GetLeftPart(UriPartial.Path)}");
 
             var options = new WebAuthenticatorOptions(session.AuthorizationUri, session.RedirectUri)
             {
-                PreferNativeWebDialog = true,
+                BrowserOptions = new BrowserOptions
+                {
+                    // Used when Mode is Browser: keeps the loopback listener waiting
+                    // for a callback that carries this session's state.
+                    CallbackFilter = session.IsCallbackFor,
+                },
             };
-
-            var topLevel = TopLevel.GetTopLevel(this);
-            if (topLevel is null)
-            {
-                AppendLog("TopLevel not found.");
-                return;
-            }
 
             AppendLog("Opening WebAuthenticationBroker…");
             var result = await WebAuthenticationBroker.AuthenticateAsync(topLevel, options).ConfigureAwait(true);
 
-            var parsed = AuthorizationCallbackParser.Parse(result.CallbackUri, session.State);
             AppendLog("Authorization code received; exchanging at token_endpoint…");
-
-            var token = await AuthorizationServerTokenClient.ExchangeAuthorizationCodeAsync(
-                metadata,
-                clientId,
-                parsed.AuthorizationCode,
-                session.RedirectUriString,
-                session.CodeVerifier).ConfigureAwait(true);
+            var token = await session.ExchangeCodeAsync(result).ConfigureAwait(true);
 
             var sb = new StringBuilder();
             sb.AppendLine("Token response:");
@@ -70,7 +65,7 @@ public partial class MainWindow : Window
             if (!string.IsNullOrEmpty(token.AccessToken))
                 sb.AppendLine($"  access_token: {Preview(token.AccessToken)}");
             if (!string.IsNullOrEmpty(token.IdToken))
-                sb.AppendLine($"  id_token: {Preview(token.IdToken)}");
+                sb.AppendLine($"  id_token (not validated): {Preview(token.IdToken)}");
             if (!string.IsNullOrEmpty(token.RefreshToken))
                 sb.AppendLine($"  refresh_token: {Preview(token.RefreshToken)}");
             AppendLog(sb.ToString());

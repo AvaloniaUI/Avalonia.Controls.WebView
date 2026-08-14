@@ -7,6 +7,7 @@
       "samples\\Avalonia.Controls.WebView.Samples.Android\\Avalonia.Controls.WebView.Samples.Android.csproj",
       "samples\\Avalonia.Controls.WebView.Samples.Browser\\Avalonia.Controls.WebView.Samples.Browser.csproj",
       "samples\\Avalonia.Controls.WebView.Samples.Desktop\\Avalonia.Controls.WebView.Samples.Desktop.csproj",
+      "samples\\Avalonia.Controls.WebView.Samples.Oidc\\Avalonia.Controls.WebView.Samples.Oidc.csproj",
       "samples\\Avalonia.Controls.WebView.Samples.iOS\\Avalonia.Controls.WebView.Samples.iOS.csproj",
       "samples\\Avalonia.Controls.WebView.Samples\\Avalonia.Controls.WebView.Samples.csproj",
       "src\\Avalonia.Controls.WebView.Core\\Avalonia.Controls.WebView.Core.csproj",
