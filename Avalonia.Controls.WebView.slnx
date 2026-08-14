@@ -25,6 +25,13 @@
     <Project Path="samples/Avalonia.Xpf.Controls.WebView.Samples/Avalonia.Xpf.Controls.WebView.Samples.csproj" />
     <Project Path="samples/NativeWebViewTest/NativeWebViewTest.csproj" />
   </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path=".gitmodules" />
+    <File Path="LICENSE" />
+    <File Path="Readme.md" />
+  </Folder>
   <Folder Name="/Tests/">
     <Project Path="tests/Avalonia.Controls.WebView.Tests/Avalonia.Controls.WebView.Tests.csproj" />
   </Folder>

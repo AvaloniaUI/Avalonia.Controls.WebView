@@ -39,6 +39,9 @@
     <Compile Include="..\Avalonia.Controls.WebView\WebAuthenticationBroker.cs">
       <Link>WebAuthenticationBroker.cs</Link>
     </Compile>
+    <Compile Include="..\Avalonia.Controls.WebView\WebAuthenticatorOptions.cs">
+      <Link>WebAuthenticatorOptions.cs</Link>
+    </Compile>
     <Compile Include="..\Avalonia.Controls.WebView\WindowNativeWebViewDialog.cs">
       <Link>WindowNativeWebViewDialog.cs</Link>
     </Compile>

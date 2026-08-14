@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using System.Web;
 #if AVALONIA
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -214,7 +215,34 @@ public partial class MainView : UserControl
 #elif WPF
             var topLevel = Window.GetWindow(this);
 #endif
-            var options = new WebAuthenticatorOptions(new Uri(RequestUri.Text!), new Uri(RedirectUri.Text!, UriKind.RelativeOrAbsolute));
+            var requestUri = new Uri(RequestUri.Text!);
+
+            // Read the state back out of the request we are about to send, so an edited request uri
+            // stays consistent with the filter below.
+            var state = HttpUtility.ParseQueryString(requestUri.Query)["state"];
+
+            var options = new WebAuthenticatorOptions(requestUri, new Uri(RedirectUri.Text!, UriKind.RelativeOrAbsolute))
+            {
+                // The combo box order doesn't match the enum order, so map it explicitly.
+                // CA1416: this sample targets plain net10.0, so every mode looks reachable on every
+                // platform. Picking an unsupported one throws PlatformNotSupportedException at runtime.
+#pragma warning disable CA1416
+                Mode = AuthMode.SelectedIndex switch
+                {
+                    1 => WebAuthenticatorMode.System,
+                    2 => WebAuthenticatorMode.NativeWebDialog,
+                    3 => WebAuthenticatorMode.Browser,
+                    _ => WebAuthenticatorMode.Auto
+                },
+#pragma warning restore CA1416
+                BrowserOptions = new BrowserOptions
+                {
+                    // The loopback listener is reachable by any local process, so ignore anything that
+                    // doesn't carry the state we sent instead of letting it end the flow.
+                    CallbackFilter = result =>
+                        HttpUtility.ParseQueryString(result.CallbackUri.Query)["state"] == state
+                }
+            };
 
             var result = await WebAuthenticationBroker.AuthenticateAsync(topLevel!, options);
 
@@ -236,7 +264,7 @@ public partial class MainView : UserControl
                 "com.AvaloniaUI.WebView.Samples:/oauth2redirect" :
                 OperatingSystem.IsBrowser() ?
                     href?.TrimEnd('/') + "/oauth2redirect" :
-                    "http://localhost";
+                    "http://127.0.0.1";
         var clientId = OperatingSystem.IsIOS() ?
             "457602913817-kd2547t40mrvqi63c4m7lphs5s6s5lt2.apps.googleusercontent.com" :
             OperatingSystem.IsAndroid() ?
@@ -248,6 +276,7 @@ public partial class MainView : UserControl
         var requestUri = "https://accounts.google.com/o/oauth2/auth?response_type=code&access_type=offline&scope=openid";
         requestUri += "&client_id=" + clientId;
         requestUri += "&redirect_uri=" + redirectUri;
+        requestUri += "&state=" + Guid.NewGuid().ToString("N");
         return (requestUri, redirectUri);
     }
 
