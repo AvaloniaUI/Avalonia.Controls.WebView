@@ -147,12 +147,13 @@ public record BrowserOptions
     /// <summary>
     /// Decides whether a request received on the redirect path belongs to the authentication flow.
     /// </summary>
-    /// <param name="callbackUri">
-    /// The candidate callback uri.
+    /// <param name="result">
+    /// The candidate result.
+    /// Its <see cref="WebAuthenticationResult.CallbackUri"/> is unvalidated input that any local process can produce.
     /// </param>
     /// <returns>
-    /// <see langword="true"/> to complete the flow with <paramref name="callbackUri"/>;
+    /// <see langword="true"/> to complete the flow with <paramref name="result"/>;
     /// <see langword="false"/> to reject it and keep waiting.
     /// </returns>
-    public delegate bool BrowserCallbackFilter(Uri callbackUri);
+    public delegate bool BrowserCallbackFilter(WebAuthenticationResult result);
 }

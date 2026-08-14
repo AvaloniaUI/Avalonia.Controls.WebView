@@ -124,7 +124,7 @@ namespace Avalonia.Xpf.Controls
                 browserOptions.Timeout,
                 uri => topLevel.Launcher.LaunchUriAsync(uri),
                 browserOptions.CallbackFilter is { } filter ?
-                    uri => filter.Invoke(uri) :
+                    uri => filter.Invoke(new WebAuthenticationResult(uri)) :
                     null,
                 browserOptions.ResponseHandler is not null ?
                     (uri, response) => browserOptions

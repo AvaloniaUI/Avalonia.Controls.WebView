@@ -239,7 +239,8 @@ public partial class MainView : UserControl
                 {
                     // The loopback listener is reachable by any local process, so ignore anything that
                     // doesn't carry the state we sent instead of letting it end the flow.
-                    CallbackFilter = uri => HttpUtility.ParseQueryString(uri.Query)["state"] == state
+                    CallbackFilter = result =>
+                        HttpUtility.ParseQueryString(result.CallbackUri.Query)["state"] == state
                 }
             };
 
