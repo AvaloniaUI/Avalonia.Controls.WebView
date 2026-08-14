@@ -1,97 +1,138 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Avalonia.Controls.OAuth2;
 
 /// <summary>
-/// Holds PKCE and CSRF values for one authorization code flow built from
-/// <see cref="AuthorizationServerMetadata"/> (RFC 8414).
+/// One OAuth 2.0 authorization code flow with PKCE: builds the authorization request,
+/// checks the callback, and exchanges the code for tokens.
 /// </summary>
+/// <remarks>
+/// Pass <see cref="AuthorizationUri"/> and <see cref="RedirectUri"/> to
+/// <see cref="WebAuthenticationBroker"/>, then hand the result to <see cref="ExchangeCodeAsync"/>.
+/// </remarks>
 public sealed class AuthorizationCodePkceSession
 {
-    AuthorizationCodePkceSession(
+    private readonly Uri _tokenEndpoint;
+    private readonly string _clientId;
+    private readonly string _redirectUriString;
+    private readonly string _codeVerifier;
+
+    private AuthorizationCodePkceSession(
         Uri authorizationUri,
+        Uri tokenEndpoint,
+        string clientId,
         Uri redirectUri,
         string redirectUriString,
         string state,
-        string codeVerifier,
-        string? nonce)
+        string codeVerifier)
     {
         AuthorizationUri = authorizationUri;
         RedirectUri = redirectUri;
-        RedirectUriString = redirectUriString;
         State = state;
-        CodeVerifier = codeVerifier;
-        Nonce = nonce;
+        _tokenEndpoint = tokenEndpoint;
+        _clientId = clientId;
+        _redirectUriString = redirectUriString;
+        _codeVerifier = codeVerifier;
     }
 
-    /// <summary>Gets the full authorization request URL (includes query).</summary>
+    /// <summary>Gets the full authorization request URL, including its query.</summary>
     public Uri AuthorizationUri { get; }
 
-    /// <summary>
-    /// Gets the redirect URI registered for the client (used for broker callback matching).
-    /// </summary>
+    /// <summary>Gets the redirect URI registered for the client.</summary>
     public Uri RedirectUri { get; }
 
-    /// <summary>
-    /// Gets the exact <c>redirect_uri</c> string sent to the authorize and token endpoints
-    /// (must match client registration byte-for-byte).
-    /// Use this instead of <see cref="Uri.ToString"/> on <see cref="RedirectUri"/>, which can add a trailing slash.
-    /// </summary>
-    public string RedirectUriString { get; }
-
-    /// <summary>Gets the opaque CSRF value sent as <c>state</c>.</summary>
+    /// <summary>Gets the value sent as <c>state</c>, which ties the callback to this session.</summary>
     public string State { get; }
 
-    /// <summary>Gets the PKCE code verifier; send to the token endpoint as <c>code_verifier</c>.</summary>
-    public string CodeVerifier { get; }
-
-    /// <summary>Gets the optional OIDC nonce, if requested.</summary>
-    public string? Nonce { get; }
-
     /// <summary>
-    /// Creates a session: validates metadata for authorization code + S256 PKCE, then builds the authorization URL.
+    /// Discovers the endpoints of <paramref name="issuer"/> and creates a session for them.
     /// </summary>
-    /// <param name="metadata">Authorization server metadata from RFC 8414 discovery.</param>
+    /// <param name="issuer">Issuer identifier of the authorization server, as an https URL.</param>
     /// <param name="clientId">OAuth client identifier.</param>
-    /// <param name="redirectUri">Registered redirect URI (exact string; must match token request).</param>
-    /// <param name="scope">Space-separated OAuth scopes.</param>
+    /// <param name="redirectUri">Registered redirect URI, used exactly as written.</param>
+    /// <param name="scope">Space separated OAuth scopes.</param>
     /// <param name="nonce">Optional OpenID Connect nonce.</param>
     /// <param name="resource">Optional resource indicator (RFC 8707).</param>
-    /// <returns>A session holding URIs, PKCE verifier, and state for the broker and token exchange.</returns>
+    /// <param name="httpClient">Optional <see cref="HttpClient"/> used for discovery.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <exception cref="ArgumentException">An argument is empty or not an absolute URL.</exception>
+    /// <exception cref="InvalidOperationException">The server published no usable metadata.</exception>
+    public static async Task<AuthorizationCodePkceSession> CreateAsync(
+        string issuer,
+        string clientId,
+        string redirectUri,
+        string scope,
+        string? nonce = null,
+        string? resource = null,
+        HttpClient? httpClient = null,
+        CancellationToken cancellationToken = default)
+    {
+        var issuerUri = AuthorizationServerMetadataClient.ParseIssuer(issuer, nameof(issuer));
+        var metadata = await AuthorizationServerMetadataClient
+            .GetAsync(issuerUri, httpClient, cancellationToken)
+            .ConfigureAwait(false);
+
+        EnsurePkceS256Supported(metadata);
+
+        var authorizationEndpoint = OAuth2Endpoint.ParseMetadataUrl(
+            metadata.AuthorizationEndpoint, "authorization_endpoint");
+        var tokenEndpoint = OAuth2Endpoint.ParseMetadataUrl(
+            metadata.TokenEndpoint, "token_endpoint");
+
+        return Create(authorizationEndpoint, tokenEndpoint, clientId, redirectUri, scope, nonce, resource);
+    }
+
+    /// <summary>
+    /// Creates a session for endpoints that are already known, without discovery.
+    /// </summary>
+    /// <param name="authorizationEndpoint">The authorization endpoint of the server.</param>
+    /// <param name="tokenEndpoint">The token endpoint of the server.</param>
+    /// <param name="clientId">OAuth client identifier.</param>
+    /// <param name="redirectUri">Registered redirect URI, used exactly as written.</param>
+    /// <param name="scope">Space separated OAuth scopes.</param>
+    /// <param name="nonce">Optional OpenID Connect nonce.</param>
+    /// <param name="resource">Optional resource indicator (RFC 8707).</param>
+    /// <exception cref="ArgumentException">An argument is empty, not absolute, or not an https URL.</exception>
     public static AuthorizationCodePkceSession Create(
-        AuthorizationServerMetadata metadata,
+        Uri authorizationEndpoint,
+        Uri tokenEndpoint,
         string clientId,
         string redirectUri,
         string scope,
         string? nonce = null,
         string? resource = null)
     {
-        if (metadata.AuthorizationEndpoint is not { Length: > 0 } authEndpoint)
-            throw new InvalidOperationException("Authorization server metadata is missing authorization_endpoint.");
+        EnsureSecureEndpoint(authorizationEndpoint, nameof(authorizationEndpoint));
+        EnsureSecureEndpoint(tokenEndpoint, nameof(tokenEndpoint));
 
-        var redirectForOAuth = redirectUri.Trim();
-        if (redirectForOAuth.Length == 0)
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("Client ID is required.", nameof(clientId));
+
+        // The redirect URI has to reach the token endpoint byte for byte as it was registered,
+        // so the original string is kept instead of a round-tripped Uri.
+        var redirectUriString = redirectUri?.Trim() ?? "";
+        if (redirectUriString.Length == 0)
             throw new ArgumentException("Redirect URI is required.", nameof(redirectUri));
 
-        if (!Uri.TryCreate(redirectForOAuth, UriKind.Absolute, out var redirectUriParsed))
+        if (!Uri.TryCreate(redirectUriString, UriKind.Absolute, out var redirectUriParsed))
             throw new ArgumentException("Redirect URI must be an absolute URL.", nameof(redirectUri));
 
-        EnsurePkceS256Supported(metadata);
-
         var codeVerifier = Pkce.CreateCodeVerifier();
-        var codeChallenge = Pkce.CreateCodeChallengeS256(codeVerifier);
         var state = CreateState();
 
         var query = new List<string>
         {
             "response_type=code",
             $"client_id={Uri.EscapeDataString(clientId)}",
-            $"redirect_uri={Uri.EscapeDataString(redirectForOAuth)}",
-            $"scope={Uri.EscapeDataString(scope)}",
+            $"redirect_uri={Uri.EscapeDataString(redirectUriString)}",
+            $"scope={Uri.EscapeDataString(scope ?? "")}",
             $"state={Uri.EscapeDataString(state)}",
-            $"code_challenge={Uri.EscapeDataString(codeChallenge)}",
+            $"code_challenge={Uri.EscapeDataString(Pkce.CreateCodeChallengeS256(codeVerifier))}",
             "code_challenge_method=S256",
         };
 
@@ -101,27 +142,48 @@ public sealed class AuthorizationCodePkceSession
         if (!string.IsNullOrEmpty(resource))
             query.Add($"resource={Uri.EscapeDataString(resource)}");
 
-        var separator = authEndpoint.Contains('?', StringComparison.Ordinal) ? '&' : '?';
-        var authorizationUri = new Uri($"{authEndpoint}{separator}{string.Join("&", query)}");
-
         return new AuthorizationCodePkceSession(
-            authorizationUri,
+            AppendQuery(authorizationEndpoint, string.Join("&", query)),
+            tokenEndpoint,
+            clientId,
             redirectUriParsed,
-            redirectForOAuth,
+            redirectUriString,
             state,
-            codeVerifier,
-            nonce);
+            codeVerifier);
     }
 
-    static void EnsurePkceS256Supported(AuthorizationServerMetadata metadata)
+    private static Uri AppendQuery(Uri endpoint, string query)
+    {
+        var builder = new UriBuilder(endpoint);
+        builder.Query = builder.Query is { Length: > 1 } existing
+            ? $"{existing[1..]}&{query}"
+            : query;
+        return builder.Uri;
+    }
+
+    private static void EnsureSecureEndpoint(Uri endpoint, string parameterName)
+    {
+        if (endpoint is null)
+            throw new ArgumentNullException(parameterName);
+
+        if (!endpoint.IsAbsoluteUri)
+            throw new ArgumentException("Endpoint must be an absolute URL.", parameterName);
+
+        if (!OAuth2Endpoint.IsSecure(endpoint))
+            throw new ArgumentException($"Endpoint must be an https URL, but was '{endpoint}'.", parameterName);
+    }
+
+    private static void EnsurePkceS256Supported(AuthorizationServerMetadata metadata)
     {
         var methods = metadata.CodeChallengeMethodsSupported;
+
+        // An absent list says nothing about support, so it is not treated as a failure.
         if (methods is null || methods.Length == 0)
             return;
 
-        foreach (var m in methods)
+        foreach (var method in methods)
         {
-            if (string.Equals(m, "S256", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(method, "S256", StringComparison.OrdinalIgnoreCase))
                 return;
         }
 
@@ -129,7 +191,7 @@ public sealed class AuthorizationCodePkceSession
             "Authorization server metadata lists code_challenge_methods_supported but does not include S256.");
     }
 
-    static string CreateState()
+    private static string CreateState()
     {
         var bytes = new byte[32];
         RandomNumberGenerator.Fill(bytes);
