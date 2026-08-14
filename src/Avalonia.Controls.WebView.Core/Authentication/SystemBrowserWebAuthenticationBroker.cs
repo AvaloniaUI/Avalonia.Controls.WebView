@@ -1,5 +1,4 @@
 using System;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
@@ -28,7 +27,7 @@ internal static class SystemBrowserWebAuthenticationBroker
 
         ValidateRedirectUri(redirectUri);
 
-        using var listener = new LoopbackHttpListener(redirectUri.IsDefaultPort ? 0 : redirectUri.Port, redirectUri.AbsolutePath);
+        using var listener = new LoopbackHttpListener(redirectUri);
 
         var actualRedirectUri = new UriBuilder(redirectUri) { Port = listener.Port }.Uri;
 
@@ -121,15 +120,12 @@ internal static class SystemBrowserWebAuthenticationBroker
                 nameof(redirectUri));
         }
 
-        if (!IsLoopback(redirectUri))
+        if (!redirectUri.IsLoopback)
         {
             throw new ArgumentException(
-                $"Redirect uri host must be a loopback address when using the system browser, but was '{redirectUri.Host}'.",
+                $"Redirect uri host must be a loopback address or 'localhost' when using the system browser, but was '{redirectUri.Host}'.",
                 nameof(redirectUri));
         }
     }
-
-    private static bool IsLoopback(Uri redirectUri) =>
-        IPAddress.TryParse(redirectUri.Host, out var address) && IPAddress.IsLoopback(address);
 }
 

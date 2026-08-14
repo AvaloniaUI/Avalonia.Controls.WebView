@@ -33,7 +33,7 @@ public class LoopbackHttpListenerTests
     [Fact]
     public async Task Should_Return_Uri_With_Query_For_Matching_Path()
     {
-        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
         using var cts = new CancellationTokenSource(s_timeout);
 
         var waitTask = listener.WaitForCallbackAsync(null, Html("<html>ok</html>"), cts.Token);
@@ -50,10 +50,52 @@ public class LoopbackHttpListenerTests
         Assert.Equal(listener.Port, uri.Port);
     }
 
+    [Theory]
+    [InlineData("localhost")]
+    [InlineData("127.0.0.1")]
+    public async Task Should_Report_The_Configured_Host_In_The_Callback_Uri(string host)
+    {
+        // A redirect uri written as "localhost" must come back as "localhost": the token exchange has to
+        // present the same redirect_uri string that the authorization request carried.
+        using var listener = new LoopbackHttpListener(new Uri($"http://{host}{RedirectPath}"));
+        using var cts = new CancellationTokenSource(s_timeout);
+
+        var waitTask = listener.WaitForCallbackAsync(null, Html("<html>ok</html>"), cts.Token);
+
+        using var http = new HttpClient();
+        using var response = await http.GetAsync(
+            $"http://127.0.0.1:{listener.Port}{RedirectPath}?code=abc", cts.Token);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var uri = await waitTask;
+        Assert.Equal(host, uri.Host);
+        Assert.Equal(listener.Port, uri.Port);
+    }
+
+    [Fact]
+    public async Task Should_Bind_IPv6_Loopback_For_An_IPv6_Redirect_Uri()
+    {
+        Assert.SkipUnless(Socket.OSSupportsIPv6, "The machine has no IPv6 stack.");
+
+        using var listener = new LoopbackHttpListener(new Uri($"http://[::1]{RedirectPath}"));
+        using var cts = new CancellationTokenSource(s_timeout);
+
+        var waitTask = listener.WaitForCallbackAsync(null, Html("<html>ok</html>"), cts.Token);
+
+        using var http = new HttpClient();
+        using var response = await http.GetAsync(
+            $"http://[::1]:{listener.Port}{RedirectPath}?code=abc", cts.Token);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var uri = await waitTask;
+        Assert.Equal("[::1]", uri.Host);
+        Assert.Equal(listener.Port, uri.Port);
+    }
+
     [Fact]
     public async Task Should_Allocate_A_Free_Port_When_Zero_Is_Requested()
     {
-        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
 
         Assert.NotEqual(0, listener.Port);
 
@@ -66,7 +108,7 @@ public class LoopbackHttpListenerTests
     [Fact]
     public async Task Should_Send_A_Default_Success_Page_When_No_Handler_Is_Provided()
     {
-        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
         using var cts = new CancellationTokenSource(s_timeout);
 
         var waitTask = listener.WaitForCallbackAsync(null, null, cts.Token);
@@ -87,7 +129,7 @@ public class LoopbackHttpListenerTests
     {
         var handlerCalls = 0;
 
-        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
         using var cts = new CancellationTokenSource(s_timeout);
 
         var waitTask = listener.WaitForCallbackAsync(
@@ -123,7 +165,7 @@ public class LoopbackHttpListenerTests
     [Fact]
     public async Task Should_Send_Html_Body_From_Response_Handler()
     {
-        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
         using var cts = new CancellationTokenSource(s_timeout);
 
         var waitTask = listener.WaitForCallbackAsync(null, Html("<html>custom body</html>"), cts.Token);
@@ -144,7 +186,7 @@ public class LoopbackHttpListenerTests
     {
         Uri? handlerUri = null;
 
-        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
         using var cts = new CancellationTokenSource(s_timeout);
 
         var waitTask = listener.WaitForCallbackAsync(
@@ -171,7 +213,7 @@ public class LoopbackHttpListenerTests
     {
         var location = new Uri("https://example.com/signed-in");
 
-        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
         using var cts = new CancellationTokenSource(s_timeout);
 
         var waitTask = listener.WaitForCallbackAsync(
@@ -201,7 +243,7 @@ public class LoopbackHttpListenerTests
     [Fact]
     public async Task Should_Ignore_Absolute_Form_Request_Target()
     {
-        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
         using var cts = new CancellationTokenSource(s_timeout);
 
         var waitTask = listener.WaitForCallbackAsync(null, Html("<html>ok</html>"), cts.Token);
@@ -230,7 +272,7 @@ public class LoopbackHttpListenerTests
     [InlineData("127.0.0.1:1")]
     public async Task Should_Ignore_The_Host_Header(string host)
     {
-        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
         using var cts = new CancellationTokenSource(s_timeout);
 
         var waitTask = listener.WaitForCallbackAsync(null, Html("<html>ok</html>"), cts.Token);
@@ -249,11 +291,46 @@ public class LoopbackHttpListenerTests
     }
 
     [Fact]
+    public async Task Should_Reject_An_Invalid_Redirect_Uri()
+    {
+        Exception? nullException = null;
+        Exception? relativeException = null;
+
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
+        using var cts = new CancellationTokenSource(s_timeout);
+
+        var waitTask = listener.WaitForCallbackAsync(
+            null,
+            (_, response) =>
+            {
+                nullException = Record.Exception(() => response.Redirect(null!));
+                relativeException = Record.Exception(() => response.Redirect(new Uri("/x", UriKind.Relative)));
+
+                // A rejected redirect must leave the response untouched.
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                return WriteAsync(response, "<html>ok</html>");
+            },
+            cts.Token);
+
+        using var http = new HttpClient();
+        using var response = await http.GetAsync(
+            $"http://127.0.0.1:{listener.Port}{RedirectPath}?code=abc", cts.Token);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("<html>ok</html>", await response.Content.ReadAsStringAsync(cts.Token));
+
+        await waitTask;
+
+        _ = Assert.IsType<ArgumentNullException>(nullException);
+        Assert.Equal("uri", Assert.IsType<ArgumentException>(relativeException).ParamName);
+    }
+
+    [Fact]
     public async Task Should_Reject_A_Filtered_Callback_And_Keep_Listening()
     {
         var handlerCalls = 0;
 
-        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
         using var cts = new CancellationTokenSource(s_timeout);
 
         var waitTask = listener.WaitForCallbackAsync(
@@ -291,7 +368,7 @@ public class LoopbackHttpListenerTests
     {
         var expected = new InvalidOperationException("bad filter");
 
-        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
         using var cts = new CancellationTokenSource(s_timeout);
 
         var waitTask = listener.WaitForCallbackAsync(_ => throw expected, null, cts.Token);
@@ -308,7 +385,7 @@ public class LoopbackHttpListenerTests
     [Fact]
     public async Task Should_Respect_Cancellation()
     {
-        using var listener = new LoopbackHttpListener(0, RedirectPath);
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
         using var cts = new CancellationTokenSource();
 
         var waitTask = listener.WaitForCallbackAsync(null, null, cts.Token);
@@ -321,10 +398,10 @@ public class LoopbackHttpListenerTests
     [Fact]
     public void Should_Fail_When_The_Port_Is_Already_In_Use()
     {
-        using var first = new LoopbackHttpListener(0, RedirectPath);
+        using var first = new LoopbackHttpListener(new Uri($"http://127.0.0.1{RedirectPath}"));
 
         _ = Assert.Throws<InvalidOperationException>(
-            () => new LoopbackHttpListener(first.Port, RedirectPath));
+            () => new LoopbackHttpListener(new Uri($"http://127.0.0.1:{first.Port}{RedirectPath}")));
     }
 
     private static async Task SendRawRequestAsync(int port, string request, CancellationToken cancellationToken)

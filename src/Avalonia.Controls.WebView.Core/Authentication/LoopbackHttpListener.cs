@@ -25,17 +25,26 @@ internal sealed class LoopbackHttpListener : IDisposable
     private const int HttpRequestBufferSize = 4096;
 
     private readonly TcpListener _listener;
+    private readonly string _host;
     private readonly string _redirectPath;
 
     /// <summary>
     /// Starts a listener on the loopback interface.
     /// </summary>
-    /// <param name="port">Port to listen on, or 0 to let the OS allocate a free one.</param>
-    /// <param name="redirectPath">Relative redirect path (e.g. <c>/callback</c>) that completes the flow.</param>
-    public LoopbackHttpListener(int port, string redirectPath)
+    /// <param name="redirectUri">
+    /// Redirect uri to serve.
+    /// Its host selects the loopback address to bind and is reported back in the callback uri.
+    /// Its port is used when specified, otherwise the OS allocates a free one.
+    /// </param>
+    public LoopbackHttpListener(Uri redirectUri)
     {
-        _listener = new TcpListener(IPAddress.Loopback, port) { ExclusiveAddressUse = true };
-        _redirectPath = redirectPath;
+        _host = redirectUri.Host;
+        _redirectPath = redirectUri.AbsolutePath;
+
+        var address = ResolveBindAddress(redirectUri);
+        var port = redirectUri.IsDefaultPort ? 0 : redirectUri.Port;
+
+        _listener = new TcpListener(address, port) { ExclusiveAddressUse = true };
 
         try
         {
@@ -43,11 +52,15 @@ internal sealed class LoopbackHttpListener : IDisposable
         }
         catch (Exception ex)
         {
-            var actualPort = ((IPEndPoint)_listener.LocalEndpoint).Port;
             throw new InvalidOperationException(
-                $"Failed to start the local callback listener on 127.0.0.1:{actualPort}.", ex);
+                $"Failed to start the local callback listener on {address}:{port}.", ex);
         }
     }
+
+    private static IPAddress ResolveBindAddress(Uri redirectUri) =>
+        IPAddress.TryParse(redirectUri.DnsSafeHost, out var address) && IPAddress.IsLoopback(address)
+            ? address
+            : IPAddress.Loopback;
 
     /// <summary>
     /// Port the listener is actually bound to.
@@ -127,7 +140,7 @@ internal sealed class LoopbackHttpListener : IDisposable
         }
     }
 
-    private static async Task<Uri?> ReadRequestUriAsync(TcpClient client, CancellationToken cancellationToken)
+    private async Task<Uri?> ReadRequestUriAsync(TcpClient client, CancellationToken cancellationToken)
     {
         var stream = client.GetStream();
         using var reader = new StreamReader(stream, Encoding.ASCII,
@@ -155,18 +168,9 @@ internal sealed class LoopbackHttpListener : IDisposable
         if (rawTarget.Length == 0 || rawTarget[0] != '/')
             return null;
 
-        // The authority comes from the accepted socket, never from the request's Host header: any local
-        // process can connect to the loopback port and send an arbitrary Host, which would otherwise end
-        // up as the authority of the uri handed back to the application.
-        var authority = client.Client.LocalEndPoint is IPEndPoint localEndPoint
-            ? localEndPoint.AddressFamily == AddressFamily.InterNetworkV6
-                ? $"[{localEndPoint.Address}]:{localEndPoint.Port}"
-                : $"{localEndPoint.Address}:{localEndPoint.Port}"
-            : "127.0.0.1";
-
-        // Reconstruct a full URI from the request target, so downstream redirect uri handling
-        // keeps the correct host and port.
-        return Uri.TryCreate($"http://{authority}{rawTarget}", UriKind.Absolute, out var uri) ? uri : null;
+        // The authority is the host the application configured plus the port actually bound.
+        // It never comes from the request's Host header.
+        return Uri.TryCreate($"http://{_host}:{Port}{rawTarget}", UriKind.Absolute, out var uri) ? uri : null;
     }
 
     private static async Task SendResponseAsync(

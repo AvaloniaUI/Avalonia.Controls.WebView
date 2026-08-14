@@ -97,6 +97,40 @@ public class SystemBrowserWebAuthenticationBrokerTests
     }
 
     [Fact]
+    public async Task Should_Accept_A_Localhost_Redirect_Uri()
+    {
+        var redirectUri = new Uri("http://localhost/callback");
+        var requestUri = new Uri("http://input.com/authorize?client_id=abc&redirect_uri=" +
+                                 Uri.EscapeDataString(redirectUri.AbsoluteUri));
+
+        Uri? launchedUri = null;
+
+        var callbackUri = await SystemBrowserWebAuthenticationBroker.AuthenticateAsync(
+            requestUri,
+            redirectUri,
+            s_timeout,
+            async uri =>
+            {
+                launchedUri = uri;
+                await GetAsync(RedirectUriOf(uri) + "?code=123");
+                return true;
+            },
+            null,
+            null,
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(launchedUri);
+
+        // The rewritten redirect_uri and the callback must both keep the configured host, so the token
+        // exchange can present the same string the authorization request carried.
+        var actualRedirectUri = new Uri(RedirectUriOf(launchedUri));
+        Assert.Equal("localhost", actualRedirectUri.Host);
+        Assert.Equal("localhost", callbackUri.Host);
+        Assert.Equal(actualRedirectUri.Port, callbackUri.Port);
+        Assert.Equal("?code=123", callbackUri.Query);
+    }
+
+    [Fact]
     public async Task Should_Send_The_Response_Produced_By_The_Response_Handler()
     {
         Uri? handlerUri = null;
@@ -365,7 +399,7 @@ public class SystemBrowserWebAuthenticationBrokerTests
                 TestContext.Current.CancellationToken));
 
         // The listener must not keep the port bound after the flow is over.
-        using var listener = new LoopbackHttpListener(port, "/callback");
+        using var listener = new LoopbackHttpListener(new Uri($"http://127.0.0.1:{port}/callback"));
         Assert.Equal(port, listener.Port);
     }
 
