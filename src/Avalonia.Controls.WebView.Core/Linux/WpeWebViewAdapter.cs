@@ -52,6 +52,7 @@ internal sealed unsafe class WpeWebViewAdapter
     private readonly GSignalCreateCallback _createCallback;
     private readonly GSignalScriptMessageCallback _scriptMessageCallback;
     private readonly GSignalLoadFailedCallback _loadFailedCallback;
+    private readonly UriSchemeRequestCallback _uriSchemeCallback;
     private GCHandle _selfHandle;
 
     private WpeWebViewAdapter()
@@ -63,6 +64,7 @@ internal sealed unsafe class WpeWebViewAdapter
         _createCallback = OnCreate;
         _scriptMessageCallback = OnScriptMessageReceived;
         _loadFailedCallback = OnLoadFailed;
+        _uriSchemeCallback = OnUriSchemeRequest;
     }
 
     // Unmanaged callback signatures
@@ -83,6 +85,9 @@ internal sealed unsafe class WpeWebViewAdapter
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int GSignalLoadFailedCallback(IntPtr webView, int loadEvent, IntPtr failingUri, IntPtr error, IntPtr userData);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void UriSchemeRequestCallback(IntPtr request, IntPtr userData);
 
     public static bool IsAvailable() => s_isAvailable.Value;
 
@@ -250,6 +255,8 @@ internal sealed unsafe class WpeWebViewAdapter
         _webView = WpeInterop.g_object_new_with_properties(webViewType, 3, keys, values);
         if (_webView == IntPtr.Zero)
             throw new InvalidOperationException("webkit_web_view_new failed.");
+
+        RegisterCustomSchemes(args, selfPtr);
 
         var viewContentManager = WpeInterop.webkit_web_view_get_user_content_manager(_webView);
         if (viewContentManager != IntPtr.Zero && viewContentManager != _userContentManager)
@@ -973,6 +980,85 @@ internal sealed unsafe class WpeWebViewAdapter
         }
 
         tcs.TrySetResult(cookies);
+    }
+
+    private void RegisterCustomSchemes(LinuxWpeWebViewEnvironmentRequestedEventArgs args, IntPtr selfPtr)
+    {
+        if (args.CustomSchemes.Count == 0)
+            return;
+
+        var context = WpeInterop.webkit_web_view_get_context(_webView);
+        if (context == IntPtr.Zero)
+            context = WpeInterop.webkit_web_context_get_default();
+        if (context == IntPtr.Zero)
+            return;
+
+        var callbackPtr = Marshal.GetFunctionPointerForDelegate(_uriSchemeCallback);
+        var securityManager = WpeInterop.webkit_web_context_get_security_manager(context);
+        foreach (var scheme in args.CustomSchemes)
+        {
+            if (string.IsNullOrWhiteSpace(scheme))
+                continue;
+            WpeInterop.webkit_web_context_register_uri_scheme(
+                context, scheme, callbackPtr, selfPtr, IntPtr.Zero);
+            if (securityManager != IntPtr.Zero)
+            {
+                WpeInterop.webkit_security_manager_register_uri_scheme_as_secure(securityManager, scheme);
+                WpeInterop.webkit_security_manager_register_uri_scheme_as_cors_enabled(securityManager, scheme);
+                WpeInterop.webkit_security_manager_register_uri_scheme_as_local(securityManager, scheme);
+            }
+        }
+    }
+
+    private void OnUriSchemeRequest(IntPtr request, IntPtr userData)
+    {
+        if (!_selfHandle.IsAllocated || GCHandle.FromIntPtr(userData).Target is not WpeWebViewAdapter adapter)
+            return;
+
+        var uriPtr = WpeInterop.webkit_uri_scheme_request_get_uri(request);
+        var uriString = Marshal.PtrToStringUTF8(uriPtr);
+        if (uriString is null || !Uri.TryCreate(uriString, UriKind.Absolute, out var uri))
+            return;
+
+        var methodPtr = WpeInterop.webkit_uri_scheme_request_get_http_method(request);
+        var method = Marshal.PtrToStringUTF8(methodPtr) ?? "GET";
+
+        var args = new WebResourceRequestedEventArgs
+        {
+            Request = new WebViewWebResourceRequest
+            {
+                Method = new System.Net.Http.HttpMethod(method),
+                Uri = uri,
+                Headers = new Utils.NativeHeadersCollection(Utils.DictionaryNativeHttpRequestHeaders.ImmutableInstance)
+            }
+        };
+
+        Dispatcher.UIThread.Invoke(() =>
+        {
+            adapter.WebResourceRequested?.Invoke(adapter, args);
+            args.WaitForDeferralsAsync().GetAwaiter().GetResult();
+
+            if (args is { Handled: true, Response: { } response })
+                FinishUriSchemeRequest(request, response);
+        });
+    }
+
+    private static void FinishUriSchemeRequest(IntPtr request, WebViewWebResourceResponse response)
+    {
+        using var ms = new System.IO.MemoryStream();
+        response.Content.CopyTo(ms);
+        var bytes = ms.ToArray();
+        var data = WpeInterop.g_malloc((nuint)bytes.Length);
+        if (bytes.Length > 0)
+            Marshal.Copy(bytes, 0, data, bytes.Length);
+
+        IntPtr destroyFree = IntPtr.Zero;
+        if (NativeLibrary.TryLoad("libglib-2.0.so.0", out var glib))
+            NativeLibrary.TryGetExport(glib, "g_free", out destroyFree);
+
+        var stream = WpeInterop.g_memory_input_stream_new_from_data(data, bytes.Length, destroyFree);
+        WpeInterop.webkit_uri_scheme_request_finish(request, stream, bytes.Length, response.ContentType);
+        WpeInterop.g_object_unref(stream);
     }
 
     // --- ILinuxWpePlatformHandle ---

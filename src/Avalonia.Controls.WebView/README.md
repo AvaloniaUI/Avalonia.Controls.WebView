@@ -9,8 +9,38 @@ The Avalonia WebView component provides native web browser functionality for you
 - **AOT Compatible**: Compatible with Ahead-of-Time compilation and trimming
 - **Platform Configuration**: Supports WebView2 profiles, persistent storage paths, and many other platform-specific options
 - **Web APIs**: JavaScript execution, bidirectional messaging, cookie management, HTTP header interception
+- **Local content serving**: Fulfill requests with app-local bytes via `WebResourceRequestedEventArgs.SetResponse` and custom URI schemes (`CustomSchemes`)
 - **Authentication**: Web authentication broker for OAuth and web-based authentication
 - **Printing**: Print web content directly from the WebView
+
+## Local content / Hybrid
+
+To serve offline SPA or Blazor Hybrid content:
+
+1. Register a custom scheme (non-Windows) in `EnvironmentRequested`:
+
+```csharp
+webView.EnvironmentRequested += (_, e) => e.CustomSchemes.Add("app");
+```
+
+2. Fulfill matching requests:
+
+```csharp
+webView.WebResourceRequested += (_, e) =>
+{
+    if (e.Request.Uri.Scheme != "app") return;
+    e.SetResponse(
+        content: File.OpenRead("wwwroot/index.html"),
+        statusCode: 200,
+        reasonPhrase: "OK",
+        contentType: "text/html");
+};
+webView.Navigate(new Uri("app://0.0.0.0/"));
+```
+
+On Windows, Hybrid apps typically use `http://0.0.0.0/` with `SetResponse` instead of a custom scheme.
+
+For Blazor Hybrid, use the separate [`Avalonia.Controls.BlazorWebView`](../Avalonia.Controls.BlazorWebView/README.md) package.
 
 ## Quick Start
 

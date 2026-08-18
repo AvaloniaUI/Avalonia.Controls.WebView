@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
 using Avalonia.Controls.Utils;
@@ -83,9 +84,53 @@ internal partial class WebViewCallbacks(WeakReference<WebView2BaseAdapter> weakA
                 };
 
                 var args = new WebResourceRequestedEventArgs { Request = request };
-                handler.Invoke(adapter, args);
-                headersWrapper.Dispose();
+                var nativeDeferral = (ICoreWebView2Deferral?)null;
+                try
+                {
+                    // Take a native deferral so async SetResponse (via GetDeferral) can complete later.
+                    var deferralPtr = e.GetDeferral();
+                    if (deferralPtr != IntPtr.Zero)
+                    {
+                        unsafe
+                        {
+                            nativeDeferral = ComInterfaceMarshaller<ICoreWebView2Deferral>
+                                .ConvertToManaged(deferralPtr.ToPointer());
+                        }
+                    }
+
+                    handler.Invoke(adapter, args);
+
+                    ApplyResponseAfterDeferrals(adapter, e, args, nativeDeferral);
+                }
+                finally
+                {
+                    headersWrapper.Dispose();
+                }
             }
+        }
+    }
+
+    private static async void ApplyResponseAfterDeferrals(
+        WebView2BaseAdapter adapter,
+        ICoreWebView2WebResourceRequestedEventArgs e,
+        WebResourceRequestedEventArgs args,
+        ICoreWebView2Deferral? nativeDeferral)
+    {
+        try
+        {
+            await args.WaitForDeferralsAsync().ConfigureAwait(true);
+
+            if (args is { Handled: true, Response: { } response }
+                && adapter.TryGetEnvironment() is { } environment)
+            {
+                var nativeResponse = WebResourceResponseHelper.CreateNativeResponse(environment, response);
+                if (nativeResponse != IntPtr.Zero)
+                    e.SetResponse(nativeResponse);
+            }
+        }
+        finally
+        {
+            nativeDeferral?.Complete();
         }
     }
 

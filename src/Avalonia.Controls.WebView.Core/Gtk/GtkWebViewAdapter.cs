@@ -45,6 +45,9 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     private static readonly unsafe IntPtr s_resourceLoadStartedCallback =
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, IntPtr, void>)&ResourceLoadStartedCallback);
 
+    private static readonly unsafe IntPtr s_uriSchemeRequestCallback =
+        new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, void>)&UriSchemeRequestCallback);
+
     private readonly IntPtr _settings;
     private IntPtr _webViewHandle;
     private GtkSignal? _loadChangedSignal;
@@ -53,6 +56,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     private GtkSignal? _focusOutSignal;
     private GtkSignal? _scriptMessageReceivedSignal;
     private GtkSignal? _resourceLoadStarted;
+    private GCHandle _schemeUserData;
     private Uri _source = WebViewHelper.EmptyPage;
 
     protected GtkWebViewAdapter(GtkWebViewEnvironmentRequestedEventArgs args)
@@ -62,7 +66,8 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
             || args.BaseDataDirectory is { Length: >0}
             || args.BaseCacheDirectory is { Length: >0}
             || !args.SharedProcessModel
-            || args.DisableCache)
+            || args.DisableCache
+            || args.CustomSchemes.Count > 0)
         {
             if (args.EphemeralDataManager)
             {
@@ -104,6 +109,26 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
         else
         {
             context = webkit_web_context_get_default();
+        }
+
+        if (args.CustomSchemes.Count > 0)
+        {
+            _schemeUserData = GCHandle.Alloc(this);
+            var userData = GCHandle.ToIntPtr(_schemeUserData);
+            var securityManager = webkit_web_context_get_security_manager(context);
+            foreach (var scheme in args.CustomSchemes)
+            {
+                if (string.IsNullOrWhiteSpace(scheme))
+                    continue;
+                webkit_web_context_register_uri_scheme(
+                    context, scheme, s_uriSchemeRequestCallback, userData, IntPtr.Zero);
+                if (securityManager != IntPtr.Zero)
+                {
+                    webkit_security_manager_register_uri_scheme_as_secure(securityManager, scheme);
+                    webkit_security_manager_register_uri_scheme_as_cors_enabled(securityManager, scheme);
+                    webkit_security_manager_register_uri_scheme_as_local(securityManager, scheme);
+                }
+            }
         }
 
         _webViewHandle = webkit_web_view_new_with_context(context);
@@ -530,6 +555,80 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void UriSchemeRequestCallback(IntPtr request, IntPtr userData)
+    {
+        if (userData == IntPtr.Zero)
+            return;
+
+        GtkWebViewAdapter? adapter = null;
+        try
+        {
+            adapter = GCHandle.FromIntPtr(userData).Target as GtkWebViewAdapter;
+        }
+        catch
+        {
+            return;
+        }
+
+        if (adapter is null)
+            return;
+
+        var uriPtr = webkit_uri_scheme_request_get_uri(request);
+        var uriString = Marshal.PtrToStringUTF8(uriPtr);
+        if (uriString is null || !Uri.TryCreate(uriString, UriKind.Absolute, out var uri))
+            return;
+
+        var methodPtr = webkit_uri_scheme_request_get_http_method(request);
+        var method = Marshal.PtrToStringUTF8(methodPtr) ?? "GET";
+
+        var args = new WebResourceRequestedEventArgs
+        {
+            Request = new WebViewWebResourceRequest
+            {
+                Method = new HttpMethod(method),
+                Uri = uri,
+                Headers = new NativeHeadersCollection(DictionaryNativeHttpRequestHeaders.ImmutableInstance)
+            }
+        };
+
+        WebViewDispatcher.Invoke(() =>
+        {
+            adapter.WebResourceRequested?.Invoke(adapter, args);
+            args.WaitForDeferralsAsync().GetAwaiter().GetResult();
+
+            if (args is { Handled: true, Response: { } response })
+            {
+                FinishUriSchemeRequest(request, response);
+            }
+        });
+    }
+
+    private static void FinishUriSchemeRequest(IntPtr request, WebViewWebResourceResponse response)
+    {
+        using var ms = new MemoryStream();
+        response.Content.CopyTo(ms);
+        var bytes = ms.ToArray();
+        var data = g_malloc((nuint)bytes.Length);
+        if (bytes.Length > 0)
+            Marshal.Copy(bytes, 0, data, bytes.Length);
+
+        var stream = g_memory_input_stream_new_from_data(data, bytes.Length, GetGFreePointer());
+        webkit_uri_scheme_request_finish(request, stream, bytes.Length, response.ContentType);
+        g_object_unref(stream);
+    }
+
+    private static IntPtr GetGFreePointer()
+    {
+        if (NativeLibrary.TryLoad("libglib-2.0.so.0", out var lib) ||
+            NativeLibrary.TryLoad("libglib-2.0.so", out lib))
+        {
+            if (NativeLibrary.TryGetExport(lib, "g_free", out var free))
+                return free;
+        }
+        return IntPtr.Zero;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void ResourceLoadStartedCallback(IntPtr widget, IntPtr resource, IntPtr request, IntPtr data)
     {
         if (!GtkSignal.TryGetState<GtkWebViewAdapter>(data, out var adapter)
@@ -614,6 +713,8 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
             Interlocked.Exchange(ref _focusOutSignal, null)?.Dispose();
             Interlocked.Exchange(ref _scriptMessageReceivedSignal, null)?.Dispose();
             Interlocked.Exchange(ref _resourceLoadStarted, null)?.Dispose();
+            if (_schemeUserData.IsAllocated)
+                _schemeUserData.Free();
         }
 
         var webView = Interlocked.Exchange(ref _webViewHandle, IntPtr.Zero);

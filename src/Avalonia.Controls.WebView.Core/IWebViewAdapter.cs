@@ -44,6 +44,14 @@ public abstract class WebViewEnvironmentRequestedEventArgs : EventArgs
     public bool EnableDevTools { get; set; }
 
     /// <summary>
+    /// Custom URI schemes to register with the underlying web engine (for example <c>app</c>).
+    /// Must be set during the <c>EnvironmentRequested</c> event before the adapter is created.
+    /// Required on WebKit-based platforms (macOS, iOS, Linux) to serve local content; Windows WebView2
+    /// typically serves Hybrid content over <c>http://0.0.0.0/</c> instead.
+    /// </summary>
+    public IList<string> CustomSchemes { get; } = new List<string>();
+
+    /// <summary>
     /// Gets a deferral that can be used to delay the completion of the event.
     /// </summary>
     public IDisposable GetDeferral() => _deferralManager.GetDeferral();
@@ -54,9 +62,66 @@ public sealed class WebMessageReceivedEventArgs : EventArgs
     public string? Body { get; init; }
 }
 
+/// <summary>
+/// Response payload supplied via <see cref="WebResourceRequestedEventArgs.SetResponse"/>.
+/// </summary>
+public sealed class WebViewWebResourceResponse
+{
+    public required Stream Content { get; init; }
+    public required int StatusCode { get; init; }
+    public required string ReasonPhrase { get; init; }
+    public required string ContentType { get; init; }
+    public IReadOnlyDictionary<string, string> Headers { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+}
+
 public sealed class WebResourceRequestedEventArgs : EventArgs
 {
+    private readonly DeferralManager _deferralManager = new();
+    private WebViewWebResourceResponse? _response;
+
     public required WebViewWebResourceRequest Request { get; init; }
+
+    /// <summary>
+    /// True after <see cref="SetResponse"/> has been called.
+    /// </summary>
+    public bool Handled { get; private set; }
+
+    /// <summary>
+    /// Fulfills the request with app-local bytes. Platforms that support response synthesis
+    /// will return this content instead of performing a network load.
+    /// </summary>
+    public void SetResponse(
+        Stream content,
+        int statusCode,
+        string reasonPhrase,
+        string contentType,
+        IReadOnlyDictionary<string, string>? headers = null)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(reasonPhrase);
+        ArgumentNullException.ThrowIfNull(contentType);
+
+        _response = new WebViewWebResourceResponse
+        {
+            Content = content,
+            StatusCode = statusCode,
+            ReasonPhrase = reasonPhrase,
+            ContentType = contentType,
+            Headers = headers ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        };
+        Handled = true;
+    }
+
+    /// <summary>
+    /// Gets a deferral that delays completion of the resource request until disposed,
+    /// allowing asynchronous content providers to call <see cref="SetResponse"/> later.
+    /// </summary>
+    public IDisposable GetDeferral() => _deferralManager.GetDeferral();
+
+    internal WebViewWebResourceResponse? Response => _response;
+
+    internal Task WaitForDeferralsAsync() => _deferralManager.WaitForDeferralsAsync();
 }
 
 public abstract class WebViewWebRequestHeaders : IReadOnlyDictionary<string, string>
@@ -299,12 +364,16 @@ internal interface IWebView
     event EventHandler<WebMessageReceivedEventArgs> WebMessageReceived;
 
     /// <summary>
-    /// Fires when the WebView is performing a URL request to a matching URL.
+    /// Fires when the WebView is performing a URL request to a matching URL,
+    /// or when a registered custom URI scheme is requested.
     /// </summary>
     /// <remarks>
     /// Arguments include request information, and headers dictionary.
     /// Headers dictionary can be readonly depending on the request or platform.
     /// Always check result of the `TrySet` and `TryRemove` methods.
+    /// Call <see cref="WebResourceRequestedEventArgs.SetResponse"/> to fulfill the request with local content
+    /// (required for offline / Hybrid apps). Use <see cref="WebViewEnvironmentRequestedEventArgs.CustomSchemes"/>
+    /// to register schemes such as <c>app</c> on WebKit-based platforms.
     /// </remarks>
     event EventHandler<WebResourceRequestedEventArgs> WebResourceRequested;
     

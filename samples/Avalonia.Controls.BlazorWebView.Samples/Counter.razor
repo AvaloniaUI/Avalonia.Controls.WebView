@@ -1,0 +1,13 @@
+@namespace Avalonia.Controls.BlazorWebView.Samples
+
+<h1>Avalonia Blazor Hybrid</h1>
+
+<p>Current count: @currentCount</p>
+
+<button class="btn" @onclick="Increment">Click me</button>
+
+@code {
+    private int currentCount;
+
+    private void Increment() => currentCount++;
+}

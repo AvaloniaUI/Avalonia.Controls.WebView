@@ -186,6 +186,44 @@ internal static unsafe partial class WpeInterop
     public static partial IntPtr webkit_uri_request_get_uri(IntPtr request);
 
     [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_web_view_get_context(IntPtr webView);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_web_context_get_default();
+
+    [LibraryImport(LibWpeWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void webkit_web_context_register_uri_scheme(
+        IntPtr context, string scheme, IntPtr callback, IntPtr userData, IntPtr destroyNotify);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_uri_scheme_request_get_uri(IntPtr request);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_uri_scheme_request_get_http_method(IntPtr request);
+
+    [LibraryImport(LibWpeWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void webkit_uri_scheme_request_finish(
+        IntPtr request, IntPtr stream, long streamLength, string? mimeType);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_web_context_get_security_manager(IntPtr context);
+
+    [LibraryImport(LibWpeWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void webkit_security_manager_register_uri_scheme_as_secure(IntPtr manager, string scheme);
+
+    [LibraryImport(LibWpeWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void webkit_security_manager_register_uri_scheme_as_cors_enabled(IntPtr manager, string scheme);
+
+    [LibraryImport(LibWpeWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void webkit_security_manager_register_uri_scheme_as_local(IntPtr manager, string scheme);
+
+    [LibraryImport(LibGLib)]
+    public static partial IntPtr g_malloc(nuint nBytes);
+
+    [LibraryImport("libgio-2.0.so.0")]
+    public static partial IntPtr g_memory_input_stream_new_from_data(IntPtr data, nint len, IntPtr destroy);
+
+    [LibraryImport(LibWpeWebKit)]
     public static partial void webkit_policy_decision_ignore(IntPtr decision);
 
     [LibraryImport(LibWpeWebKit)]

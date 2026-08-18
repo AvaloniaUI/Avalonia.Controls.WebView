@@ -139,4 +139,27 @@ public class NativeWebViewTests : HeadlessTestsBase
         Assert.False(wasDestroyed);
         Assert.NotNull(webView.TryGetPlatformHandle());
     }
+
+    [AvaloniaFact]
+    public void WebResourceRequestedEventArgs_SetResponse_Marks_Handled()
+    {
+        var args = new WebResourceRequestedEventArgs
+        {
+            Request = new WebViewWebResourceRequest
+            {
+                Uri = new Uri("app://0.0.0.0/index.html"),
+                Method = System.Net.Http.HttpMethod.Get,
+                Headers = new Avalonia.Controls.Utils.NativeHeadersCollection(
+                    Avalonia.Controls.Utils.DictionaryNativeHttpRequestHeaders.ImmutableInstance)
+            }
+        };
+
+        Assert.False(args.Handled);
+        using var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes("<html></html>"));
+        args.SetResponse(stream, 200, "OK", "text/html");
+        Assert.True(args.Handled);
+        Assert.NotNull(args.Response);
+        Assert.Equal(200, args.Response!.StatusCode);
+        Assert.Equal("text/html", args.Response.ContentType);
+    }
 }

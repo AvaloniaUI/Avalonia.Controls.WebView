@@ -509,68 +509,78 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
                     }
                 };
 
-                // This flow is tricky. It's only possible to modify request headers for GET requests.
-                // We also don't want to block thread with sync Invoke if not necessary.
-                if (canEditHeaders)
-                {
-                    WebViewDispatcher.Invoke(() => webResourceRequested.Invoke(this, webResourceArgs));
+                // Sync invoke so SetResponse / header edits can be applied before returning.
+                WebViewDispatcher.Invoke(() => webResourceRequested.Invoke(this, webResourceArgs));
+                webResourceArgs.WaitForDeferralsAsync().GetAwaiter().GetResult();
 
-                    if (headersWrapper.HasChanges)
+                if (webResourceArgs is { Handled: true, Response: { } synthesized })
+                {
+                    var responseHeaders = new Dictionary<string, string>(synthesized.Headers);
+                    if (!responseHeaders.ContainsKey("Content-Type"))
+                        responseHeaders["Content-Type"] = synthesized.ContentType;
+
+                    var encoding = "UTF-8";
+                    var mimeType = synthesized.ContentType.Split(';')[0];
+                    return new WebResourceResponse(
+                        mimeType,
+                        encoding,
+                        synthesized.StatusCode,
+                        synthesized.ReasonPhrase,
+                        responseHeaders,
+                        synthesized.Content
+                    );
+                }
+
+                if (canEditHeaders && headersWrapper.HasChanges)
+                {
+                    try
                     {
+                        var url = new URL(request.Url.ToString());
+                        var connection = (HttpURLConnection)url.OpenConnection()!;
+
+                        foreach (var header in request.RequestHeaders!)
+                        {
+                            connection.SetRequestProperty(header.Key, header.Value);
+                        }
+
+                        connection.Connect();
+
+                        var encoding = connection.ContentEncoding ?? "UTF-8";
+                        var mimeType = connection.ContentType?.Split(';')[0] ?? "text/html";
+
+                        var responseHeaders = new Dictionary<string, string>();
+                        foreach (var entry in connection.HeaderFields ?? new Dictionary<string, IList<string>>())
+                        {
+                            if (entry is { Key: { } key, Value: { } value })
+                            {
+                                responseHeaders[key] = string.Join(",", value);
+                            }
+                        }
+
+                        System.IO.Stream? stream = null;
                         try
                         {
-                            var url = new URL(request.Url.ToString());
-                            var connection = (HttpURLConnection)url.OpenConnection()!;
-
-                            foreach (var header in request.RequestHeaders!)
-                            {
-                                connection.SetRequestProperty(header.Key, header.Value);
-                            }
-
-                            connection.Connect();
-
-                            var encoding = connection.ContentEncoding ?? "UTF-8";
-                            var mimeType = connection.ContentType?.Split(';')[0] ?? "text/html";
-
-                            var responseHeaders = new Dictionary<string, string>();
-                            foreach (var entry in connection.HeaderFields ?? new Dictionary<string, IList<string>>())
-                            {
-                                if (entry is { Key: { } key, Value: { } value })
-                                {
-                                    responseHeaders[key] = string.Join(",", value);
-                                }
-                            }
-
-                            System.IO.Stream? stream = null;
-                            try
-                            {
-                                stream = connection.InputStream;
-                            }
-                            catch
-                            {
-                                // Don't care.
-                            }
-
-                            return new WebResourceResponse(
-                                mimeType,
-                                encoding,
-                                (int)connection.ResponseCode,
-                                connection.ResponseMessage!,
-                                responseHeaders,
-                                stream
-                            );
+                            stream = connection.InputStream;
                         }
                         catch
                         {
                             // Don't care.
-                            return null;
                         }
+
+                        return new WebResourceResponse(
+                            mimeType,
+                            encoding,
+                            (int)connection.ResponseCode,
+                            connection.ResponseMessage!,
+                            responseHeaders,
+                            stream
+                        );
                     }
-                }
-                else
-                {
-                    // fallback to base.ShouldInterceptRequest
-                    WebViewDispatcher.InvokeAsync(() => webResourceRequested.Invoke(this, webResourceArgs));
+                    catch
+                    {
+                        // Don't care.
+                        return null;
+                    }
                 }
             }
 

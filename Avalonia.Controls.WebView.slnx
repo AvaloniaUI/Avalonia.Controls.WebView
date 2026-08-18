@@ -10,8 +10,9 @@
       <Build Solution="*|Any CPU" Project="false" />
     </Project>
   </Folder>
-  <Folder Name="/Samples/">
+    <Folder Name="/Samples/">
     <File Path="samples/NuGet.config" />
+    <Project Path="samples/Avalonia.Controls.BlazorWebView.Samples/Avalonia.Controls.BlazorWebView.Samples.csproj" />
     <Project Path="samples/Avalonia.Controls.WebView.Samples.Android/Avalonia.Controls.WebView.Samples.Android.csproj">
       <Deploy Solution="Debug|Any CPU" />
     </Project>
@@ -37,6 +38,7 @@
     <Project Path="tests/Avalonia.Controls.WebView.Tests/Avalonia.Controls.WebView.Tests.csproj" />
   </Folder>
   <Folder Name="/WebView/">
+    <Project Path="src/Avalonia.Controls.BlazorWebView/Avalonia.Controls.BlazorWebView.csproj" />
     <Project Path="src/Avalonia.Controls.WebView.Core/Avalonia.Controls.WebView.Core.csproj" />
     <Project Path="src/Avalonia.Controls.WebView/Avalonia.Controls.WebView.csproj" />
     <Project Path="src/Avalonia.Xpf.Controls.WebView/Avalonia.Xpf.Controls.WebView.csproj" />

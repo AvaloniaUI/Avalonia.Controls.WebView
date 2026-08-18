@@ -98,6 +98,48 @@ internal static unsafe partial class GtkInterop
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool g_main_context_is_owner(IntPtr context);
 
+    [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial void webkit_web_context_register_uri_scheme(
+        IntPtr context,
+        string scheme,
+        IntPtr callback,
+        IntPtr userData,
+        IntPtr userDataDestroyFunc);
+
+    [DllImport(LibWebKit)]
+    internal static extern IntPtr webkit_uri_scheme_request_get_uri(IntPtr request);
+
+    [DllImport(LibWebKit)]
+    internal static extern IntPtr webkit_uri_scheme_request_get_http_method(IntPtr request);
+
+    [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial void webkit_uri_scheme_request_finish(
+        IntPtr request,
+        IntPtr stream,
+        long streamLength,
+        string? mimeType);
+
+    [DllImport(LibWebKit)]
+    internal static extern void webkit_uri_scheme_request_finish_error(IntPtr request, IntPtr error);
+
+    [DllImport(LibWebKit)]
+    internal static extern IntPtr webkit_web_context_get_security_manager(IntPtr context);
+
+    [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial void webkit_security_manager_register_uri_scheme_as_secure(IntPtr manager, string scheme);
+
+    [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial void webkit_security_manager_register_uri_scheme_as_cors_enabled(IntPtr manager, string scheme);
+
+    [LibraryImport(LibWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial void webkit_security_manager_register_uri_scheme_as_local(IntPtr manager, string scheme);
+
+    [DllImport(LibGLib)]
+    internal static extern IntPtr g_malloc(nuint nBytes);
+
+    [DllImport(LibGio)]
+    internal static extern IntPtr g_memory_input_stream_new_from_data(IntPtr data, nint len, IntPtr destroy);
+
     [DllImport(LibWebKit)]
     internal static extern IntPtr webkit_web_view_get_user_content_manager(IntPtr webView);
 

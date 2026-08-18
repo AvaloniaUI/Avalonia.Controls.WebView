@@ -284,6 +284,9 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
         public const int EInvalidState = unchecked((int)0x8007139F);
     }
 
+    internal ICoreWebView2Environment? TryGetEnvironment() =>
+        TryGetWebView2() is ICoreWebView2_2 webView2 ? webView2.Environment() : null;
+
     internal EventHandler<WebViewNavigationStartingEventArgs>? GetNavigationStarted() => NavigationStarted;
     internal EventHandler<WebViewNavigationCompletedEventArgs>? GetNavigationCompleted() => NavigationCompleted;
     internal EventHandler<WebMessageReceivedEventArgs>? GetWebMessageReceived() => WebMessageReceived;

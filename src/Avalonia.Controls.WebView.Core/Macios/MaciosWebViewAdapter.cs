@@ -27,6 +27,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
     private readonly WKWebView _webView;
     private readonly WKNavigationDelegate _navDelegate;
     private readonly WKScriptMessageHandler _scriptHandler;
+    private readonly WKURLSchemeHandler? _urlSchemeHandler;
 
     static MaciosWebViewAdapter()
     {
@@ -42,6 +43,19 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _scriptHandlerMessageNameNative = NSString.Create(_scriptHandlerMessageName);
         _config = new WKWebViewConfiguration { JavaScriptEnabled = true };
         _config.AddScriptMessageHandler(_scriptHandler, _scriptHandlerMessageNameNative);
+
+        if (options.CustomSchemes.Count > 0)
+        {
+            _urlSchemeHandler = new WKURLSchemeHandler();
+            _urlSchemeHandler.StartURLSchemeTask += OnUrlSchemeHandlerOnStartURLSchemeTask;
+            foreach (var scheme in options.CustomSchemes)
+            {
+                if (string.IsNullOrWhiteSpace(scheme))
+                    continue;
+                using var schemeStr = NSString.Create(scheme);
+                _config.SetURLSchemeHandler(_urlSchemeHandler, schemeStr);
+            }
+        }
 
         if (options.ApplicationNameForUserAgent is not null)
         {
@@ -253,6 +267,57 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
             await WKWebView.PtrResultToString(args.Body, state);
             var str = await tcs.Task;
             WebMessageReceived?.Invoke(this, new WebMessageReceivedEventArgs { Body = str });
+        }
+    }
+
+    private async void OnUrlSchemeHandlerOnStartURLSchemeTask(object? sender, WKURLSchemeHandler.URLSchemeTaskEventArgs e)
+    {
+        var request = NSURLRequest.FromHandle(e.Request);
+        using var nsUrl = request.Url;
+        if (!Uri.TryCreate(nsUrl.AbsoluteString, UriKind.Absolute, out var uri))
+        {
+            WKURLSchemeHandler.FailTask(e.Task, IntPtr.Zero);
+            return;
+        }
+
+        var headers = new WKWebKitNativeHttpRequestHeaders(request, true);
+        var headersWrapper = new NativeHeadersCollection(headers);
+        var webResourceArgs = new WebResourceRequestedEventArgs
+        {
+            Request = new WebViewWebResourceRequest
+            {
+                Method = new HttpMethod(request.HTTPMethod.GetString() ?? "GET"),
+                Uri = uri,
+                Headers = headersWrapper,
+            }
+        };
+
+        try
+        {
+            WebResourceRequested?.Invoke(this, webResourceArgs);
+            await webResourceArgs.WaitForDeferralsAsync().ConfigureAwait(true);
+
+            if (webResourceArgs is { Handled: true, Response: { } response })
+            {
+                var headerDict = new Dictionary<string, string>(response.Headers);
+                if (!headerDict.ContainsKey("Content-Type"))
+                    headerDict["Content-Type"] = response.ContentType;
+
+                using var httpResponse = NSHTTPURLResponse.Create(nsUrl, response.StatusCode, "HTTP/1.1", headerDict);
+                using var ms = new MemoryStream();
+                await response.Content.CopyToAsync(ms).ConfigureAwait(true);
+                using var data = NSData.FromBytes(ms.ToArray());
+                WKURLSchemeHandler.CompleteTask(e.Task, httpResponse, data);
+            }
+            else
+            {
+                // No handler response — fail the scheme task.
+                WKURLSchemeHandler.FailTask(e.Task, IntPtr.Zero);
+            }
+        }
+        finally
+        {
+            headersWrapper.Dispose();
         }
     }
 

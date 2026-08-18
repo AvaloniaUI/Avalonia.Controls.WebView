@@ -27,6 +27,10 @@ See [`avalonia-docs`](https://docs.avaloniaui.net/docs/app-development/embedding
 
 Avalonia specific project
 
+### Avalonia.Controls.BlazorWebView
+
+Separate NuGet package for Blazor Hybrid over `NativeWebView` (reuses `Microsoft.AspNetCore.Components.WebView`).
+
 ### Avalonia.Xpf.Controls.WebView
 
 XPF/WPF specific project.
