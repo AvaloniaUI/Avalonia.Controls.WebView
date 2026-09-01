@@ -295,7 +295,19 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
     private async void OnDelegateOnDidFinishNavigation(object? sender, EventArgs args)
     {
-        _ = await InvokeScript(WebViewHelper.BuildWebKitInvokeCSharpActionScript(_scriptHandlerMessageName, stringify: true));
+        try
+        {
+            _ = await InvokeScript(WebViewHelper.BuildWebKitInvokeCSharpActionScript(_scriptHandlerMessageName, stringify: true));
+        }
+        catch (JavaScriptException)
+        {
+            // The just-finished navigation didn't load a scriptable HTML document (e.g. a file
+            // download, image, or PDF response) - EvaluateJavaScriptAsync then fails at the
+            // native WebKit level and InvokeScript surfaces that as a JavaScriptException. That
+            // failure is not fatal on its own: the C#<->JS bridge simply isn't available for this
+            // particular navigation. Left unguarded, this exception previously escaped this
+            // async void event handler uncaught and crashed the whole process.
+        }
 
         using var url = _webView.Url;
         NavigationCompleted?.Invoke(this, new WebViewNavigationCompletedEventArgs { Request = Uri.TryCreate(url!.AbsoluteString, UriKind.Absolute, out var uri) ? uri : null, IsSuccess = true });
