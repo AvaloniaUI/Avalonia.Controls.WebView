@@ -105,12 +105,6 @@ internal static class WebViewAdapter
                     var args = new WindowsWebView2EnvironmentRequestedEventArgs(deferralManager);
                     environmentRequested(args);
                     await deferralManager.WaitForDeferralsAsync();
-                    if ((!hasExplicitPref && args.PreferWebView1Instead)
-                        || Win.WebView2.CoreWebView2Environment.TryFindWebView2Runtime(args.BrowserExecutableFolder) ==
-                        IntPtr.Zero)
-                    {
-                        continue;
-                    }
 
                     if (args.ExperimentalOffscreen && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
                     {
