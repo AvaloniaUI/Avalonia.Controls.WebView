@@ -1,3 +1,4 @@
+using System;
 using Avalonia.Controls;
 
 // ReSharper disable once CheckNamespace
@@ -35,5 +36,6 @@ public sealed class LinuxWpeWebViewEnvironmentRequestedEventArgs : WebViewEnviro
     /// Gets or sets a value indicating whether to prefer WebKitGTK instead of WPE WebKit.
     /// When set to true, the GTK-based WebView adapter will be used even if WPE is available.
     /// </summary>
+    [Obsolete("Please use NativeWebView.AdapterPreference or NativeWebDialog.AdapterPreference instead.")]
     public bool PreferWebKitGtkInstead { get; set; }
 }

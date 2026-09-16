@@ -154,7 +154,9 @@ internal static class WebViewAdapter
                     environmentRequested(args);
                     await deferralManager.WaitForDeferralsAsync();
 
+#pragma warning disable CS0618 // Type or member is obsolete
                     if (hasExplicitPref || !args.PreferWebKitGtkInstead)
+#pragma warning restore CS0618 // Type or member is obsolete
                     {
                         var builder = await Linux.WpeWebViewAdapter.CreateBuilder(args);
                         return new CompositorHostAdapterFactory(
