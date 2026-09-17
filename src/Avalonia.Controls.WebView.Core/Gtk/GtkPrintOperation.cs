@@ -80,7 +80,7 @@ internal class GtkPrintOperation : IDisposable
         }
 
         var exception = Marshal.PtrToStringAuto(error->Message);
-        state._tcs.SetException(new Exception(exception));
+        state._tcs.TrySetException(new Exception(exception));
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
@@ -91,7 +91,7 @@ internal class GtkPrintOperation : IDisposable
             return;
         }
 
-        state._tcs.SetResult(true);
+        state._tcs.TrySetResult(true);
     }
 
     public void Dispose()
