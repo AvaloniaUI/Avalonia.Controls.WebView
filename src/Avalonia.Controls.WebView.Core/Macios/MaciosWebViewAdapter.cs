@@ -71,6 +71,16 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
             _ => WKWebsiteDataStore.Default,
         };
 
+        if (options.ProxyAddress is not null &&
+            (OperatingSystem.IsIOSVersionAtLeast(17, 0) ||
+             OperatingSystem.IsMacOSVersionAtLeast(14, 0)))
+        {
+            _config.WebsiteDataStore.SetProxyConfiguration(
+                options.ProxyAddress,
+                options.ProxyExcludedDomains ?? [],
+                options.ProxyCredentials);
+        }
+
         _config.Preferences.MediaDevicesEnabled = true; // undocumented, but necessary for getUserMedia to work
         _config.Preferences.DeveloperExtrasEnabled = options.EnableDevTools;
 
