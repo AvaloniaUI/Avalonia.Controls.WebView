@@ -42,7 +42,6 @@ internal static unsafe class GtkOffscreenHostWindow
             if (existing != IntPtr.Zero)
                 return s_type = existing;
 
-            // Both parents must be fully initialized before the class_init below reads them.
             g_type_class_ref(gtk_window_get_type());
             g_type_class_ref(gtk_offscreen_window_get_type());
 
@@ -78,7 +77,6 @@ internal static unsafe class GtkOffscreenHostWindow
         var offscreenClass = (IntPtr*)g_type_class_peek(gtk_offscreen_window_get_type());
         var ownClass = (IntPtr*)klass;
 
-        // Skip the GObjectClass header: its property lists and bookkeeping are per class and must stay ours.
         GTypeQuery objectQuery, windowQuery;
         g_type_query(g_initially_unowned_get_type(), &objectQuery);
         g_type_query(gtk_window_get_type(), &windowQuery);
@@ -88,8 +86,6 @@ internal static unsafe class GtkOffscreenHostWindow
 
         for (var i = first; i < end; i++)
         {
-            // Inherited-unchanged here but overridden by GtkOffscreenWindow: one of its vfuncs. A slot that already
-            // differs from GtkWindow's is per-class state (GtkWidgetClass.priv), which we must not share.
             if (ownClass[i] == windowClass[i] && offscreenClass[i] != windowClass[i])
                 ownClass[i] = offscreenClass[i];
         }
