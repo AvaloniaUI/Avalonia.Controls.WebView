@@ -19,6 +19,7 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr*, IntPtr, int>)&DrawCallback);
 
     private readonly bool _experimentalOffscreen;
+    private readonly bool _usesHostWindow;
     private IntPtr _windowHandle;
     private PixelSize _sizeRequest;
     private GtkSignal? _drawSignal;
@@ -26,7 +27,18 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
     protected GtkOffscreenWebViewAdapter(GtkWebViewEnvironmentRequestedEventArgs args) : base(args)
     {
         _experimentalOffscreen = args.ExperimentalOffscreen;
-        _windowHandle = args.ExperimentalOffscreen ? gtk_offscreen_window_new() : gtk_window_new(0 /* GTK_WINDOW_TOPLEVEL */);
+        if (args.ExperimentalOffscreen)
+        {
+            // Not a GtkOffscreenWindow, so WebKit lets media start; see GtkOffscreenHostWindow.
+            _windowHandle = GtkOffscreenHostWindow.TryCreate();
+            _usesHostWindow = _windowHandle != IntPtr.Zero;
+            if (!_usesHostWindow)
+                _windowHandle = gtk_offscreen_window_new();
+        }
+        else
+        {
+            _windowHandle = gtk_window_new(0 /* GTK_WINDOW_TOPLEVEL */);
+        }
         g_object_ref_sink(_windowHandle);
         gtk_window_set_default_size(_windowHandle, 100, 100);
 
@@ -62,7 +74,9 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
             IntPtr pixbuf;
             if (_experimentalOffscreen)
             {
-                pixbuf = gtk_offscreen_window_get_pixbuf(_windowHandle);
+                pixbuf = _usesHostWindow
+                    ? GtkOffscreenHostWindow.GetPixbuf(_windowHandle)
+                    : gtk_offscreen_window_get_pixbuf(_windowHandle);
             }
             else
             {
