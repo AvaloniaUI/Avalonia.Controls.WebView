@@ -5,38 +5,19 @@ using static Avalonia.Controls.Gtk.GtkInterop;
 
 namespace Avalonia.Controls.Gtk;
 
-/// <summary>
-/// A GtkWindow subtype that renders exactly like GtkOffscreenWindow, but is not one.
-/// </summary>
-/// <remarks>
-/// WebKitGTK only treats a web view as "in a window" when its toplevel passes widgetIsOnscreenToplevelWindow(), which
-/// rejects GTK_IS_OFFSCREEN_WINDOW. A page that is never in a window never gets canStartMedia, so audio and video stay
-/// on their first "waiting" forever. This type derives from GtkWindow and borrows only the class slots that
-/// GtkOffscreenWindow overrides (realize, show, hide, sizing, check_resize), so it still realizes an offscreen GdkWindow
-/// while failing that type check. The slots are found by diffing the two class structs at runtime rather than from
-/// hard-coded GtkWidgetClass offsets, and GtkOffscreenWindow adds no instance fields, so the borrowed functions only
-/// ever see a plain GtkWindow.
-/// </remarks>
 internal static unsafe class GtkOffscreenHostWindow
 {
     private const string TypeName = "AvaloniaWebViewOffscreenHostWindow";
 
     private static IntPtr s_type;
     private static bool s_registrationFailed;
-
-    /// <summary>
-    /// Creates the window, or returns zero when the type could not be registered (callers fall back to GtkOffscreenWindow).
-    /// Must run on the GLib thread.
-    /// </summary>
+    
     public static IntPtr TryCreate()
     {
         var type = EnsureRegistered();
         return type == IntPtr.Zero ? IntPtr.Zero : g_object_new_with_properties(type, 0, IntPtr.Zero, IntPtr.Zero);
     }
-
-    /// <summary>
-    /// Snapshot of the offscreen surface, equivalent to gtk_offscreen_window_get_pixbuf (which refuses this type).
-    /// </summary>
+    
     public static IntPtr GetPixbuf(IntPtr window)
     {
         var gdkWindow = gtk_widget_get_window(window);
