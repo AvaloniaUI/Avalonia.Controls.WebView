@@ -29,7 +29,7 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
         _experimentalOffscreen = args.ExperimentalOffscreen;
         if (args.ExperimentalOffscreen)
         {
-            // Not a GtkOffscreenWindow, so WebKit lets media start; see GtkOffscreenHostWindow.
+            // Not a real GtkOffscreenWindow, so WebKit lets media start.
             _windowHandle = GtkOffscreenHostWindow.TryCreate();
             _usesHostWindow = _windowHandle != IntPtr.Zero;
             if (!_usesHostWindow)
@@ -37,7 +37,7 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
         }
         else
         {
-            _windowHandle = gtk_window_new(0 /* GTK_WINDOW_TOPLEVEL */);
+            _windowHandle = gtk_window_new(0);
         }
         g_object_ref_sink(_windowHandle);
         gtk_window_set_default_size(_windowHandle, 100, 100);
