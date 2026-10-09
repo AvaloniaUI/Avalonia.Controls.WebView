@@ -34,6 +34,22 @@ internal class NSString : NSObject
         }
     }
 
+    /// <summary>
+    /// Like <see cref="Create"/>, but the returned wrapper retains the string and releases it on Dispose.
+    /// Use it for strings kept beyond the current autorelease pool.
+    /// </summary>
+    public static unsafe NSString CreateOwned(string value)
+    {
+        fixed (char* ptr = value)
+        {
+            return new NSString(Libobjc.intptr_objc_msgSend(
+                s_class,
+                s_stringWithCharacters,
+                (IntPtr)ptr,
+                new IntPtr((uint)value.Length)), true);
+        }
+    }
+
     public string? GetString() => GetString(Handle);
 
     public static string? TryGetString(IntPtr handle)
