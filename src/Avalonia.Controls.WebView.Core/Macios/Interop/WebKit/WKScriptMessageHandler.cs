@@ -19,13 +19,12 @@ internal unsafe class WKScriptMessageHandler : NSManagedObjectBase
     {
         var delegateClass = AllocateClassPair("ManagedWKScriptMessageHandler");
 
-        if (Libobjc.objc_getProtocol("WKScriptMessageHandler") is var protocol and > 0)
-        {
-            AddProtocol(delegateClass, protocol);   
-        }
+        var didReceiveScriptMessageSel = Libobjc.sel_getUid("userContentController:didReceiveScriptMessage:");
 
-        var willPresentNotificationSel = Libobjc.sel_getUid("userContentController:didReceiveScriptMessage:");
-        AddMethod(delegateClass, willPresentNotificationSel, new IntPtr(s_didReceiveScriptMessage), "v@:@@");
+        AddProtocol(delegateClass, "WKScriptMessageHandler",
+            new ProtocolMethod(didReceiveScriptMessageSel, "v@:@@", true));
+
+        AddMethod(delegateClass, didReceiveScriptMessageSel, new IntPtr(s_didReceiveScriptMessage), "v@:@@");
 
         RegisterManagedMembers(delegateClass);
 
