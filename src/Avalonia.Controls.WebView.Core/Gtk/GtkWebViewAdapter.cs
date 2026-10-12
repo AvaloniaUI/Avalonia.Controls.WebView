@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Controls.Linux;
 using Avalonia.Controls.Utils;
 using Avalonia.Logging;
 using Avalonia.Media;
@@ -14,7 +15,8 @@ using static Avalonia.Controls.Gtk.AvaloniaGtk;
 
 namespace Avalonia.Controls.Gtk;
 
-internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatformHandle, IWebViewWithPrintWithOptions
+internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatformHandle,
+    IWebViewWithPrintWithOptions, IWebKitUriSchemeTarget
 {
     internal enum WebKitLoadEvent
     {
@@ -46,6 +48,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, IntPtr, void>)&ResourceLoadStartedCallback);
 
     private readonly IntPtr _settings;
+    private readonly string[] _customSchemes;
     private IntPtr _webViewHandle;
     private GtkSignal? _loadChangedSignal;
     private GtkSignal? _decidePolicySignal;
@@ -58,6 +61,8 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
 
     protected GtkWebViewAdapter(GtkWebViewEnvironmentRequestedEventArgs args)
     {
+        _customSchemes = WebResourceResponseHelper.GetCustomSchemes(args);
+
         IntPtr context;
         if (args.EphemeralDataManager
             || args.BaseDataDirectory is { Length: >0}
@@ -107,7 +112,13 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
             context = webkit_web_context_get_default();
         }
 
+        // Scheme handlers have to exist before the web view.
+        if (_customSchemes.Length > 0)
+            WebKitUriSchemeHandler.Gtk.Register(context, _customSchemes);
+
         _webViewHandle = webkit_web_view_new_with_context(context);
+        if (_customSchemes.Length > 0)
+            WebKitUriSchemeHandler.Gtk.AddWebView(_webViewHandle, this, _customSchemes);
 
         var contentManager = webkit_web_view_get_user_content_manager(WebViewHandle);
         _scriptMessageReceivedSignal = new GtkSignal(contentManager, $"script-message-received::{WebViewHelper.PostAvWebViewMessageName}", s_scriptMessageReceivedCallback, this);
@@ -611,6 +622,12 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
         });
     }
 
+    // Not raised once disposed, the request then gets a 404.
+    public Task<WebViewWebResourceResponse?> RaiseUriSchemeRequestAsync(WebViewWebResourceRequest request) =>
+        Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+            () => WebResourceResponseHelper.RaiseAsync(
+                this, _webViewHandle == IntPtr.Zero ? null : WebResourceRequested, request));
+
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void ResourceLoadStartedCallback(IntPtr widget, IntPtr resource, IntPtr request, IntPtr data)
     {
@@ -622,7 +639,11 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
 
         var uriPtr = webkit_uri_request_get_uri(request);
         var uriString = Marshal.PtrToStringAuto(uriPtr);
-        if (uriString is null)
+        // Custom schemes are raised by WebKitUriSchemeHandler instead, where they can be answered.
+        // WebKit allows hosts that Uri rejects, like app://a%20b/, which would throw below.
+        if (uriString is null
+            || !Uri.TryCreate(uriString, UriKind.Absolute, out var uri)
+            || WebResourceResponseHelper.IsCustomScheme(uri, adapter._customSchemes))
         {
             return;
         }
@@ -660,6 +681,8 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
         WebViewDispatcher.Invoke(() => handler.Invoke(adapter, args));
 
         headersWrapper.Dispose();
+        // This signal can't answer the request.
+        WebResourceResponseHelper.DisposeContentWhenDone(args);
     }
 
     private static string? GetValueFromJsResult(IntPtr jsResult)
@@ -701,6 +724,9 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
         var webView = Interlocked.Exchange(ref _webViewHandle, IntPtr.Zero);
         if (webView != IntPtr.Zero)
         {
+            if (_customSchemes.Length > 0)
+                WebKitUriSchemeHandler.Gtk.RemoveWebView(webView);
+
             gtk_widget_destroy(webView);
             g_object_unref(webView);
         }
