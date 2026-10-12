@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Avalonia.Controls.Utils;
 using Avalonia.Controls.Win.WebView2.Interop;
 using Avalonia.Media;
 using Avalonia.Platform;
@@ -23,6 +24,8 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
     private Action? _subscriptions;
 
     protected bool Disposed { get; private set; } = false;
+    internal string[] CustomSchemes { get; private set; } = [];
+    internal ICoreWebView2Environment? WebViewEnvironment { get; private set; }
     public abstract IntPtr Handle { get; }
     public abstract string? HandleDescriptor { get; }
 
@@ -294,8 +297,11 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
 
     public async Task InitializeAsync(WindowsWebView2EnvironmentRequestedEventArgs environmentArgs)
     {
+        CustomSchemes = WebResourceResponseHelper.GetCustomSchemes(environmentArgs);
+
         var addScriptCompletion = new AddScriptToExecuteOnDocumentCreatedCompletedHandler();
         var webView = TryGetWebView2() ?? throw new InvalidOperationException("WebView2 is not initialized.");
+        WebViewEnvironment = (webView as ICoreWebView2_2)?.Environment();
         webView.AddScriptToExecuteOnDocumentCreated(
             WebViewHelper.BuildInvokeCSharpActionScript("window.chrome.webview", stringify: false), addScriptCompletion);
         _ = await addScriptCompletion.Result.Task;
@@ -325,6 +331,12 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
         if (_webResourceRequested is not null)
         {
             webView.AddWebResourceRequestedFilter("*", 0);
+        }
+
+        // Always filtered, so unanswered requests still get a 404.
+        foreach (var scheme in CustomSchemes)
+        {
+            webView.AddWebResourceRequestedFilter(scheme + ":*", 0);
         }
     }
 
@@ -433,6 +445,8 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
         }
 
         Disposed = true;
+        // Late deferred responses become no-ops.
+        WebViewEnvironment = null;
         Interlocked.Exchange(ref _subscriptions, null)?.Invoke();
         controller?.Close();
     }

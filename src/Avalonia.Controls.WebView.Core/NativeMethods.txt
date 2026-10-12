@@ -6,3 +6,4 @@ SetWindowLong
 WaitForSingleObject
 MapViewOfFile
 UnmapViewOfFile
+SHCreateMemStream
