@@ -49,4 +49,42 @@ public class BitmapFrameChainTests
         // #FFFF00 as Bgra8888 stores it.
         Assert.Equal([0x00, 0xFF, 0xFF, 0xFF], pixel);
     }
+
+    [AvaloniaFact]
+    public void Consumer_Shows_Each_Frame_As_Soon_As_It_Is_Produced()
+    {
+        var chain = new BitmapFrameChain(PixelFormats.Rgba8888, AlphaFormat.Unpremul);
+
+        for (var c = 0; c < 5; c++)
+        {
+            WriteableBitmap produced;
+            using (chain.Producer.GetNextFrame(new PixelSize(1, 1), out produced))
+            {
+            }
+
+            Assert.True(chain.Consumer.NextFrame());
+            Assert.Same(produced, chain.Consumer.CurrentFrame);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Consumer_Skips_To_The_Newest_Frame_And_Does_Not_Go_Back()
+    {
+        var chain = new BitmapFrameChain(PixelFormats.Rgba8888, AlphaFormat.Unpremul);
+
+        using (chain.Producer.GetNextFrame(new PixelSize(1, 1), out _))
+        {
+        }
+
+        WriteableBitmap newest;
+        using (chain.Producer.GetNextFrame(new PixelSize(1, 1), out newest))
+        {
+        }
+
+        Assert.True(chain.Consumer.NextFrame());
+        Assert.Same(newest, chain.Consumer.CurrentFrame);
+
+        Assert.False(chain.Consumer.NextFrame());
+        Assert.Same(newest, chain.Consumer.CurrentFrame);
+    }
 }
