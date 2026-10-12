@@ -1,0 +1,14 @@
+body {
+    font-family: system-ui, sans-serif;
+    margin: 2em;
+}
+
+li.ok::before {
+    content: "\2714  ";
+    color: green;
+}
+
+li.failed::before {
+    content: "\2718  ";
+    color: red;
+}
