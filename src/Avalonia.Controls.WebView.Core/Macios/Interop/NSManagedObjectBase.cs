@@ -52,6 +52,11 @@ internal unsafe class NSManagedObjectBase : NSObject
 
     protected override void Dispose(bool disposing)
     {
+        if (disposing && _managedHandle.IsAllocated)
+        {
+            // WebKit may still hold the native object and call it later, which must not reach a freed handle.
+            _ = SetIvarValue("_managedSelf", IntPtr.Zero);
+        }
         base.Dispose(disposing);
         if (disposing)
         {
