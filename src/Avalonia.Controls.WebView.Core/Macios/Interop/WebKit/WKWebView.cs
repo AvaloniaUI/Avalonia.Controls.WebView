@@ -62,6 +62,9 @@ internal class WKWebView : AppleView
     public WKWebView(WKWebViewConfiguration configuration) : base(s_webViewClass)
     {
         _ = Libobjc.intptr_objc_msgSend(Handle, s_initWithFrame, new CGRect(), configuration.Handle);
+        // NSObject(IntPtr classHandle) retains on top of the +1 from `alloc`.
+        // Drop the `alloc` reference, so the wrapper holds exactly one, and the view is freed once that one is released.
+        Release();
     }
 
     public WKNavigationDelegate? NavigationDelegate

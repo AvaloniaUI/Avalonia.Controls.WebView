@@ -247,14 +247,9 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         ReleaseWebView();
     }
 
-    private void ReleaseWebView()
-    {
-        // The wrapper is disowned, so release both references it holds:
-        // the +1 from `alloc` in NSObject(IntPtr classHandle), and the retain the wrapper takes on top of it.
-        // Without both, the WKWebView and its WebContent process outlive the control.
-        _webView.Release();
-        _webView.Release();
-    }
+    // The wrapper is disowned, so its reference is released here, on the UI thread.
+    // Without it, the WKWebView and its WebContent process outlive the control.
+    private void ReleaseWebView() => _webView.Release();
 
     public void SizeChanged(PixelSize containerSize)
     {
