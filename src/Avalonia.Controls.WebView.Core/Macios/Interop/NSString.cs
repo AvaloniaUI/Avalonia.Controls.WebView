@@ -19,27 +19,16 @@ internal class NSString : NSObject
         return new NSString(handle, false);
     }
 
+    /// <summary>
+    /// Creates a native string. The returned wrapper retains it and releases it on Dispose.
+    /// stringWithCharacters:length: returns an autoreleased string, so without the retain
+    /// any string kept beyond the current autorelease pool (static keys, the script handler name) would dangle.
+    /// </summary>
     [return: NotNullIfNotNull(nameof(value))]
     public static unsafe NSString? Create(string? value)
     {
         if (value == null) { return null; }
 
-        fixed (char* ptr = value)
-        {
-            return new NSString(Libobjc.intptr_objc_msgSend(
-                s_class,
-                s_stringWithCharacters,
-                (IntPtr)ptr,
-                new IntPtr((uint)value.Length)), false);
-        }
-    }
-
-    /// <summary>
-    /// Like <see cref="Create"/>, but the returned wrapper retains the string and releases it on Dispose.
-    /// Use it for strings kept beyond the current autorelease pool.
-    /// </summary>
-    public static unsafe NSString CreateOwned(string value)
-    {
         fixed (char* ptr = value)
         {
             return new NSString(Libobjc.intptr_objc_msgSend(

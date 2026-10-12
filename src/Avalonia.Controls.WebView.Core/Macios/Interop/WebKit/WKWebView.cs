@@ -116,10 +116,12 @@ internal class WKWebView : AppleView
         var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var state = new JSCallState(Handle, tcs);
         var stateHandle = GCHandle.Alloc(state);
+        // The completion handler can send callAsyncJavaScript: to state.WebView (see PtrResultToString).
+        // Keep the view alive until the call completes, even if the owner releases it in the meantime.
+        Retain();
         try
         {
-            var scriptStr = NSString.Create(script);
-            GC.SuppressFinalize(scriptStr);
+            using var scriptStr = NSString.Create(script);
             var block = BlockLiteral.GetBlockForFunctionPointer(s_evaluateScriptCallback, GCHandle.ToIntPtr(stateHandle));
             Libobjc.void_objc_msgSend(Handle, s_evaluateJavaScript, scriptStr.Handle, block);
             return await tcs.Task;
@@ -127,6 +129,7 @@ internal class WKWebView : AppleView
         finally
         {
             stateHandle.Free();
+            Release();
         }
     }
 

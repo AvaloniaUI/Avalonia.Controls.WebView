@@ -116,6 +116,7 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
     }
 
     public IntPtr Retain() => Libobjc.intptr_objc_msgSend(Handle, s_retainSel);
+    public void Release() => Libobjc.void_objc_msgSend(Handle, s_releaseSel);
     public nuint RetainCount() => Libobjc.nuint_objc_msgSend(Handle, s_retainCountSel);
 
     protected void Init()
