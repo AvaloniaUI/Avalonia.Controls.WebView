@@ -21,6 +21,7 @@ namespace Avalonia.Controls.Macios;
 internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect,
     IWebViewAdapterWithCookieManager, IWebViewAdapterWithCommands, IWebViewWithPrint, IAppleWKWebViewPlatformHandle
 {
+    private static readonly IntPtr s_releaseSel = Libobjc.sel_getUid("release");
     private readonly string _scriptHandlerMessageName;
     private readonly NSString _scriptHandlerMessageNameNative;
     private readonly WKWebViewConfiguration _config;
@@ -39,7 +40,8 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _scriptHandler.DidReceiveScriptMessage += OnScriptHandlerOnDidReceiveScriptMessage;
 
         _scriptHandlerMessageName = options.ScriptHandlerMessageName ?? WebViewHelper.PostAvWebViewMessageName;
-        _scriptHandlerMessageNameNative = NSString.Create(_scriptHandlerMessageName);
+        // Kept until Dispose removes the handler, so it must outlive the current autorelease pool.
+        _scriptHandlerMessageNameNative = NSString.CreateOwned(_scriptHandlerMessageName);
         _config = new WKWebViewConfiguration { JavaScriptEnabled = true };
         _config.AddScriptMessageHandler(_scriptHandler, _scriptHandlerMessageNameNative);
 
@@ -96,8 +98,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
                 key.Handle);
         }
 
-        Handle = _webView.Retain();
-        _webView.UnsafeDisown();
+        Handle = _webView.Handle;
     }
 
     public IntPtr Handle { get; }
@@ -212,6 +213,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _webView.ResignFirstResponder -= OnWebViewOnResignFirstResponder;
 
         _config.RemoveScriptMessageHandler(_scriptHandlerMessageNameNative);
+        _scriptHandlerMessageNameNative.Dispose();
         _webView.NavigationDelegate = null;
         _webView.LoadRequest(null);
 
@@ -220,7 +222,11 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _config.Dispose();
         WebViewDispatcher.InvokeAsync(() =>
         {
+            // Releases the reference the wrapper owns...
             _webView.Dispose();
+            // ...and the +1 from `alloc` in NSObject(IntPtr classHandle), which the wrapper retains on top of.
+            // Without both, the WKWebView and its WebContent process outlive the control.
+            Libobjc.void_objc_msgSend(Handle, s_releaseSel);
         });
     }
 
