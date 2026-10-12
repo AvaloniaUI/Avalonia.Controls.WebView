@@ -43,6 +43,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _scriptHandlerMessageNameNative = NSString.Create(_scriptHandlerMessageName);
         _config = new WKWebViewConfiguration { JavaScriptEnabled = true };
         _config.AddScriptMessageHandler(_scriptHandler, _scriptHandlerMessageNameNative);
+        _config.AddUserScript(WebViewHelper.BuildWebKitInvokeCSharpActionScript(_scriptHandlerMessageName, stringify: true));
 
         if (options.ApplicationNameForUserAgent is not null)
         {
@@ -320,10 +321,8 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         }
     }
 
-    private async void OnDelegateOnDidFinishNavigation(object? sender, EventArgs args)
+    private void OnDelegateOnDidFinishNavigation(object? sender, EventArgs args)
     {
-        _ = await InvokeScript(WebViewHelper.BuildWebKitInvokeCSharpActionScript(_scriptHandlerMessageName, stringify: true));
-
         using var url = _webView.Url;
         NavigationCompleted?.Invoke(this, new WebViewNavigationCompletedEventArgs { Request = Uri.TryCreate(url!.AbsoluteString, UriKind.Absolute, out var uri) ? uri : null, IsSuccess = true });
     }

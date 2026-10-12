@@ -19,6 +19,11 @@ internal class WKWebViewConfiguration : NSObject
     private static readonly IntPtr s_userContentController = Libobjc.sel_getUid("userContentController");
     private static readonly IntPtr s_contentAddScriptMessageHandler = Libobjc.sel_getUid("addScriptMessageHandler:name:");
     private static readonly IntPtr s_contentRemoveScriptMessageHandlerForName = Libobjc.sel_getUid("removeScriptMessageHandlerForName:");
+    private static readonly IntPtr s_contentAddUserScript = Libobjc.sel_getUid("addUserScript:");
+    private static readonly IntPtr s_userScriptClass = Libobjc.objc_getClass("WKUserScript");
+    private static readonly IntPtr s_userScriptInit = Libobjc.sel_getUid("initWithSource:injectionTime:forMainFrameOnly:");
+    private static readonly IntPtr s_alloc = Libobjc.sel_getUid("alloc");
+    private static readonly IntPtr s_release = Libobjc.sel_getUid("release");
 
     public WKWebViewConfiguration() : base(s_class)
     {
@@ -63,6 +68,17 @@ internal class WKWebViewConfiguration : NSObject
     {
         var controllerPtr = Libobjc.intptr_objc_msgSend(Handle, s_userContentController);
         Libobjc.void_objc_msgSend(controllerPtr, s_contentAddScriptMessageHandler, scriptHandler.Handle, handlerName.Handle);
+    }
+
+    public void AddUserScript(string source)
+    {
+        using var sourceStr = NSString.Create(source);
+        var script = Libobjc.intptr_objc_msgSend(s_userScriptClass, s_alloc);
+        script = Libobjc.intptr_objc_msgSend(script, s_userScriptInit, sourceStr!.Handle, IntPtr.Zero, IntPtr.Zero);
+
+        var controllerPtr = Libobjc.intptr_objc_msgSend(Handle, s_userContentController);
+        Libobjc.void_objc_msgSend(controllerPtr, s_contentAddUserScript, script);
+        Libobjc.void_objc_msgSend(script, s_release);
     }
 
     public void RemoveScriptMessageHandler(NSString handlerName)
