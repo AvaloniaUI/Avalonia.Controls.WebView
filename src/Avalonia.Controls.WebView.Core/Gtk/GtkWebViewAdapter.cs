@@ -54,6 +54,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     private GtkSignal? _scriptMessageReceivedSignal;
     private GtkSignal? _resourceLoadStarted;
     private Uri _source = WebViewHelper.EmptyPage;
+    private bool _hostFocusChange;
 
     protected GtkWebViewAdapter(GtkWebViewEnvironmentRequestedEventArgs args)
     {
@@ -195,14 +196,37 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     /// </summary>
     protected virtual bool ToplevelIsOffscreen => false;
 
-    public void Focus() => RunOnWebView(handle =>
+    public void Focus() => RunOnWebView(handle => RunHostFocusChange(() => FocusWebView(handle)));
+
+    public void ResignFocus() => RunOnWebView(_ => RunHostFocusChange(() => SendToplevelFocusChange(false)));
+
+    /// <summary>
+    /// Focuses the web view because of input inside it, and reports the change to the host.
+    /// </summary>
+    protected void FocusFromWebView() => RunOnWebView(FocusWebView);
+
+    private void FocusWebView(IntPtr handle)
     {
         gtk_widget_grab_focus(handle);
         gtk_widget_has_focus(handle);
         SendToplevelFocusChange(true);
-    });
+    }
 
-    public void ResignFocus() => RunOnWebView(_ => SendToplevelFocusChange(false));
+    // The host already knows about focus changes it asked for. GTK raises the focus events for them synchronously,
+    // so they are dropped here instead of being sent back. Sending them back raced with later host focus changes
+    // and could pull focus back into the web view.
+    private void RunHostFocusChange(Action action)
+    {
+        _hostFocusChange = true;
+        try
+        {
+            action();
+        }
+        finally
+        {
+            _hostFocusChange = false;
+        }
+    }
 
     private unsafe void SendToplevelFocusChange(bool focusIn)
     {
@@ -540,6 +564,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     private static unsafe int FocusOutCallback(IntPtr widget, GdkEvent* gdkEvent, IntPtr data)
     {
         if (!GtkSignal.TryGetState<GtkWebViewAdapter>(data, out var adapter)
+            || adapter._hostFocusChange
             || adapter.LostFocus is not { } handler)
         {
             return False;
@@ -556,6 +581,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     private static unsafe int FocusInCallback(IntPtr widget, GdkEvent* gdkEvent, IntPtr data)
     {
         if (!GtkSignal.TryGetState<GtkWebViewAdapter>(data, out var adapter)
+            || adapter._hostFocusChange
             || adapter.GotFocus is not { } handler)
         {
             return False;
