@@ -21,13 +21,13 @@ namespace Avalonia.Controls.Macios;
 internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect,
     IWebViewAdapterWithCookieManager, IWebViewAdapterWithCommands, IWebViewWithPrint, IAppleWKWebViewPlatformHandle
 {
-    private static readonly IntPtr s_releaseSel = Libobjc.sel_getUid("release");
     private readonly string _scriptHandlerMessageName;
     private readonly NSString _scriptHandlerMessageNameNative;
     private readonly WKWebViewConfiguration _config;
     private readonly WKWebView _webView;
     private readonly WKNavigationDelegate _navDelegate;
     private readonly WKScriptMessageHandler _scriptHandler;
+    private bool _disposed;
 
     static MaciosWebViewAdapter()
     {
@@ -40,8 +40,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _scriptHandler.DidReceiveScriptMessage += OnScriptHandlerOnDidReceiveScriptMessage;
 
         _scriptHandlerMessageName = options.ScriptHandlerMessageName ?? WebViewHelper.PostAvWebViewMessageName;
-        // Kept until Dispose removes the handler, so it must outlive the current autorelease pool.
-        _scriptHandlerMessageNameNative = NSString.CreateOwned(_scriptHandlerMessageName);
+        _scriptHandlerMessageNameNative = NSString.Create(_scriptHandlerMessageName);
         _config = new WKWebViewConfiguration { JavaScriptEnabled = true };
         _config.AddScriptMessageHandler(_scriptHandler, _scriptHandlerMessageNameNative);
 
@@ -80,28 +79,43 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _navDelegate.DidFinishNavigation += OnDelegateOnDidFinishNavigation;
         _navDelegate.DecidePolicyNavigation += OnDelegateOnDecidePolicyNavigation;
 
-        _webView = new WKWebView(_config) { NavigationDelegate = _navDelegate };
-        _webView.Opaque = false;
-        if (OperatingSystem.IsMacOS())
-            _webView.DrawsBackground = false;
-        _webView.PerformKeyEquivalent += WebViewOnPerformKeyEquivalent;
-        _webView.BecomeFirstResponder += OnWebViewOnBecomeFirstResponder;
-        _webView.ResignFirstResponder += OnWebViewOnResignFirstResponder;
-
-        if (OperatingSystem.IsIOS() && options.EnableDevTools)
+        _webView = new WKWebView(_config);
+        // The view is released explicitly in ReleaseWebView, never by the wrapper.
+        // Otherwise, the wrapper finalizer would release an NSView/UIView on the GC finalizer thread,
+        // while AppKit and UIKit views must be released on the main thread.
+        _webView.UnsafeDisown();
+        try
         {
-            using var key = NSString.Create("inspectable");
-            Libobjc.void_objc_msgSend(
-                _webView.Handle,
-                Libobjc.sel_getUid("setValue:forKey:"),
-                NSNumber.Yes.Handle,
-                key.Handle);
-        }
+            _webView.NavigationDelegate = _navDelegate;
+            _webView.Opaque = false;
+            if (OperatingSystem.IsMacOS())
+                _webView.DrawsBackground = false;
+            _webView.PerformKeyEquivalent += WebViewOnPerformKeyEquivalent;
+            _webView.BecomeFirstResponder += OnWebViewOnBecomeFirstResponder;
+            _webView.ResignFirstResponder += OnWebViewOnResignFirstResponder;
 
-        Handle = _webView.Handle;
+            if (OperatingSystem.IsIOS() && options.EnableDevTools)
+            {
+                using var key = NSString.Create("inspectable");
+                Libobjc.void_objc_msgSend(
+                    _webView.Handle,
+                    Libobjc.sel_getUid("setValue:forKey:"),
+                    NSNumber.Yes.Handle,
+                    key.Handle);
+            }
+        }
+        catch
+        {
+            _webView.NavigationDelegate = null;
+            ReleaseWebView();
+            throw;
+        }
     }
 
-    public IntPtr Handle { get; }
+    /// <summary>
+    /// The WKWebView handle, or <see cref="IntPtr.Zero"/> once the adapter is disposed and the view is released.
+    /// </summary>
+    public IntPtr Handle => _disposed ? IntPtr.Zero : _webView.Handle;
     public string HandleDescriptor => OperatingSystem.IsMacOS() ? "NSView" : "UIView";
 
     public bool CanGoBack => _webView.CanGoBack;
@@ -203,6 +217,12 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
     public void Dispose()
     {
+        // Dispose can be reached more than once (cancelled initialization, reparenting scope, user code).
+        // A second pass would release the already freed view again.
+        if (_disposed)
+            return;
+        _disposed = true;
+
         _webView.RemoveFromSuperview();
 
         _scriptHandler.DidReceiveScriptMessage -= OnScriptHandlerOnDidReceiveScriptMessage;
@@ -220,15 +240,16 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _scriptHandler.Dispose();
         _navDelegate.Dispose();
         _config.Dispose();
-        WebViewDispatcher.InvokeAsync(() =>
-        {
-            // Releases the reference the wrapper owns...
-            _webView.Dispose();
-            // ...and the +1 from `alloc` in NSObject(IntPtr classHandle), which the wrapper retains on top of.
-            // Without both, the WKWebView and its WebContent process outlive the control.
-            Libobjc.void_objc_msgSend(Handle, s_releaseSel);
-        });
+
+        // Dispose runs on the UI thread, and the view is already removed from its superview above.
+        // Release it right away: a posted release would never run if the dispatcher has already stopped,
+        // leaking the WKWebView together with its WebContent process.
+        ReleaseWebView();
     }
+
+    // The wrapper is disowned, so its reference is released here, on the UI thread.
+    // Without it, the WKWebView and its WebContent process outlive the control.
+    private void ReleaseWebView() => _webView.Release();
 
     public void SizeChanged(PixelSize containerSize)
     {
@@ -494,7 +515,8 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
     public void Redo() => _webView.Redo();
 
     IntPtr IAppleWKWebViewPlatformHandle.WKWebView => Handle;
-    IntPtr IAppleWKWebViewPlatformHandle.GetWKWebViewRetained() => _webView.Retain();
+    IntPtr IAppleWKWebViewPlatformHandle.GetWKWebViewRetained() =>
+        _disposed ? throw new ObjectDisposedException(nameof(MaciosWebViewAdapter)) : _webView.Retain();
 
     internal static DetailedWebViewAdapterInfo GetWkWebViewInfo(WebViewEmbeddingScenario scenarios = WebViewEmbeddingScenario.NativeControlHost)
     {
