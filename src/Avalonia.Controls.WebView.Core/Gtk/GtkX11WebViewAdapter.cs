@@ -53,7 +53,7 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
     {
         if (GtkSignal.TryGetState<GtkX11WebViewAdapter>(data, out var adapter))
         {
-            adapter.Focus();
+            adapter.FocusFromWebView();
         }
 
         // Never handled here: WebKit still gets the click.
