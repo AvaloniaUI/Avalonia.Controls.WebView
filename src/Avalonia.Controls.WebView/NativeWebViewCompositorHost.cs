@@ -172,6 +172,10 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
 
             await adapter.UpdateWriteableBitmap(adapterSize, _frameChain.Producer);
             _customVisual?.SendHandlerMessage(VisualHandler.DrawRequested);
+
+            // Invalidate() on the handler marks the visual dirty without scheduling a compositor frame, so a
+            // sparse update would sit there until the next one drove one.
+            InvalidateVisual();
         }
         catch (Exception ex)
         {

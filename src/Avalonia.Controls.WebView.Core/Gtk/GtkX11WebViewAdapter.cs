@@ -1,4 +1,6 @@
 using System;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Media;
@@ -12,6 +14,11 @@ namespace Avalonia.Controls.Gtk;
 internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
 {
     private static readonly IntPtr s_display = XOpenDisplay(IntPtr.Zero);
+
+    private static readonly unsafe IntPtr s_buttonPressCallback =
+        new((delegate* unmanaged[Cdecl]<IntPtr, GdkEvent*, IntPtr, int>)&ButtonPressCallback);
+
+    private GtkSignal? _buttonPressSignal;
 
     private readonly IntPtr _x11Window;
     private IntPtr _windowHandle;
@@ -32,6 +39,25 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
         // so the _NET_WM_FRAME_DRAWN replies GDK throttles drawing on never arrive.
         // Without this GTK paints one frame and then waits forever.
         gdk_x11_window_set_frame_sync_enabled(gdkWindow, false);
+
+        // Reparenting also means no window manager and no XEmbed handshake, so nothing ever hands this toplevel the
+        // X input focus: clicking the page raises no GTK focus-in, the page stays inactive. Take
+        // the click as the focus gesture the window manager would otherwise have turned into one.
+        _buttonPressSignal = new GtkSignal(WebViewHandle, "button-press-event", s_buttonPressCallback, this);
+    }
+
+    protected override IntPtr ToplevelHandle => _windowHandle;
+    
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static unsafe int ButtonPressCallback(IntPtr widget, GdkEvent* gdkEvent, IntPtr data)
+    {
+        if (GtkSignal.TryGetState<GtkX11WebViewAdapter>(data, out var adapter))
+        {
+            adapter.Focus();
+        }
+
+        // Never handled here: WebKit still gets the click.
+        return False;
     }
 
     public static Task<WebViewAdapter.NativeWebViewAdapterBuilder> CreateBuilder(
@@ -48,7 +74,7 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
 
         return Task.FromResult(builder);
     }
-
+    
     public override void SetParent(IPlatformHandle parent)
     {
         if (parent.HandleDescriptor != "XID")
@@ -107,6 +133,8 @@ internal sealed class GtkX11WebViewAdapter : GtkWebViewAdapter, IPlatformHandle
 
     protected override void DisposeSafe(bool disposing)
     {
+        Interlocked.Exchange(ref _buttonPressSignal, null)?.Dispose();
+
         var window = Interlocked.Exchange(ref _windowHandle, IntPtr.Zero);
         if (window != IntPtr.Zero)
         {

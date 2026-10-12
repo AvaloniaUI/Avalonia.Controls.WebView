@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -41,7 +41,10 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
 
     public PixelFormat BufferPixelFormat => PixelFormats.Rgba8888;
     public AlphaFormat BufferAlphaFormat => AlphaFormat.Unpremul;
-
+    
+    protected override IntPtr ToplevelHandle => _windowHandle;
+    protected override bool ToplevelIsOffscreen => _experimentalOffscreen;
+    
     public Task UpdateWriteableBitmap(PixelSize _, FrameChainBase<WriteableBitmap, PixelSize>.IProducer producer)
     {
         if (_windowHandle == IntPtr.Zero)
@@ -349,33 +352,4 @@ internal abstract unsafe class GtkOffscreenWebViewAdapter : GtkWebViewAdapter,
         return False;
     }
 
-    private readonly ref struct EventSendState : IDisposable
-    {
-        private readonly IntPtr _evPtr;
-
-        public EventSendState(GdkEventType eventType, IntPtr handle)
-        {
-            _evPtr = gdk_event_new(eventType);
-            var ev = (GdkEvent*)_evPtr.ToPointer();
-            ev->any.window = gtk_widget_get_window(handle); // gdk window
-            ev->any.send_event = 1;
-            g_object_ref(ev->any.window);
-        }
-
-        public GdkEvent* Event => (GdkEvent*)_evPtr.ToPointer();
-
-        public bool Send()
-        {
-            gdk_event_put(_evPtr);
-            return true;
-        }
-
-        public void Dispose()
-        {
-            if (_evPtr != IntPtr.Zero)
-            {
-                gdk_event_free(_evPtr);
-            }
-        }
-    }
 }
