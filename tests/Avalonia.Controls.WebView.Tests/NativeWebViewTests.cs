@@ -86,7 +86,7 @@ public class NativeWebViewTests : HeadlessTestsBase
         webView.Navigate(uri); // before adding to window
         window.Content = webView;
         window.Show();
-        await DoDelay();
+        await WaitFor(() => navCompleted);
 
         Assert.Equal(uri, webView.Source);
         Assert.True(navCompleted);
@@ -107,7 +107,7 @@ public class NativeWebViewTests : HeadlessTestsBase
         webView.NavigateToString("<html>abc</html>"); // before adding to window
         window.Content = webView;
         window.Show();
-        await DoDelay();
+        await WaitFor(() => navCompleted);
 
         Assert.Equal(WebViewHelper.EmptyPage, webView.Source);
         Assert.True(navCompleted);
