@@ -12,6 +12,6 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         var w = XpfWpfAbstraction.GetAvaloniaWindowForWindow(this);
-        w?.AttachDevTools();
+        w?.AttachDeveloperTools();
     }
 }

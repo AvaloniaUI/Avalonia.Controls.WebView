@@ -1,4 +1,4 @@
-﻿<Project Sdk="Xpf.Sdk/1.6.0">
+﻿<Project Sdk="Xpf.Sdk/2.0.0-beta2">
 
   <PropertyGroup>
         <OutputType>Exe</OutputType>
