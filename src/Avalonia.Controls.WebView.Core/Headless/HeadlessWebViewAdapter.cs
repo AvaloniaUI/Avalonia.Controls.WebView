@@ -26,6 +26,7 @@ internal partial class HeadlessWebViewAdapter : IWebViewAdapterWithOffscreenBuff
 
     private static int s_headlessHandleCounted;
     private readonly HeadlessWebViewEnvironmentRequestedEventArgs _environmentArgs;
+    private readonly string[] _customSchemes;
     private readonly List<HeadlessWebViewPage> _history = [];
     private CancellationTokenSource? _navigationCts;
     private int _historyIndex = -1;
@@ -34,6 +35,7 @@ internal partial class HeadlessWebViewAdapter : IWebViewAdapterWithOffscreenBuff
     private HeadlessWebViewAdapter(HeadlessWebViewEnvironmentRequestedEventArgs environmentArgs)
     {
         _environmentArgs = environmentArgs;
+        _customSchemes = WebResourceResponseHelper.GetCustomSchemes(environmentArgs);
     }
 
     public static async Task<HeadlessWebViewAdapter> CreateAsync(HeadlessWebViewEnvironmentRequestedEventArgs environmentArgs)
@@ -188,18 +190,19 @@ internal partial class HeadlessWebViewAdapter : IWebViewAdapterWithOffscreenBuff
         }
 
         // 1. WebResourceRequested
+        WebResourceRequestedEventArgs? resourceArgs = null;
         if (page.Uri != WebViewHelper.EmptyPage)
         {
-            WebResourceRequested?.Invoke(this,
-                new WebResourceRequestedEventArgs
+            resourceArgs = new WebResourceRequestedEventArgs
+            {
+                Request = new WebViewWebResourceRequest
                 {
-                    Request = new WebViewWebResourceRequest
-                    {
-                        Uri = page.Uri,
-                        Method = System.Net.Http.HttpMethod.Get,
-                        Headers = new NativeHeadersCollection(DictionaryNativeHttpRequestHeaders.ImmutableInstance)
-                    }
-                });
+                    Uri = page.Uri,
+                    Method = System.Net.Http.HttpMethod.Get,
+                    Headers = new NativeHeadersCollection(DictionaryNativeHttpRequestHeaders.ImmutableInstance)
+                }
+            };
+            WebResourceRequested?.Invoke(this, resourceArgs);
         }
 
         // 2. NavigationStarted
@@ -207,11 +210,13 @@ internal partial class HeadlessWebViewAdapter : IWebViewAdapterWithOffscreenBuff
         NavigationStarted?.Invoke(this, navArgs);
         if (navArgs.Cancel)
         {
+            WebResourceResponseHelper.DisposeContentWhenDone(resourceArgs);
             NavigationCompleted?.Invoke(this, new WebViewNavigationCompletedEventArgs { Request = page.Uri, IsSuccess = false });
             return false;
         }
 
         // 3. NavigationCompleted (simulate HTTP or HTML)
+        // Always started, so the response is disposed; the body returns early when cancelled.
         Task.Run(async () =>
         {
             WebViewNavigationCompletedEventArgs? args = null;
@@ -229,8 +234,15 @@ internal partial class HeadlessWebViewAdapter : IWebViewAdapterWithOffscreenBuff
                 }
                 else if (page.Uri != WebViewHelper.EmptyPage)
                 {
-                    var httpHandler = _environmentArgs.HttpHandler ?? DefaultHttpHandler;
-                    var httpResult = await httpHandler(page.Uri);
+                    if (resourceArgs is not null)
+                        await resourceArgs.WaitForDeferralsAsync();
+                    if (ct.IsCancellationRequested) return;
+
+                    var response = WebResourceResponseHelper.GetResponseOrNotFound(
+                        resourceArgs?.Response, WebResourceResponseHelper.IsCustomScheme(page.Uri, _customSchemes));
+                    var httpResult = response is not null ?
+                        await ReadResponseAsync(response, ct) :
+                        await (_environmentArgs.HttpHandler ?? DefaultHttpHandler)(page.Uri);
                     if (!ct.IsCancellationRequested)
                     {
                         page.Html = httpResult.Content;
@@ -258,6 +270,10 @@ internal partial class HeadlessWebViewAdapter : IWebViewAdapterWithOffscreenBuff
                 if (!ct.IsCancellationRequested)
                     args = new WebViewNavigationCompletedEventArgs { Request = page.Uri, IsSuccess = false };
             }
+            finally
+            {
+                WebResourceResponseHelper.DisposeContentWhenDone(resourceArgs);
+            }
 
             if (args is not null)
             {
@@ -267,7 +283,7 @@ internal partial class HeadlessWebViewAdapter : IWebViewAdapterWithOffscreenBuff
                     DrawRequested?.Invoke();
                 });
             }
-        }, ct);
+        }, CancellationToken.None);
 
         return true;
     }
@@ -296,6 +312,19 @@ internal partial class HeadlessWebViewAdapter : IWebViewAdapterWithOffscreenBuff
                 HeadlessWebViewEnvironmentRequestedEventArgs.ScriptResultCommand.None, null)
         };
         return Task.FromResult<HeadlessWebViewEnvironmentRequestedEventArgs.ScriptResult?>(scriptResult);
+    }
+
+    private static async Task<HeadlessWebViewEnvironmentRequestedEventArgs.HttpResult> ReadResponseAsync(
+        WebViewWebResourceResponse response, CancellationToken ct)
+    {
+        // Disposed by NavigateInternal.
+        var content = "";
+        if (response.Content is { } stream)
+        {
+            using var reader = new System.IO.StreamReader(stream, leaveOpen: true);
+            content = await reader.ReadToEndAsync(ct);
+        }
+        return new(response.StatusCode is >= 200 and < 300, content);
     }
 
     private Task<HeadlessWebViewEnvironmentRequestedEventArgs.HttpResult> DefaultHttpHandler(Uri uri)
