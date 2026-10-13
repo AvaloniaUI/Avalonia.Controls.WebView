@@ -23,28 +23,15 @@ internal sealed unsafe class WpeWebViewAdapter
       IWebViewAdapterWithGpuSurface,
       ILinuxWpePlatformHandle
 {
-    private static readonly Lazy<bool> s_isAvailable = new(CheckAvailability);
-    private static readonly Lazy<IntPtr> s_fdoDestroyFn = new(() =>
-        NativeLibrary.GetExport(
-            NativeLibrary.Load("libWPEBackend-fdo-1.0.so.1"),
-            "wpe_view_backend_exportable_fdo_destroy"));
-
     private IntPtr _webView;
-    private IntPtr _exportable;
-    private IntPtr _viewBackend;
+    private IWpeViewBackend? _backend;
     private IntPtr _networkSession;
     private IntPtr _userContentManager;
     private IntPtr _cookieManager;
-    private bool _exportableOwnedByWebKit; // true when webkit_web_view_backend_new took ownership
     private PixelSize _currentSize;
     private float _currentDeviceScale;
     private Control? _parentControl;
     private bool _disposed;
-
-    // SHM export path fields
-    private IntPtr _pendingShmExportedBuffer;
-    private GCHandle _shmClientHandle; // Pin the SHM client struct
-    private readonly ExportShmBufferCallback _exportShmBufferCallback;
 
     // Pin callback delegates to prevent GC
     private readonly GSignalCallback _loadChangedCallback;
@@ -57,7 +44,6 @@ internal sealed unsafe class WpeWebViewAdapter
     private WpeWebViewAdapter()
     {
         // Pin callbacks as instance fields
-        _exportShmBufferCallback = OnExportShmBuffer;
         _loadChangedCallback = OnLoadChanged;
         _decidePolicyCallback = OnDecidePolicy;
         _createCallback = OnCreate;
@@ -66,9 +52,6 @@ internal sealed unsafe class WpeWebViewAdapter
     }
 
     // Unmanaged callback signatures
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void ExportShmBufferCallback(IntPtr data, IntPtr shmExportedBuffer);
-
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void GSignalCallback(IntPtr instance, int loadEvent, IntPtr userData);
 
@@ -84,33 +67,7 @@ internal sealed unsafe class WpeWebViewAdapter
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int GSignalLoadFailedCallback(IntPtr webView, int loadEvent, IntPtr failingUri, IntPtr error, IntPtr userData);
 
-    public static bool IsAvailable() => s_isAvailable.Value;
-
-    private static bool CheckAvailability()
-    {
-        // Must set the backend library env var BEFORE loading any WPE libraries,
-        // because loading libWPEWebKit pulls in libwpe which immediately tries
-        // to dlopen the backend via its constructor/loader.
-        try
-        {
-            EnsureWpeBackendLibrary();
-        }
-        catch (DllNotFoundException)
-        {
-            // If the WPE libraries are not present, treat WPE as unavailable
-            // instead of allowing the exception to propagate.
-            return false;
-        }
-
-        if (!NativeLibrary.TryLoad("libWPEWebKit-2.0.so.1", out _))
-            return false;
-        if (!NativeLibrary.TryLoad("libWPEBackend-fdo-1.0.so.1", out _))
-            return false;
-        if (!NativeLibrary.TryLoad("libwpe-1.0.so.1", out _))
-            return false;
-
-        return true;
-    }
+    public static bool IsAvailable() => WpeRuntime.IsAvailable;
 
     public static Task<WebViewAdapter.OffscreenWebViewAdapterBuilder> CreateBuilder(
         LinuxWpeWebViewEnvironmentRequestedEventArgs args)
@@ -124,50 +81,6 @@ internal sealed unsafe class WpeWebViewAdapter
         return Task.FromResult(builder);
     }
 
-    private static bool s_wpeBackendConfigured;
-
-    private static void EnsureWpeBackendLibrary()
-    {
-        if (s_wpeBackendConfigured) return;
-        s_wpeBackendConfigured = true;
-
-        // libwpe lazily loads "libWPEBackend-default.so" the first time any WPE
-        // library function is called. On most Linux distros only libWPEBackend-fdo
-        // is available. We must call wpe_loader_init() with the correct library
-        // name BEFORE any other WPE library is loaded or used.
-        //
-        // wpe_loader_init is in libwpe-1.0 which has no dependency on the backend,
-        // so calling it via the separate WpeLoader P/Invoke class is safe.
-        string[] candidates =
-        [
-            "libWPEBackend-fdo-1.0.so.1",
-            "libWPEBackend-fdo-1.0.so"
-        ];
-        string[] searchPaths =
-        [
-            "/usr/lib",
-            "/usr/lib64",
-            "/usr/local/lib",
-            "/usr/lib/x86_64-linux-gnu",
-            "/usr/lib/aarch64-linux-gnu"
-        ];
-
-        foreach (var candidate in candidates)
-        {
-            foreach (var dir in searchPaths)
-            {
-                if (System.IO.File.Exists(System.IO.Path.Combine(dir, candidate)))
-                {
-                    WpeLoader.wpe_loader_init(candidate);
-                    return;
-                }
-            }
-        }
-
-        // Last resort: try the soname and hope the dynamic linker can find it
-        WpeLoader.wpe_loader_init("libWPEBackend-fdo-1.0.so.1");
-    }
-
     private void Initialize(LinuxWpeWebViewEnvironmentRequestedEventArgs args, Control parent)
     {
         _parentControl = parent;
@@ -176,56 +89,18 @@ internal sealed unsafe class WpeWebViewAdapter
         _selfHandle = GCHandle.Alloc(this);
         var selfPtr = GCHandle.ToIntPtr(_selfHandle);
 
-        // 0. Ensure WPE knows which backend library to load
-        EnsureWpeBackendLibrary();
-
-        uint initialWidth = 1280;
-        uint initialHeight = 720;
+        var initialSize = new PixelSize(1280, 720);
         var mode = args.RenderingMode;
 
-        // Only SHM rendering is supported. Egl/DmaBuf paths have been removed.
         if (mode == WpeRenderingMode.Egl)
             throw new NotImplementedException("EGL rendering mode is not implemented. Use WpeRenderingMode.Auto or WpeRenderingMode.Shm.");
         if (mode == WpeRenderingMode.DmaBuf)
             throw new NotImplementedException("DMABuf rendering mode is not implemented. Use WpeRenderingMode.Auto or WpeRenderingMode.Shm.");
 
-        // 1. Initialize WPE FDO for SHM (no GPU/EGL required)
-        if (!WpeInterop.wpe_fdo_initialize_shm())
-            throw new InvalidOperationException("wpe_fdo_initialize_shm() failed.");
-
-        // 2. Create SHM export callback struct — must be heap-allocated and pinned
-        // because WPE keeps a reference to the struct pointer.
-        var shmCallback = Marshal.GetFunctionPointerForDelegate(_exportShmBufferCallback);
-        var shmClientArray = new WpeViewBackendExportableFdoClient[1];
-        shmClientArray[0] = new WpeViewBackendExportableFdoClient
-        {
-            ExportBufferResource = IntPtr.Zero,
-            ExportDmabufResource = IntPtr.Zero,
-            ExportShmBuffer = shmCallback,
-            Reserved0 = IntPtr.Zero,
-            Reserved1 = IntPtr.Zero
-        };
-        _shmClientHandle = GCHandle.Alloc(shmClientArray, GCHandleType.Pinned);
-        var shmClientPtr = (WpeViewBackendExportableFdoClient*)_shmClientHandle.AddrOfPinnedObject();
-
-        _exportable = WpeInterop.wpe_view_backend_exportable_fdo_create(shmClientPtr, selfPtr, initialWidth, initialHeight);
-        if (_exportable == IntPtr.Zero)
-            throw new InvalidOperationException("wpe_view_backend_exportable_fdo_create failed for SHM path.");
-
-        // 3. Get view backend
-        _viewBackend = WpeInterop.wpe_view_backend_exportable_fdo_get_view_backend(_exportable);
-        if (_viewBackend == IntPtr.Zero)
-            throw new InvalidOperationException("wpe_view_backend_exportable_fdo_get_view_backend failed.");
-
-        // 4. Create WebKit backend and web view
-        // Pass wpe_view_backend_exportable_fdo_destroy as the notify callback.
-        // This tells WebKit to destroy the exportable (which owns the view backend)
-        // when the web view is destroyed, instead of directly freeing the view backend
-        // (which would cause a double-free when we also destroy the exportable).
-        var wkBackend = WpeInterop.webkit_web_view_backend_new(_viewBackend, s_fdoDestroyFn.Value, _exportable);
-        _exportableOwnedByWebKit = true;
-        if (wkBackend == IntPtr.Zero)
-            throw new InvalidOperationException("webkit_web_view_backend_new failed.");
+        _backend = WpeRuntime.ResolveApi(args.Api) == WpeApi.Platform
+            ? new WpePlatformViewBackend(WpeRuntime.GetPlatformDisplay(mode == WpeRenderingMode.Shm), initialSize)
+            : new WpeLegacyViewBackend(initialSize);
+        _backend.FrameReady = OnFrameReady;
 
         if (args.DataDirectory != null || args.CacheDirectory != null)
             _networkSession = WpeInterop.webkit_network_session_new(args.DataDirectory, args.CacheDirectory);
@@ -237,13 +112,12 @@ internal sealed unsafe class WpeWebViewAdapter
             throw new InvalidOperationException("webkit_user_content_manager_new failed.");
 
         var webViewType = WpeInterop.webkit_web_view_get_type();
-        var wkBackendType = WpeInterop.webkit_web_view_backend_get_type();
         var networkSessionType = WpeInterop.webkit_network_session_get_type();
         var contentManagerType = WpeInterop.webkit_user_content_manager_get_type();
-        var keys = new[] { "backend", "network-session", "user-content-manager" };
+        var keys = new[] { _backend.WebViewPropertyName, "network-session", "user-content-manager" };
         var values = new[]
         {
-            new GValue(wkBackendType, wkBackend),
+            _backend.WebViewPropertyValue,
             new GValue(networkSessionType, _networkSession),
             new GValue(contentManagerType, _userContentManager)
         };
@@ -258,7 +132,7 @@ internal sealed unsafe class WpeWebViewAdapter
             _userContentManager = WpeInterop.g_object_ref(viewContentManager);
         }
 
-        // 5. Start GLib pump (WebKit needs it for internal IPC)
+        // 1. Start GLib pump (WebKit needs it for internal IPC)
         WpeGLibIntegration.Start();
 
         // Pump a few iterations to let WebKit finish internal setup
@@ -266,17 +140,17 @@ internal sealed unsafe class WpeWebViewAdapter
         for (int i = 0; i < 10; i++)
             WpeInterop.g_main_context_iteration(ctx, false);
 
-        // 6. Set activity state
-        WpeInterop.wpe_view_backend_add_activity_state(_viewBackend,
-            WpeViewActivityState.Visible | WpeViewActivityState.Focused | WpeViewActivityState.InWindow);
+        // 2. Attach the view backend
+        _currentDeviceScale = (float)(TopLevel.GetTopLevel(_parentControl!)?.RenderScaling ?? 1.0);
+        _backend.Attach(_webView, _currentDeviceScale);
 
-        // 7. Connect GObject signals
+        // 3. Connect GObject signals
         ConnectSignal(_webView, "load-changed", Marshal.GetFunctionPointerForDelegate(_loadChangedCallback), selfPtr);
         ConnectSignal(_webView, "load-failed", Marshal.GetFunctionPointerForDelegate(_loadFailedCallback), selfPtr);
         ConnectSignal(_webView, "decide-policy", Marshal.GetFunctionPointerForDelegate(_decidePolicyCallback), selfPtr);
         ConnectSignal(_webView, "create", Marshal.GetFunctionPointerForDelegate(_createCallback), selfPtr);
 
-        // 8. Register the message handler, connecting before registering so that no message can arrive unhandled.
+        // 4. Register the message handler, connecting before registering so that no message can arrive unhandled.
         ConnectSignal(_userContentManager, $"script-message-received::{WebViewHelper.PostAvWebViewMessageName}",
             Marshal.GetFunctionPointerForDelegate(_scriptMessageCallback), selfPtr);
         WpeInterop.webkit_user_content_manager_register_script_message_handler(
@@ -288,18 +162,14 @@ internal sealed unsafe class WpeWebViewAdapter
         WpeInterop.webkit_user_content_manager_add_script(_userContentManager, bridgeScript);
         WpeInterop.webkit_user_script_unref(bridgeScript);
 
-        // 9. Apply settings
+        // 5. Apply settings
         var settings = WpeInterop.webkit_web_view_get_settings(_webView);
         if (args.EnableDevTools)
             WpeInterop.webkit_settings_set_enable_developer_extras(settings, true);
-        // 10. Get cookie manager
+        // 6. Get cookie manager
         _cookieManager = WpeInterop.webkit_network_session_get_cookie_manager(_networkSession);
 
-        _currentSize = new PixelSize((int)initialWidth, (int)initialHeight);
-
-        // 11. Set initial device scale factor
-        _currentDeviceScale = (float)(TopLevel.GetTopLevel(_parentControl!)?.RenderScaling ?? 1.0);
-        WpeInterop.wpe_view_backend_dispatch_set_device_scale_factor(_viewBackend, _currentDeviceScale);
+        _currentSize = initialSize;
 
         Handle = _webView;
     }
@@ -309,33 +179,12 @@ internal sealed unsafe class WpeWebViewAdapter
         WpeInterop.g_signal_connect_data(instance, signal, handler, userData, IntPtr.Zero, 0);
     }
 
-    // --- SHM export callback ---
-
-    private void OnExportShmBuffer(IntPtr data, IntPtr shmExportedBuffer)
+    private bool OnFrameReady()
     {
-        var prev = _pendingShmExportedBuffer;
-        if (prev != IntPtr.Zero && prev != shmExportedBuffer)
-            ReleaseShmBuffer(prev);
-
-        _pendingShmExportedBuffer = shmExportedBuffer;
-        if (DrawRequested is not null)
-        {
-            DrawRequested.Invoke();
-        }
-        else
-        {
-            // No consumer — release immediately
-            ReleaseShmBuffer(shmExportedBuffer);
-        }
-    }
-
-    private void ReleaseShmBuffer(IntPtr shmExportedBuffer)
-    {
-        if (_exportable == IntPtr.Zero || shmExportedBuffer == IntPtr.Zero) return;
-        WpeInterop.wpe_view_backend_exportable_fdo_dispatch_release_shm_exported_buffer(_exportable, shmExportedBuffer);
-        WpeInterop.wpe_view_backend_exportable_fdo_dispatch_frame_complete(_exportable);
-        if (_pendingShmExportedBuffer == shmExportedBuffer)
-            _pendingShmExportedBuffer = IntPtr.Zero;
+        if (DrawRequested is null)
+            return false;
+        DrawRequested.Invoke();
+        return true;
     }
 
     // --- IWebViewAdapterWithGpuSurface ---
@@ -572,7 +421,7 @@ internal sealed unsafe class WpeWebViewAdapter
 
     public void SizeChanged(PixelSize containerSize)
     {
-        if (_viewBackend == IntPtr.Zero || containerSize.Width <= 0 || containerSize.Height <= 0) return;
+        if (_backend is null || _disposed || containerSize.Width <= 0 || containerSize.Height <= 0) return;
         _currentSize = containerSize;
 
         // WPE expects dispatch_set_size in LOGICAL (CSS) pixels, not physical.
@@ -581,12 +430,12 @@ internal sealed unsafe class WpeWebViewAdapter
         var scale = (float)(TopLevel.GetTopLevel(_parentControl!)?.RenderScaling ?? 1.0);
         var logicalWidth = (uint)(containerSize.Width / scale);
         var logicalHeight = (uint)(containerSize.Height / scale);
-        WpeInterop.wpe_view_backend_dispatch_set_size(_viewBackend, logicalWidth, logicalHeight);
+        _backend.SetSize(logicalWidth, logicalHeight);
 
         if (Math.Abs(scale - _currentDeviceScale) > 0.001f)
         {
             _currentDeviceScale = scale;
-            WpeInterop.wpe_view_backend_dispatch_set_device_scale_factor(_viewBackend, scale);
+            _backend.SetScale(scale);
         }
     }
 
@@ -597,18 +446,8 @@ internal sealed unsafe class WpeWebViewAdapter
 
     public void SetVisible(bool visible)
     {
-        if (_viewBackend == IntPtr.Zero || _disposed) return;
-
-        if (visible)
-        {
-            WpeInterop.wpe_view_backend_add_activity_state(_viewBackend,
-                WpeViewActivityState.Visible | WpeViewActivityState.InWindow);
-        }
-        else
-        {
-            WpeInterop.wpe_view_backend_remove_activity_state(_viewBackend,
-                WpeViewActivityState.Visible);
-        }
+        if (_backend is null || _disposed) return;
+        _backend.SetVisible(visible);
     }
 
     // --- IWebViewAdapterWithOffscreenBuffer ---
@@ -620,65 +459,10 @@ internal sealed unsafe class WpeWebViewAdapter
 
     public Task UpdateWriteableBitmap(PixelSize currentSize, FrameChainBase<WriteableBitmap, PixelSize>.IProducer producer)
     {
-        var shmBufPtr = _pendingShmExportedBuffer;
-        if (currentSize == default || shmBufPtr == IntPtr.Zero || _disposed)
+        if (currentSize == default || _backend is null || _disposed)
             return Task.CompletedTask;
 
-        // Read the exported buffer struct to get the wl_shm_buffer pointer
-        var exported = *(WpeFdoShmExportedBuffer*)shmBufPtr;
-        var shmBuffer = exported.ShmBuffer;
-        if (shmBuffer == IntPtr.Zero)
-        {
-            ReleaseShmBuffer(shmBufPtr);
-            return Task.CompletedTask;
-        }
-
-        var width = WpeInterop.wl_shm_buffer_get_width(shmBuffer);
-        var height = WpeInterop.wl_shm_buffer_get_height(shmBuffer);
-        var stride = WpeInterop.wl_shm_buffer_get_stride(shmBuffer);
-
-        if (width <= 0 || height <= 0)
-        {
-            ReleaseShmBuffer(shmBufPtr);
-            return Task.CompletedTask;
-        }
-
-        WpeInterop.wl_shm_buffer_begin_access(shmBuffer);
-        try
-        {
-            var dataPtr = WpeInterop.wl_shm_buffer_get_data(shmBuffer);
-            var bitmapSize = new PixelSize(width, height);
-
-            using (producer.GetNextFrame(bitmapSize, out var frame))
-            {
-                using var buf = frame.Lock();
-                var dstStride = buf.RowBytes;
-
-                if (stride == dstStride)
-                {
-                    // Strides match — single memcpy
-                    Buffer.MemoryCopy((void*)dataPtr, (void*)buf.Address, (long)height * dstStride, (long)height * stride);
-                }
-                else
-                {
-                    // Row-by-row copy when strides differ
-                    var copyBytes = Math.Min(stride, dstStride);
-                    for (int y = 0; y < height; y++)
-                    {
-                        Buffer.MemoryCopy(
-                            (byte*)dataPtr + (long)y * stride,
-                            (byte*)buf.Address + (long)y * dstStride,
-                            dstStride, copyBytes);
-                    }
-                }
-            }
-        }
-        finally
-        {
-            WpeInterop.wl_shm_buffer_end_access(shmBuffer);
-        }
-
-        ReleaseShmBuffer(shmBufPtr);
+        _backend.CopyFrame(producer);
         return Task.CompletedTask;
     }
 
@@ -688,7 +472,7 @@ internal sealed unsafe class WpeWebViewAdapter
 
     public bool KeyInput(bool press, PhysicalKey physical, string? symbol, KeyModifiers modifiers)
     {
-        if (_viewBackend == IntPtr.Zero || _disposed) return false;
+        if (_backend is null || _disposed) return false;
 
         if (press)
             _lastKeySymbol = symbol;
@@ -703,19 +487,10 @@ internal sealed unsafe class WpeWebViewAdapter
         if (keysym == 0 && symbol is { Length: > 0 })
         {
             var codepoint = (uint)char.ConvertToUtf32(symbol, 0);
-            keysym = WpeInterop.wpe_unicode_to_key_code(codepoint);
+            keysym = _backend.UnicodeToKeysym(codepoint);
         }
 
-        var evt = new WpeInputKeyboardEvent
-        {
-            Time = (uint)Environment.TickCount,
-            KeyCode = keysym,
-            HardwareKeyCode = xkbKeycode,
-            Pressed = press ? 1 : 0,
-            Modifiers = MapModifiers(modifiers)
-        };
-
-        WpeInterop.wpe_view_backend_dispatch_keyboard_event(_viewBackend, &evt);
+        _backend.KeyInput(press, keysym, xkbKeycode, MapModifiers(modifiers));
         return true;
     }
 
@@ -743,76 +518,21 @@ internal sealed unsafe class WpeWebViewAdapter
 
     public bool PointerInput(PointerPoint point, int clickCount, double dpi, KeyModifiers modifiers)
     {
-        if (_viewBackend == IntPtr.Zero || _disposed) return false;
-
-        // dpi parameter is actually the render scaling factor (e.g. 1.0, 1.5, 2.0),
-        // not a DPI value. Multiply logical coordinates directly by this factor.
-        var x = (int)(point.Position.X * dpi);
-        var y = (int)(point.Position.Y * dpi);
-
-        // Use PointerUpdateKind to distinguish press, release, and move.
-        // Checking IsLeftButtonPressed etc. doesn't work because on release
-        // those flags are already false, so WPE would never see the button up.
-        var (type, button, state) = point.Properties.PointerUpdateKind switch
-        {
-            PointerUpdateKind.LeftButtonPressed => (WpeInputPointerEventType.Button, 1u, 1u),
-            PointerUpdateKind.LeftButtonReleased => (WpeInputPointerEventType.Button, 1u, 0u),
-            PointerUpdateKind.MiddleButtonPressed => (WpeInputPointerEventType.Button, 2u, 1u),
-            PointerUpdateKind.MiddleButtonReleased => (WpeInputPointerEventType.Button, 2u, 0u),
-            PointerUpdateKind.RightButtonPressed => (WpeInputPointerEventType.Button, 3u, 1u),
-            PointerUpdateKind.RightButtonReleased => (WpeInputPointerEventType.Button, 3u, 0u),
-            _ => (WpeInputPointerEventType.Motion, 0u, 0u)
-        };
-
-        var evt = new WpeInputPointerEvent
-        {
-            Type = type,
-            Time = (uint)Environment.TickCount,
-            X = x,
-            Y = y,
-            Button = button,
-            State = state,
-            Modifiers = MapModifiers(modifiers)
-        };
-
-        WpeInterop.wpe_view_backend_dispatch_pointer_event(_viewBackend, &evt);
+        if (_backend is null || _disposed) return false;
+        _backend.PointerInput(point, clickCount, dpi, MapModifiers(modifiers));
         return true;
     }
 
     public bool PointerLeaveInput(PointerPoint point, double dpi, KeyModifiers modifiers)
     {
-        // WPE doesn't have explicit pointer leave — just track motion out
-        return false;
+        if (_backend is null || _disposed) return false;
+        return _backend.PointerLeaveInput(point, dpi, MapModifiers(modifiers));
     }
 
     public bool PointerWheelInput(Vector delta, PointerPoint point, double dpi, KeyModifiers modifiers)
     {
-        if (_viewBackend == IntPtr.Zero || _disposed) return false;
-
-        var x = (int)(point.Position.X * dpi);
-        var y = (int)(point.Position.Y * dpi);
-
-        // Use 2D axis event for smooth scrolling
-        var baseEvt = new WpeInputAxisEvent
-        {
-            Type = WpeInputAxisEventType.MotionSmooth | WpeInputAxisEventType.Mask2D,
-            Time = (uint)Environment.TickCount,
-            X = x,
-            Y = y,
-            Axis = 0,
-            Value = 0,
-            Modifiers = MapModifiers(modifiers)
-        };
-
-        var evt = new WpeInputAxis2DEvent
-        {
-            Base = baseEvt,
-            // Avalonia delta is in "lines", WPE expects pixels; approximate 1 line = ~40px
-            XAxis = delta.X * 40.0,
-            YAxis = delta.Y * 40.0
-        };
-
-        WpeInterop.wpe_view_backend_dispatch_axis_event(_viewBackend, &evt.Base);
+        if (_backend is null || _disposed) return false;
+        _backend.PointerWheelInput(delta, point, dpi, MapModifiers(modifiers));
         return true;
     }
 
@@ -978,7 +698,8 @@ internal sealed unsafe class WpeWebViewAdapter
     // --- ILinuxWpePlatformHandle ---
 
     IntPtr ILinuxWpePlatformHandle.WebKitWebView => _webView;
-    IntPtr ILinuxWpePlatformHandle.WpeViewBackend => _viewBackend;
+    IntPtr ILinuxWpePlatformHandle.WpeViewBackend => _backend?.WpeViewBackend ?? IntPtr.Zero;
+    IntPtr ILinuxWpePlatformHandle.WpeView => _backend?.WpeView ?? IntPtr.Zero;
 
     // --- Events ---
 
@@ -1026,14 +747,7 @@ internal sealed unsafe class WpeWebViewAdapter
         if (_disposed) return;
         _disposed = true;
 
-        // Release any pending SHM buffer back to WPE before destroying the
-        // exportable, otherwise the wl_shm proxy stays attached to the Wayland
-        // display queue and Mesa warns on teardown.
-        if (_pendingShmExportedBuffer != IntPtr.Zero)
-        {
-            ReleaseShmBuffer(_pendingShmExportedBuffer);
-            _pendingShmExportedBuffer = IntPtr.Zero;
-        }
+        _backend?.ReleaseFrames();
 
         if (_webView != IntPtr.Zero)
         {
@@ -1049,12 +763,8 @@ internal sealed unsafe class WpeWebViewAdapter
             _userContentManager = IntPtr.Zero;
         }
 
-        if (!_exportableOwnedByWebKit && _exportable != IntPtr.Zero)
-        {
-            WpeInterop.wpe_view_backend_exportable_fdo_destroy(_exportable);
-        }
-        _exportable = IntPtr.Zero;
-        _viewBackend = IntPtr.Zero;
+        _backend?.Dispose();
+        _backend = null;
 
         // Pump GLib iterations to let WebKit/WPE finalize Wayland resource cleanup
         // before we stop the GLib integration and tear down the context.
@@ -1063,9 +773,6 @@ internal sealed unsafe class WpeWebViewAdapter
             WpeInterop.g_main_context_iteration(ctx, false);
 
         WpeGLibIntegration.Stop();
-
-        if (_shmClientHandle.IsAllocated)
-            _shmClientHandle.Free();
 
         if (_selfHandle.IsAllocated)
             _selfHandle.Free();
