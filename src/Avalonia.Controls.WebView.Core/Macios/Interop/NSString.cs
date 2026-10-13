@@ -19,6 +19,11 @@ internal class NSString : NSObject
         return new NSString(handle, false);
     }
 
+    /// <summary>
+    /// Creates a native string. The returned wrapper retains it and releases it on Dispose.
+    /// stringWithCharacters:length: returns an autoreleased string, so without the retain
+    /// any string kept beyond the current autorelease pool (static keys, the script handler name) would dangle.
+    /// </summary>
     [return: NotNullIfNotNull(nameof(value))]
     public static unsafe NSString? Create(string? value)
     {
@@ -30,7 +35,7 @@ internal class NSString : NSObject
                 s_class,
                 s_stringWithCharacters,
                 (IntPtr)ptr,
-                new IntPtr((uint)value.Length)), false);
+                new IntPtr((uint)value.Length)), true);
         }
     }
 

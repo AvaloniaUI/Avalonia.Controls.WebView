@@ -1,4 +1,4 @@
-﻿<Project Sdk="Xpf.Sdk/1.6.0">
+﻿<Project Sdk="Xpf.Sdk/2.0.0-beta2">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -18,7 +18,7 @@
 <!--    <PackageReference Include="Avalonia.Xpf.Controls.WebView" Version="9999.0.0-localbuild" />-->
     <ProjectReference Include="..\..\src\Avalonia.Xpf.Controls.WebView\Avalonia.Xpf.Controls.WebView.csproj" />
     <ProjectReference Include="..\..\src\Avalonia.Controls.WebView.Core\Avalonia.Controls.WebView.Core.csproj" />
-    <PackageReference Include="Avalonia.Diagnostics" Version="$(XpfAvaloniaVersion)"/>
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.*" />
   </ItemGroup>
 
   <ItemGroup>

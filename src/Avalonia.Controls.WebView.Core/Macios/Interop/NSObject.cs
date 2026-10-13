@@ -92,6 +92,51 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
         }
     }
 
+    /// <summary>
+    /// Adds the protocol to the class.
+    /// If the runtime doesn't know the protocol yet, registers one with the same name and the given methods.
+    /// </summary>
+    /// <remarks>
+    /// objc_getProtocol only finds protocols that some loaded image references.
+    /// On iOS 26, WebKit protocols are not always registered, and WebKit rejects handlers that don't conform.
+    /// The runtime checks conformance by protocol name, so a protocol with the same name is enough for conformsToProtocol:.
+    /// Method descriptions are still added, so code that inspects the protocol sees the same methods as in the original one.
+    /// </remarks>
+    protected static void AddProtocol(IntPtr classHandle, string protocolName, params ReadOnlySpan<ProtocolMethod> methods)
+    {
+        var protocol = Libobjc.objc_getProtocol(protocolName);
+        if (protocol == IntPtr.Zero)
+        {
+            protocol = Libobjc.objc_allocateProtocol(protocolName);
+            if (protocol == IntPtr.Zero)
+            {
+                // Another thread or image registered it in the meantime.
+                protocol = Libobjc.objc_getProtocol(protocolName);
+            }
+            else
+            {
+                if (Libobjc.objc_getProtocol("NSObject") is var nsObjectProtocol and not 0)
+                {
+                    Libobjc.protocol_addProtocol(protocol, nsObjectProtocol);
+                }
+                foreach (var method in methods)
+                {
+                    Libobjc.protocol_addMethodDescription(protocol, method.Selector, method.Types,
+                        method.Required ? (byte)1 : (byte)0, 1);
+                }
+                Libobjc.objc_registerProtocol(protocol);
+            }
+        }
+
+        if (protocol == IntPtr.Zero)
+        {
+            Logger.TryGet(LogEventLevel.Warning, "WebView")?.Log(null, "Failed to resolve {Protocol} protocol", protocolName);
+            return;
+        }
+
+        AddProtocol(classHandle, protocol);
+    }
+
     protected static void AddMethod(IntPtr classHandle, IntPtr selector, IntPtr methodHandler, string types)
     {
         if (classHandle == IntPtr.Zero)
@@ -116,6 +161,7 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
     }
 
     public IntPtr Retain() => Libobjc.intptr_objc_msgSend(Handle, s_retainSel);
+    public void Release() => Libobjc.void_objc_msgSend(Handle, s_releaseSel);
     public nuint RetainCount() => Libobjc.nuint_objc_msgSend(Handle, s_retainCountSel);
 
     protected void Init()
@@ -264,6 +310,8 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
         }
         return new IntPtr(_superRef);
     }
+
+    protected readonly record struct ProtocolMethod(IntPtr Selector, string Types, bool Required);
 
     [StructLayout (LayoutKind.Sequential)]
     private struct ObjcSuper {

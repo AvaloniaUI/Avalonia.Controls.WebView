@@ -23,6 +23,7 @@ internal enum GdkEventType
     GDK_KEY_RELEASE = 9,
     GDK_ENTER_NOTIFY = 10,
     GDK_LEAVE_NOTIFY = 11,
+    GDK_FOCUS_CHANGE = 12,
     GDK_SCROLL            = 31,
 }
 
@@ -37,6 +38,16 @@ internal struct GdkEvent
     [FieldOffset(0)] public GdkEventScroll scroll;
     [FieldOffset(0)] public GdkEventCrossing crossing;
     [FieldOffset(0)] public GdkEventKey key;
+    [FieldOffset(0)] public GdkEventFocus focus_change;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct GdkEventFocus
+{
+    public GdkEventType type;
+    public IntPtr window;
+    public SByte send_event;
+    public Int16 @in;
 }
 
 [StructLayout(LayoutKind.Sequential)]

@@ -129,13 +129,20 @@ internal abstract class FrameChainBase<TFrame, TSize> : IFrameChainBase
         {
             lock (chain._lock)
             {
-                // We assume that frames are version-sorted at this point
-                FrameWrapper? nextFrame = chain._frames
-                    .Find(f => f is { Consumed: false, LockedByProducer: false });
-                
+                // We assume that frames are version-sorted at this point.
+                // Take the newest published frame. Slots the producer never wrote to have no frame and are skipped.
+                var nextIndex = chain._frames
+                    .FindLastIndex(f => f is { Consumed: false, LockedByProducer: false, Frame: not null });
+
                 // There are no new frames to render, keep the current one
-                if (nextFrame == null)
+                if (nextIndex < 0)
                     return false;
+
+                // Older frames the consumer didn't keep up with are dropped, so a later call can't go back to them.
+                for (var i = 0; i < nextIndex; i++)
+                    chain._frames[i].Consumed = true;
+
+                var nextFrame = chain._frames[nextIndex];
 
                 if (_currentFrame != null) 
                     _currentFrame.LockedByConsumer = false;

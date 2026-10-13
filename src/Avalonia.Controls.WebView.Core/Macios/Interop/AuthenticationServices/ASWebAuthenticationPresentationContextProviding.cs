@@ -17,13 +17,13 @@ internal unsafe class ASWebAuthenticationPresentationContextProviding(IntPtr win
 
         var delegateClass = AllocateClassPair("ManagedASWebAuthenticationPresentationContextProviding");
 
-        if (Libobjc.objc_getProtocol("ASWebAuthenticationPresentationContextProviding") is var protocol and > 0)
-        {
-            AddProtocol(delegateClass, protocol);   
-        }
+        var presentationAnchorSel = Libobjc.sel_getUid("presentationAnchorForWebAuthenticationSession:");
+
+        AddProtocol(delegateClass, "ASWebAuthenticationPresentationContextProviding",
+            new ProtocolMethod(presentationAnchorSel, "@@:@", true));
 
         AddMethod(delegateClass,
-            Libobjc.sel_getUid("presentationAnchorForWebAuthenticationSession:"),
+            presentationAnchorSel,
             new IntPtr(s_presentationAnchorForWebAuthenticationSession),
             "@@:@");
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
@@ -54,6 +54,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     private GtkSignal? _scriptMessageReceivedSignal;
     private GtkSignal? _resourceLoadStarted;
     private Uri _source = WebViewHelper.EmptyPage;
+    private bool _hostFocusChange;
 
     protected GtkWebViewAdapter(GtkWebViewEnvironmentRequestedEventArgs args)
     {
@@ -185,13 +186,92 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     public event EventHandler? GotFocus;
     public event EventHandler<IWebViewAdapterWithFocus.LostFocusDirection>? LostFocus;
 
-    public void Focus() => RunOnWebView(static handle =>
+    /// <summary>
+    /// The GTK toplevel holding the web view, or zero when the adapter has none.
+    /// </summary>
+    protected virtual IntPtr ToplevelHandle => IntPtr.Zero;
+
+    /// <summary>
+    /// True when <see cref="ToplevelHandle"/> is a GtkOffscreenWindow, whose GdkWindow has no native window behind it.
+    /// </summary>
+    protected virtual bool ToplevelIsOffscreen => false;
+
+    public void Focus() => RunOnWebView(handle => RunHostFocusChange(() => FocusWebView(handle)));
+
+    public void ResignFocus() => RunOnWebView(_ => RunHostFocusChange(() => SendToplevelFocusChange(false)));
+
+    /// <summary>
+    /// Focuses the web view because of input inside it, and reports the change to the host.
+    /// </summary>
+    protected void FocusFromWebView() => RunOnWebView(FocusWebView);
+
+    private void FocusWebView(IntPtr handle)
     {
         gtk_widget_grab_focus(handle);
         gtk_widget_has_focus(handle);
-    });
+        SendToplevelFocusChange(true);
+    }
 
-    public void ResignFocus() { }
+    // The host already knows about focus changes it asked for. GTK raises the focus events for them synchronously,
+    // so they are dropped here instead of being sent back. Sending them back raced with later host focus changes
+    // and could pull focus back into the web view.
+    private void RunHostFocusChange(Action action)
+    {
+        _hostFocusChange = true;
+        try
+        {
+            action();
+        }
+        finally
+        {
+            _hostFocusChange = false;
+        }
+    }
+
+    private unsafe void SendToplevelFocusChange(bool focusIn)
+    {
+        var toplevel = ToplevelHandle;
+        if (toplevel == IntPtr.Zero || gtk_widget_get_window(toplevel) == IntPtr.Zero)
+            return;
+
+        // Activating an offscreen toplevel on x11 queries the pointer against a window that has no X counterpart. The
+        // activation still lands; only the resulting BadWindow needs swallowing, and it is fatal untrapped.
+        var trapped = ToplevelIsOffscreen && IsX11Display() ? gdk_display_get_default() : IntPtr.Zero;
+        if (trapped != IntPtr.Zero)
+        {
+            gdk_x11_display_error_trap_push(trapped);
+        }
+
+        try
+        {
+            using var state = new EventSendState(GdkEventType.GDK_FOCUS_CHANGE, toplevel);
+            state.Event->focus_change.@in = (short)(focusIn ? 1 : 0);
+            gtk_widget_send_focus_change(toplevel, new IntPtr(state.Event));
+        }
+        finally
+        {
+            if (trapped != IntPtr.Zero)
+            {
+                gdk_x11_display_error_trap_pop(trapped);
+            }
+        }
+    }
+
+    private static bool IsX11Display()
+    {
+        var display = gdk_display_get_default();
+        if (display == IntPtr.Zero)
+            return false;
+
+        try
+        {
+            return g_type_check_instance_is_a(display, gdk_x11_display_get_type());
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
+        }
+    }
 
     public bool GoBack()
     {
@@ -484,6 +564,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     private static unsafe int FocusOutCallback(IntPtr widget, GdkEvent* gdkEvent, IntPtr data)
     {
         if (!GtkSignal.TryGetState<GtkWebViewAdapter>(data, out var adapter)
+            || adapter._hostFocusChange
             || adapter.LostFocus is not { } handler)
         {
             return False;
@@ -500,6 +581,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     private static unsafe int FocusInCallback(IntPtr widget, GdkEvent* gdkEvent, IntPtr data)
     {
         if (!GtkSignal.TryGetState<GtkWebViewAdapter>(data, out var adapter)
+            || adapter._hostFocusChange
             || adapter.GotFocus is not { } handler)
         {
             return False;
@@ -660,5 +742,35 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
             Version: version?.ToString(),
             UnavailableReason: version is not null ? null : "WebKitGtk library is not installed. Install webkit2gtk 4.0+ package.",
             SupportedScenarios: version is not null ? scenarios : WebViewEmbeddingScenario.None);
+    }
+    
+    protected readonly unsafe ref struct EventSendState : IDisposable
+    {
+        private readonly IntPtr _evPtr;
+
+        public EventSendState(GdkEventType eventType, IntPtr handle)
+        {
+            _evPtr = gdk_event_new(eventType);
+            var ev = (GdkEvent*)_evPtr.ToPointer();
+            ev->any.window = gtk_widget_get_window(handle); // gdk window
+            ev->any.send_event = 1;
+            g_object_ref(ev->any.window);
+        }
+
+        public GdkEvent* Event => (GdkEvent*)_evPtr.ToPointer();
+
+        public bool Send()
+        {
+            gdk_event_put(_evPtr);
+            return true;
+        }
+
+        public void Dispose()
+        {
+            if (_evPtr != IntPtr.Zero)
+            {
+                gdk_event_free(_evPtr);
+            }
+        }
     }
 }

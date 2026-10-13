@@ -18,15 +18,16 @@ internal unsafe class WKNavigationDelegate : NSManagedObjectBase
     {
         var delegateClass = AllocateClassPair("ManagedWKNavigationDelegate");
 
-        if (Libobjc.objc_getProtocol("WKNavigationDelegate") is var protocol and > 0)
-        {
-            AddProtocol(delegateClass, protocol);   
-        }
-
         var willPresentNotificationSel = Libobjc.sel_getUid("webView:didFinishNavigation:");
+        var didReceiveNotificationResponse = Libobjc.sel_getUid("webView:decidePolicyForNavigationAction:decisionHandler:");
+
+        // All WKNavigationDelegate methods are optional.
+        AddProtocol(delegateClass, "WKNavigationDelegate",
+            new ProtocolMethod(willPresentNotificationSel, "v@:@@", false),
+            new ProtocolMethod(didReceiveNotificationResponse, "v@:@@@?", false));
+
         AddMethod(delegateClass, willPresentNotificationSel, new IntPtr(s_willPresentNotification), "v@:@@");
 
-        var didReceiveNotificationResponse = Libobjc.sel_getUid("webView:decidePolicyForNavigationAction:decisionHandler:");
         AddMethod(delegateClass, didReceiveNotificationResponse, new IntPtr(s_decidePolicyForNavigationAction), "v@:@@@");
 
         RegisterManagedMembers(delegateClass);

@@ -67,7 +67,7 @@ public class HeadlessAdapterTests : HeadlessTestsBase
 
         var uri = new Uri("https://example.com");
         webView.Source = uri;
-        await DoDelay();
+        await WaitFor(() => navCompleted);
 
         Assert.True(navStarted);
         Assert.True(navCompleted);
@@ -89,14 +89,14 @@ public class HeadlessAdapterTests : HeadlessTestsBase
         window.Show();
 
         webView.NavigateToString("<html>test</html>");
-        await DoDelay();
+        await WaitFor(() => navCompleted);
 
         Assert.True(navCompleted);
         Assert.Equal(WebViewHelper.EmptyPage, webView.Source);
 
         navCompleted = false;
         Assert.True(webView.Refresh());
-        await DoDelay();
+        await WaitFor(() => navCompleted);
         Assert.True(navCompleted);
     }
 
@@ -390,7 +390,7 @@ public class HeadlessAdapterTests : HeadlessTestsBase
         await DoDelay();
     }
 
-    [AvaloniaFact(Skip = "Flaky test")]
+    [AvaloniaFact]
     public async Task NativeWebView_NavigateToString_With_BaseUri()
     {
         var window = new Window();
@@ -403,7 +403,7 @@ public class HeadlessAdapterTests : HeadlessTestsBase
 
         var baseUri = new Uri("https://example.com/");
         webView.NavigateToString("<html>test</html>", baseUri);
-        await DoDelay();
+        await WaitFor(() => navCompleted);
 
         Assert.True(navCompleted);
         Assert.Equal(baseUri, webView.Source);
