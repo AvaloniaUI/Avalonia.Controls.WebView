@@ -246,6 +246,7 @@ internal sealed class WebKitUriSchemeHandler
         {
             response = await target.RaiseUriSchemeRequestAsync(webRequest).ConfigureAwait(false)
                        ?? WebResourceResponseHelper.NotFound();
+            response = WebResourceResponseHelper.ApplyRange(webRequest, response);
 
             content = await WebResourceResponseHelper.ReadContentAsync(response.Content).ConfigureAwait(false);
         }

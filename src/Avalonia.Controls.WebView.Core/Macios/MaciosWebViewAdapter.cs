@@ -355,6 +355,7 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
                 // Waited without ct, so a late response is still disposed below.
                 response = await WebResourceResponseHelper.RaiseAsync(this, WebResourceRequested, webRequest)
                     ?? WebResourceResponseHelper.NotFound();
+                response = WebResourceResponseHelper.ApplyRange(webRequest, response);
             }
             finally
             {

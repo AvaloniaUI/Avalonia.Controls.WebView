@@ -36,6 +36,13 @@ internal static class WebView2ResourceResponse
 
             if (WebResourceResponseHelper.GetResponseOrNotFound(args?.Response, isCustomScheme) is not { } response)
                 return;
+            // Chromium only reads Content-Range for http and https, a short answer elsewhere would end the file.
+            if (args is not null)
+                response = WebResourceResponseHelper.ApplyRange(args.Request, response,
+                    maxOpenEndedLength: args.Request.Uri.Scheme == Uri.UriSchemeHttp
+                        || args.Request.Uri.Scheme == Uri.UriSchemeHttps ?
+                        WebResourceResponseHelper.BufferedRangeLength :
+                        long.MaxValue);
 
             var read = WebResourceResponseHelper.ReadContentAsync(response.Content);
             if (!read.IsCompleted)

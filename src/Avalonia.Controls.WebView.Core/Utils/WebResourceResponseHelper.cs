@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -13,6 +14,13 @@ namespace Avalonia.Controls.Utils;
 
 internal static class WebResourceResponseHelper
 {
+    /// <summary>
+    /// The most an open-ended range gets on WebView2, which reads the whole body into memory.
+    /// </summary>
+    public const long BufferedRangeLength = 4 * 1024 * 1024;
+
+    private const string BytesUnit = "bytes";
+
     // RFC 9110 token characters.
     private static readonly SearchValues<char> s_tokenChars =
         SearchValues.Create("!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
@@ -68,6 +76,122 @@ internal static class WebResourceResponseHelper
         Raise(sender, handler, args);
         await args.WaitForDeferralsAsync();
         return args.Response;
+    }
+
+    /// <summary>
+    /// Answers a single byte range of a seekable body with 206, as media elements request ranges to play and seek.
+    /// </summary>
+    /// <remarks>
+    /// The body is what's left from the stream's position. Other responses and requests are returned as they are,
+    /// except that a seekable 200 response advertises Accept-Ranges.
+    /// Android WebView skips to the first byte of an explicit range itself,
+    /// so with <paramref name="engineSkipsToFirstByte"/> the body keeps those bytes.
+    /// An open-ended range, as media elements send, gets at most <paramref name="maxOpenEndedLength"/> bytes,
+    /// for engines that read the whole body into memory; the client asks for the rest.
+    /// </remarks>
+    public static WebViewWebResourceResponse ApplyRange(
+        WebViewWebResourceRequest request, WebViewWebResourceResponse response, bool engineSkipsToFirstByte = false,
+        long maxOpenEndedLength = long.MaxValue)
+    {
+        if (response is not { StatusCode: (int)HttpStatusCode.OK, Content: { CanSeek: true } content }
+            || request.Method != HttpMethod.Get
+            || response.Headers.ContainsKey(HttpHeaderNames.ContentRange)
+            || response.Headers.ContainsKey(HttpHeaderNames.ContentEncoding))
+            return response;
+
+        long start, length;
+        try
+        {
+            start = content.Position;
+            length = content.Length - start;
+        }
+        catch (NotSupportedException)
+        {
+            return response;
+        }
+
+        response.Headers.TryAdd(HttpHeaderNames.AcceptRanges, BytesUnit);
+        if (GetRequestHeader(request, HttpHeaderNames.Range) is not { } value
+            || !IsIfRangeSatisfied(request, response)
+            || ParseRange(value) is not { } range)
+            return response;
+
+        var (first, last) = GetBounds(range, length, maxOpenEndedLength);
+        var satisfiable = first <= last;
+        // Suffix ranges, "bytes=-500", aren't skipped.
+        var skipped = engineSkipsToFirstByte && range.From is not null ? first : 0;
+        var partial = new WebViewWebResourceResponse
+        {
+            StatusCode = (int)(satisfiable ? HttpStatusCode.PartialContent : HttpStatusCode.RequestedRangeNotSatisfiable),
+            Content = satisfiable ? new RangeStream(content, start + first - skipped, last - first + 1 + skipped) : null
+        };
+        foreach (var header in response.Headers)
+        {
+            if (!string.Equals(header.Key, HttpHeaderNames.ContentLength, StringComparison.OrdinalIgnoreCase))
+                partial.Headers[header.Key] = header.Value;
+        }
+        if (!satisfiable)
+        {
+            partial.Headers[HttpHeaderNames.ContentRange] = new ContentRangeHeaderValue(length).ToString();
+            DisposeContent(response);
+            return partial;
+        }
+        partial.Headers[HttpHeaderNames.ContentRange] = new ContentRangeHeaderValue(first, last, length).ToString();
+        partial.Headers[HttpHeaderNames.ContentLength] = (last - first + 1).ToString(CultureInfo.InvariantCulture);
+        return partial;
+    }
+
+    // Native lookups aren't case-insensitive everywhere.
+    private static string? GetRequestHeader(WebViewWebResourceRequest request, string name)
+    {
+        if (request.Headers.TryGetValue(name, out var value))
+            return value;
+        foreach (var header in request.Headers)
+        {
+            if (string.Equals(header.Key, name, StringComparison.OrdinalIgnoreCase))
+                return header.Value;
+        }
+        return null;
+    }
+
+    // RFC 9110 13.1.5: the range only applies to the representation the client already has.
+    private static bool IsIfRangeSatisfied(WebViewWebResourceRequest request, WebViewWebResourceResponse response)
+    {
+        if (GetRequestHeader(request, HttpHeaderNames.IfRange)?.Trim() is not { } ifRange)
+            return true;
+        if (!RangeConditionHeaderValue.TryParse(ifRange, out var condition) || condition.EntityTag is { IsWeak: true })
+            return false;
+        var validatorName = condition.EntityTag is null ? HttpHeaderNames.LastModified : HttpHeaderNames.ETag;
+        return response.Headers.TryGetValue(validatorName, out var validator) && validator.Trim() == ifRange;
+    }
+
+    /// <summary>
+    /// Parses a Range header with a single byte range, or returns null to ignore it and send the whole body.
+    /// Several ranges would need a multipart body.
+    /// </summary>
+    internal static RangeItemHeaderValue? ParseRange(string value) =>
+        RangeHeaderValue.TryParse(value, out var header)
+        && string.Equals(header.Unit, BytesUnit, StringComparison.OrdinalIgnoreCase)
+        && header.Ranges.Count == 1 ?
+            header.Ranges.First() :
+            null;
+
+    /// <summary>
+    /// The first and last byte of the range in a body of <paramref name="length"/> bytes.
+    /// An unsatisfiable range gives first &gt; last.
+    /// </summary>
+    internal static (long First, long Last) GetBounds(
+        RangeItemHeaderValue range, long length, long maxOpenEndedLength = long.MaxValue)
+    {
+        if (range.From is not { } first)
+        {
+            var suffix = range.To ?? 0;
+            return suffix > 0 && length > 0 ? (Math.Max(0, length - suffix), length - 1) : (0, -1);
+        }
+        if (first >= length)
+            return (0, -1);
+        var last = range.To ?? (length - first > maxOpenEndedLength ? first + maxOpenEndedLength - 1 : length - 1);
+        return (first, Math.Min(last, length - 1));
     }
 
     /// <summary>

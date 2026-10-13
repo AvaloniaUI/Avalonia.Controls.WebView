@@ -516,7 +516,7 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
 
                 if (webResourceArgs.Response is { } response)
                 {
-                    return CreateResponse(response);
+                    return CreateResponse(webResourceArgs.Request, response);
                 }
 
                 // This flow is tricky. It's only possible to modify request headers for GET requests.
@@ -579,11 +579,13 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
             return base.ShouldInterceptRequest(view, request);
         }
 
-        private static WebResourceResponse CreateResponse(WebViewWebResourceResponse response)
+        private static WebResourceResponse CreateResponse(
+            WebViewWebResourceRequest request, WebViewWebResourceResponse response)
         {
-            var (mediaType, charSet) = WebResourceResponseHelper.GetContentType(response);
             try
             {
+                response = WebResourceResponseHelper.ApplyRange(request, response, engineSkipsToFirstByte: true);
+                var (mediaType, charSet) = WebResourceResponseHelper.GetContentType(response);
                 var headers = WebResourceResponseHelper.GetValidHeaders(response);
                 // WebView sets both, from the media type and from available(), and would repeat ours.
                 var size = GetBodySize(response, headers);
@@ -619,7 +621,9 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
         private static int GetBodySize(WebViewWebResourceResponse response, Dictionary<string, string> headers)
         {
             long size = -1;
-            if (response.Content is { CanSeek: true } content)
+            if (response.Content is RangeStream range)
+                size = range.Remaining;
+            else if (response.Content is { CanSeek: true } content)
             {
                 try
                 {

@@ -153,6 +153,15 @@ public sealed class WebViewWebResourceResponse
     /// <summary>
     /// Gets the response body, or null for an empty body.
     /// </summary>
+    /// <remarks>
+    /// With status 200, a seekable stream also answers a single-range Range request with 206,
+    /// which audio and video need to seek. The body starts at the stream's position.
+    /// WebView2 reads each body into memory. For http and https it answers an open-ended range, such as
+    /// <c>bytes=0-</c>, with at most 4 MiB and the client asks for the rest, but Chromium only honors
+    /// Content-Range there, so a custom scheme reads the rest of the file at once. Serve long media from an
+    /// https host, such as the one on Android, there.
+    /// WebKitGTK and WPE don't play audio or video from custom schemes, a page can use a blob URL there.
+    /// </remarks>
     public Stream? Content { get; init; }
 }
 

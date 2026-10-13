@@ -346,6 +346,172 @@ public class WebResourceResponseTests : HeadlessTestsBase
         Assert.False(content.CanRead);
     }
 
+    [Theory]
+    [InlineData("bytes=0-4", true, 0, 4)]
+    [InlineData(" bytes=5- ", true, 5, 9)]
+    [InlineData("Bytes=-3", true, 7, 9)]
+    [InlineData("bytes=-20", true, 0, 9)]
+    [InlineData("bytes=8-100", true, 8, 9)]
+    [InlineData("bytes=10-", true, 0, -1)]
+    [InlineData("bytes=-0", true, 0, -1)]
+    [InlineData("bytes=99999999999999999999-", false, 0, -1)]
+    [InlineData("bytes=0-1,4-5", false, 0, -1)]
+    [InlineData("items=0-1", false, 0, -1)]
+    [InlineData("bytes=5-2", false, 0, -1)]
+    [InlineData("bytes=a-b", false, 0, -1)]
+    [InlineData("bytes=+1-2", false, 0, -1)]
+    [InlineData("bytes=-", false, 0, -1)]
+    [InlineData("bytes=1", false, 0, -1)]
+    public void Range_Is_Parsed(string range, bool parsed, long first, long last)
+    {
+        var parsedRange = WebResourceResponseHelper.ParseRange(range);
+        Assert.Equal(parsed, parsedRange is not null);
+        if (parsedRange is not null)
+            Assert.Equal((first, last), WebResourceResponseHelper.GetBounds(parsedRange, 10));
+    }
+
+    [Theory]
+    [InlineData("bytes=0-", 0, 3)]
+    [InlineData("bytes=8-", 8, 9)]
+    [InlineData("bytes=10-", 0, -1)]
+    [InlineData("bytes=0-6", 0, 6)]
+    [InlineData("bytes=-6", 4, 9)]
+    public void Open_Ended_Range_Is_Capped(string range, long first, long last)
+    {
+        var parsedRange = WebResourceResponseHelper.ParseRange(range);
+        Assert.NotNull(parsedRange);
+        Assert.Equal((first, last), WebResourceResponseHelper.GetBounds(parsedRange, 10, 4));
+    }
+
+    [Fact]
+    public async Task Capped_Range_Reports_The_Bytes_It_Sends()
+    {
+        var response = new WebViewWebResourceResponse { Content = new MemoryStream(Encoding.UTF8.GetBytes("abcdefghij")) };
+
+        var partial = WebResourceResponseHelper.ApplyRange(Request(("Range", "bytes=2-")), response, maxOpenEndedLength: 3);
+
+        Assert.Equal(206, partial.StatusCode);
+        Assert.Equal("bytes 2-4/10", partial.Headers["Content-Range"]);
+        Assert.Equal("3", partial.Headers["Content-Length"]);
+        Assert.Equal("cde", Encoding.UTF8.GetString((await WebResourceResponseHelper.ReadContentAsync(partial.Content)).Span));
+    }
+
+    [Fact]
+    public async Task Range_Is_Answered_With_Partial_Content()
+    {
+        var content = new MemoryStream(Encoding.UTF8.GetBytes("xabcdefghij")) { Position = 1 };
+        var response = new WebViewWebResourceResponse
+        {
+            Headers = { ["Content-Type"] = "audio/wav", ["Content-Length"] = "10" },
+            Content = content
+        };
+
+        var partial = WebResourceResponseHelper.ApplyRange(Request(("range", "bytes=2-4")), response);
+
+        Assert.Equal(206, partial.StatusCode);
+        Assert.Equal("bytes 2-4/10", partial.Headers["Content-Range"]);
+        Assert.Equal("3", partial.Headers["Content-Length"]);
+        Assert.Equal("audio/wav", partial.Headers["Content-Type"]);
+        Assert.Equal("bytes", partial.Headers["Accept-Ranges"]);
+        Assert.Equal("cde", Encoding.UTF8.GetString((await WebResourceResponseHelper.ReadContentAsync(partial.Content)).Span));
+        partial.Content!.Dispose();
+        Assert.False(content.CanRead);
+    }
+
+    [Theory]
+    [InlineData("bytes=2-4", "abcde", "bytes 2-4/10")]
+    [InlineData("bytes=-3", "hij", "bytes 7-9/10")]
+    public async Task Range_Keeps_The_Bytes_The_Engine_Skips(string range, string body, string contentRange)
+    {
+        var response = new WebViewWebResourceResponse
+        {
+            Content = new MemoryStream(Encoding.UTF8.GetBytes("xabcdefghij")) { Position = 1 }
+        };
+
+        var partial = WebResourceResponseHelper.ApplyRange(
+            Request(("Range", range)), response, engineSkipsToFirstByte: true);
+
+        Assert.Equal(contentRange, partial.Headers["Content-Range"]);
+        Assert.Equal(body, Encoding.UTF8.GetString((await WebResourceResponseHelper.ReadContentAsync(partial.Content)).Span));
+    }
+
+    [Fact]
+    public void Unsatisfiable_Range_Is_Answered_With_416()
+    {
+        var content = new MemoryStream(new byte[10]);
+        var response = new WebViewWebResourceResponse { Content = content };
+
+        var unsatisfiable = WebResourceResponseHelper.ApplyRange(Request(("Range", "bytes=10-")), response);
+
+        Assert.Equal(416, unsatisfiable.StatusCode);
+        Assert.Equal("bytes */10", unsatisfiable.Headers["Content-Range"]);
+        Assert.Null(unsatisfiable.Content);
+        Assert.False(content.CanRead);
+    }
+
+    [Fact]
+    public void Range_Is_Ignored_When_It_Cannot_Apply()
+    {
+        var seekable = Response(new MemoryStream(new byte[10]));
+        Assert.Same(seekable, WebResourceResponseHelper.ApplyRange(Request(), seekable));
+        Assert.Equal("bytes", seekable.Headers["Accept-Ranges"]);
+
+        var notSeekable = Response(new NonSeekableStream());
+        Assert.Same(notSeekable, WebResourceResponseHelper.ApplyRange(Request(("Range", "bytes=0-1")), notSeekable));
+        Assert.False(notSeekable.Headers.ContainsKey("Accept-Ranges"));
+
+        var notFound = new WebViewWebResourceResponse { StatusCode = 404, Content = new MemoryStream(new byte[10]) };
+        Assert.Same(notFound, WebResourceResponseHelper.ApplyRange(Request(("Range", "bytes=0-1")), notFound));
+
+        var post = Response(new MemoryStream(new byte[10]));
+        var postRequest = new WebViewWebResourceRequest
+        {
+            Uri = new Uri("app://localhost/audio.wav"),
+            Method = System.Net.Http.HttpMethod.Post,
+            Headers = Request(("Range", "bytes=0-1")).Headers
+        };
+        Assert.Same(post, WebResourceResponseHelper.ApplyRange(postRequest, post));
+
+        var encoded = Response(new MemoryStream(new byte[10]));
+        encoded.Headers["Content-Encoding"] = "gzip";
+        Assert.Same(encoded, WebResourceResponseHelper.ApplyRange(Request(("Range", "bytes=0-1")), encoded));
+
+        static WebViewWebResourceResponse Response(Stream content) => new() { Content = content };
+    }
+
+    [Theory]
+    [InlineData("\"v1\"", 206)]
+    [InlineData("\"v2\"", 200)]
+    [InlineData("W/\"v1\"", 200)]
+    [InlineData("Tue, 13 Oct 2026 10:00:00 GMT", 206)]
+    [InlineData("Wed, 14 Oct 2026 10:00:00 GMT", 200)]
+    public void If_Range_Must_Match(string ifRange, int statusCode)
+    {
+        var response = new WebViewWebResourceResponse
+        {
+            Headers = { ["ETag"] = "\"v1\"", ["Last-Modified"] = "Tue, 13 Oct 2026 10:00:00 GMT" },
+            Content = new MemoryStream(new byte[10])
+        };
+
+        var result = WebResourceResponseHelper.ApplyRange(
+            Request(("Range", "bytes=0-1"), ("If-Range", ifRange)), response);
+
+        Assert.Equal(statusCode, result.StatusCode);
+    }
+
+    private static WebViewWebResourceRequest Request(params (string Name, string Value)[] headers) => new()
+    {
+        Uri = new Uri("app://localhost/audio.wav"),
+        Method = System.Net.Http.HttpMethod.Get,
+        Headers = new NativeHeadersCollection(new DictionaryNativeHttpRequestHeaders(
+            Array.ConvertAll(headers, header => new KeyValuePair<string, string>(header.Name, header.Value)), true))
+    };
+
+    private sealed class NonSeekableStream : MemoryStream
+    {
+        public override bool CanSeek => false;
+    }
+
     private static WebViewWebResourceResponse Html(string html) => new()
     {
         Headers = { ["Content-Type"] = "text/html; charset=utf-8" },
