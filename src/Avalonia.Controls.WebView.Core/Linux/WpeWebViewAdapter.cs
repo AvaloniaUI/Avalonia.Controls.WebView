@@ -310,6 +310,7 @@ internal sealed unsafe class WpeWebViewAdapter
                 Alpha = value.A / 255.0
             };
             WpeInterop.webkit_web_view_set_background_color(_webView, &color);
+            WpeGLibIntegration.Wakeup();
         }
     }
 
@@ -321,6 +322,7 @@ internal sealed unsafe class WpeWebViewAdapter
             if (_webView == IntPtr.Zero) return;
             var settings = WpeInterop.webkit_web_view_get_settings(_webView);
             WpeInterop.webkit_settings_set_user_agent(settings, value);
+            WpeGLibIntegration.Wakeup();
         }
     }
 
@@ -337,18 +339,21 @@ internal sealed unsafe class WpeWebViewAdapter
     {
         if (_webView == IntPtr.Zero || _disposed) return;
         WpeInterop.webkit_web_view_load_uri(_webView, url.AbsoluteUri);
+        WpeGLibIntegration.Wakeup();
     }
 
     public void NavigateToString(string text, Uri? baseUri)
     {
         if (_webView == IntPtr.Zero || _disposed) return;
         WpeInterop.webkit_web_view_load_html(_webView, text, baseUri?.AbsoluteUri);
+        WpeGLibIntegration.Wakeup();
     }
 
     public bool GoBack()
     {
         if (!CanGoBack) return false;
         WpeInterop.webkit_web_view_go_back(_webView);
+        WpeGLibIntegration.Wakeup();
         return true;
     }
 
@@ -356,6 +361,7 @@ internal sealed unsafe class WpeWebViewAdapter
     {
         if (!CanGoForward) return false;
         WpeInterop.webkit_web_view_go_forward(_webView);
+        WpeGLibIntegration.Wakeup();
         return true;
     }
 
@@ -363,6 +369,7 @@ internal sealed unsafe class WpeWebViewAdapter
     {
         if (_webView == IntPtr.Zero) return false;
         WpeInterop.webkit_web_view_reload(_webView);
+        WpeGLibIntegration.Wakeup();
         return true;
     }
 
@@ -370,6 +377,7 @@ internal sealed unsafe class WpeWebViewAdapter
     {
         if (_webView == IntPtr.Zero) return false;
         WpeInterop.webkit_web_view_stop_loading(_webView);
+        WpeGLibIntegration.Wakeup();
         return true;
     }
 
@@ -378,13 +386,14 @@ internal sealed unsafe class WpeWebViewAdapter
         if (_webView == IntPtr.Zero || _disposed)
             return Task.FromResult<string?>(null);
 
-        var tcs = new TaskCompletionSource<string?>();
+        var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var tcsHandle = GCHandle.Alloc(tcs);
 
         WpeInterop.webkit_web_view_evaluate_javascript(
             _webView, script, -1, null, null, IntPtr.Zero,
             &OnEvaluateJavascriptFinished,
             GCHandle.ToIntPtr(tcsHandle));
+        WpeGLibIntegration.Wakeup();
 
         return tcs.Task;
     }
@@ -437,6 +446,7 @@ internal sealed unsafe class WpeWebViewAdapter
             _currentDeviceScale = scale;
             _backend.SetScale(scale);
         }
+        WpeGLibIntegration.Wakeup();
     }
 
     public void SetParent(IPlatformHandle parent)
@@ -448,6 +458,7 @@ internal sealed unsafe class WpeWebViewAdapter
     {
         if (_backend is null || _disposed) return;
         _backend.SetVisible(visible);
+        WpeGLibIntegration.Wakeup();
     }
 
     // --- IWebViewAdapterWithOffscreenBuffer ---
@@ -463,6 +474,7 @@ internal sealed unsafe class WpeWebViewAdapter
             return Task.CompletedTask;
 
         _backend.CopyFrame(producer);
+        WpeGLibIntegration.Wakeup();
         return Task.CompletedTask;
     }
 
@@ -491,6 +503,7 @@ internal sealed unsafe class WpeWebViewAdapter
         }
 
         _backend.KeyInput(press, keysym, xkbKeycode, MapModifiers(modifiers));
+        WpeGLibIntegration.Wakeup();
         return true;
     }
 
@@ -513,6 +526,7 @@ internal sealed unsafe class WpeWebViewAdapter
         var script = $"document.execCommand('insertText', false, '{escaped}')";
         WpeInterop.webkit_web_view_evaluate_javascript(
             _webView, script, -1, null, null, IntPtr.Zero, null, IntPtr.Zero);
+        WpeGLibIntegration.Wakeup();
         return true;
     }
 
@@ -520,19 +534,23 @@ internal sealed unsafe class WpeWebViewAdapter
     {
         if (_backend is null || _disposed) return false;
         _backend.PointerInput(point, clickCount, dpi, MapModifiers(modifiers));
+        WpeGLibIntegration.Wakeup();
         return true;
     }
 
     public bool PointerLeaveInput(PointerPoint point, double dpi, KeyModifiers modifiers)
     {
         if (_backend is null || _disposed) return false;
-        return _backend.PointerLeaveInput(point, dpi, MapModifiers(modifiers));
+        var handled = _backend.PointerLeaveInput(point, dpi, MapModifiers(modifiers));
+        WpeGLibIntegration.Wakeup();
+        return handled;
     }
 
     public bool PointerWheelInput(Vector delta, PointerPoint point, double dpi, KeyModifiers modifiers)
     {
         if (_backend is null || _disposed) return false;
         _backend.PointerWheelInput(delta, point, dpi, MapModifiers(modifiers));
+        WpeGLibIntegration.Wakeup();
         return true;
     }
 
@@ -618,17 +636,14 @@ internal sealed unsafe class WpeWebViewAdapter
 
     private static void WaitForCompletion(Task task)
     {
-        if (task.IsCompleted)
+        if (!task.IsCompleted && Dispatcher.UIThread.CheckAccess())
         {
-            task.GetAwaiter().GetResult();
-            return;
+            var ctx = WpeInterop.g_main_context_default();
+            while (!task.IsCompleted)
+                WpeInterop.g_main_context_iteration(ctx, true);
         }
 
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            WebViewDispatcher.PushFrameForTask(task);
-        }
-
+        WpeGLibIntegration.Wakeup();
         task.GetAwaiter().GetResult();
     }
 
@@ -637,12 +652,13 @@ internal sealed unsafe class WpeWebViewAdapter
         if (_cookieManager == IntPtr.Zero || _disposed)
             return Task.FromResult<IReadOnlyList<Cookie>>(Array.Empty<Cookie>());
 
-        var tcs = new TaskCompletionSource<IReadOnlyList<Cookie>>();
+        var tcs = new TaskCompletionSource<IReadOnlyList<Cookie>>(TaskCreationOptions.RunContinuationsAsynchronously);
         var tcsHandle = GCHandle.Alloc(tcs);
 
         WpeInterop.webkit_cookie_manager_get_all_cookies(
             _cookieManager, IntPtr.Zero,
             &OnGetAllCookiesFinished, GCHandle.ToIntPtr(tcsHandle));
+        WpeGLibIntegration.Wakeup();
 
         return tcs.Task;
     }
