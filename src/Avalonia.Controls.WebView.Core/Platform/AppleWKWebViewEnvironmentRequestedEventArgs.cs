@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using Avalonia.Controls;
 
 // ReSharper disable InconsistentNaming
@@ -40,4 +41,20 @@ public sealed class AppleWKWebViewEnvironmentRequestedEventArgs : WebViewEnviron
     /// Gets or sets the name of the script message handler.
     /// </summary>
     public string? ScriptHandlerMessageName { get; set; }  
+
+    /// <summary>
+    /// Gets or sets the proxy address.
+    /// </summary>
+    public Uri? ProxyAddress { get; set; }
+
+    /// <summary>
+    /// Gets or sets the credentials used to authenticate with the proxy.
+    /// If set, this takes precedence over credentials embedded in <see cref="ProxyAddress"/>.
+    /// </summary>
+    public NetworkCredential? ProxyCredentials { get; set; }
+
+    /// <summary>
+    /// Gets or sets the list of domains to exclude from the proxy.
+    /// </summary>
+    public string[]? ProxyExcludedDomains { get; set; }
 }
