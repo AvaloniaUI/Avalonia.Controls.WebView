@@ -124,6 +124,12 @@ internal static unsafe class WpeGLibIntegration
     }
 #pragma warning restore CA1416
 
+    public static void Wakeup()
+    {
+        if (s_running && s_mainContext != IntPtr.Zero)
+            WpeInterop.g_main_context_wakeup(s_mainContext);
+    }
+
     /// <summary>
     /// Runs on the UI thread. Acquires the GLib context, calls prepare + query to
     /// collect the file descriptors and timeout, then signals the poll thread.

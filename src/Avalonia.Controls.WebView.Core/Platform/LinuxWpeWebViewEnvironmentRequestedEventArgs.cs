@@ -24,13 +24,22 @@ public sealed class LinuxWpeWebViewEnvironmentRequestedEventArgs : WebViewEnviro
 
     /// <summary>
     /// Gets or sets the rendering mode for WPE WebKit.
-    /// The default (<see cref="WpeRenderingMode.Auto"/>) currently uses SHM only (no GPU required)
-    /// with the WPE adapter.
-    /// Modes that rely on EGL/DMABuf are not supported by the current WPE adapter implementation
+    /// With <see cref="WpeApi.Legacy"/>, <see cref="WpeRenderingMode.Auto"/> uses SHM.
+    /// With <see cref="WpeApi.Platform"/>, <see cref="WpeRenderingMode.Auto"/> lets WPE WebKit use SHM or DMA-BUF buffers,
+    /// and <see cref="WpeRenderingMode.Shm"/> uses SHM buffers only.
+    /// <see cref="WpeRenderingMode.Egl"/> and <see cref="WpeRenderingMode.DmaBuf"/> are not supported
     /// and will result in an error if selected.
     /// Note: this choice is process-global and affects all WebView instances.
     /// </summary>
     public WpeRenderingMode RenderingMode { get; set; } = WpeRenderingMode.Auto;
+
+    /// <summary>
+    /// Gets or sets the WPE WebKit embedding API.
+    /// The first WPE web view created in the process fixes the API for the rest of the process.
+    /// Requesting a different API, or an API that is not available, throws <see cref="InvalidOperationException"/>
+    /// when the web view is created.
+    /// </summary>
+    public WpeApi Api { get; set; } = WpeApi.Auto;
 
     /// <summary>
     /// Gets or sets a value indicating whether to prefer WebKitGTK instead of WPE WebKit.
