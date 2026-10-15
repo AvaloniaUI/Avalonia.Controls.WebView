@@ -43,6 +43,9 @@ namespace Avalonia.Xpf.Controls
     {
         private bool _ignoreNavigation;
         private bool _ignoreFocusChanges;
+#if AVALONIA
+        private WindowBase? _activationSource;
+#endif
         private object? _lastSource;
 
         private EventHandler<Core.WebViewNavigationCompletedEventArgs>? _navigationCompleted;
@@ -446,6 +449,7 @@ namespace Avalonia.Xpf.Controls
         protected override async void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
+            TrackTopLevelActivation();
 #elif WPF
         protected override async void OnVisualParentChanged(DependencyObject oldParent)
         {
@@ -492,6 +496,55 @@ namespace Avalonia.Xpf.Controls
             OnVisualChildrenChanged(visual, null);
 #endif
         }
+
+#if AVALONIA
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            StopTrackingTopLevelActivation();
+            base.OnDetachedFromVisualTree(e);
+        }
+
+        // A GTK toplevel that is offscreen, or reparented into someone else's window, never hears from the window
+        // manager, so the focus this control synthesized for it outlives the user switching to another application:
+        // the caret goes on blinking and the page still reports document.hasFocus(). Avalonia leaves focus on the
+        // control while the window is deactivated, so window activation is the only thing left to follow.
+        private void TrackTopLevelActivation()
+        {
+            var window = TopLevel.GetTopLevel(this) as WindowBase;
+            if (ReferenceEquals(window, _activationSource))
+                return;
+
+            StopTrackingTopLevelActivation();
+            if (window is null)
+                return;
+
+            _activationSource = window;
+            window.Activated += OnTopLevelActivated;
+            window.Deactivated += OnTopLevelDeactivated;
+        }
+
+        private void StopTrackingTopLevelActivation()
+        {
+            if (_activationSource is null)
+                return;
+
+            _activationSource.Activated -= OnTopLevelActivated;
+            _activationSource.Deactivated -= OnTopLevelDeactivated;
+            _activationSource = null;
+        }
+
+        private void OnTopLevelActivated(object? sender, EventArgs e)
+        {
+            if (IsFocused && TryGetAdapter() is Core.IWebViewAdapterWithFocus withFocus)
+                withFocus.Focus();
+        }
+
+        private void OnTopLevelDeactivated(object? sender, EventArgs e)
+        {
+            if (IsFocused && TryGetAdapter() is Core.IWebViewAdapterWithFocus withFocus)
+                withFocus.ResignFocus();
+        }
+#endif
 
         private void WithFocusOnGotFocus(object? sender, EventArgs e)
         {
