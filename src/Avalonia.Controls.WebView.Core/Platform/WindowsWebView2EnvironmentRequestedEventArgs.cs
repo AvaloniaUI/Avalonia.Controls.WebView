@@ -24,6 +24,10 @@ public sealed class WindowsWebView2EnvironmentRequestedEventArgs : WebViewEnviro
     /// <summary>
     /// Gets or sets an existing ICoreWebView2Environment COM reference handle that the webview adapter will use instead of managing its own.
     /// </summary>
+    /// <remarks>
+    /// The environment's creator registers its custom schemes,
+    /// <see cref="WebViewEnvironmentRequestedEventArgs.CustomSchemes"/> only answers them.
+    /// </remarks>
     public IntPtr ExplicitEnvironment { get; set; }
 
     /// <summary>

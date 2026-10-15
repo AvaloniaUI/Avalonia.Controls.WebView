@@ -13,7 +13,7 @@ internal partial interface ICoreWebView2WebResourceRequestedEventArgs
     IntPtr GetResponse();
     void SetResponse(IntPtr response);
 
-    IntPtr GetDeferral();
+    ICoreWebView2Deferral GetDeferral();
 
     int GetResourceContext();
 }

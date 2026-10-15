@@ -1,0 +1,11 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Avalonia.Controls.WebView.Samples.LocalContentView">
+    <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Margin="10"
+                   Text="{Binding #WebView.Source}" />
+        <NativeWebView x:Name="WebView"
+                       EnvironmentRequested="WebView_OnEnvironmentRequested"
+                       WebResourceRequested="WebView_OnWebResourceRequested" />
+    </DockPanel>
+</UserControl>

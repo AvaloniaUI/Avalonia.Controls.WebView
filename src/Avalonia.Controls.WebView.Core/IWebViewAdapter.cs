@@ -3,8 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls.Rendering;
 using Avalonia.Input;
@@ -44,6 +46,20 @@ public abstract class WebViewEnvironmentRequestedEventArgs : EventArgs
     public bool EnableDevTools { get; set; }
 
     /// <summary>
+    /// Custom URI schemes, such as <c>app</c>, answered through <see cref="WebResourceRequestedEventArgs.Response"/>.
+    /// </summary>
+    /// <remarks>
+    /// Registered as secure and with an authority, so <c>app://localhost</c> is an origin.
+    /// Unanswered requests get a 404.
+    /// Android WebView can't register schemes, answer an https host there instead,
+    /// such as <c>https://appassets.androidplatform.net/</c>, whose unanswered requests go to the network.
+    /// WebView2 only lets pages on these schemes fetch from or post to them, other pages can still embed them.
+    /// WebView2 web views that share a user data folder need the same schemes.
+    /// Adding an invalid or built-in scheme, such as <c>https</c>, throws <see cref="ArgumentException"/>.
+    /// </remarks>
+    public IList<string> CustomSchemes { get; } = new Utils.CustomSchemeCollection();
+
+    /// <summary>
     /// Gets a deferral that can be used to delay the completion of the event.
     /// </summary>
     public IDisposable GetDeferral() => _deferralManager.GetDeferral();
@@ -56,7 +72,97 @@ public sealed class WebMessageReceivedEventArgs : EventArgs
 
 public sealed class WebResourceRequestedEventArgs : EventArgs
 {
+    private DeferralManager? _deferralManager;
+
     public required WebViewWebResourceRequest Request { get; init; }
+
+    /// <summary>
+    /// Gets or sets a response that the web view uses instead of loading the resource.
+    /// </summary>
+    /// <remarks>
+    /// Applies to every request on WebView2 and Android,
+    /// and to <see cref="WebViewEnvironmentRequestedEventArgs.CustomSchemes"/> on WKWebView, WebKitGTK and WPE.
+    /// WebView1 ignores it.
+    /// The web view disposes <see cref="WebViewWebResourceResponse.Content"/>,
+    /// but not a response replaced by another handler or set after the request continued.
+    /// WebView2, WebKitGTK and WPE read the whole body into memory before answering.
+    /// A handler that throws leaves the request unanswered. Request bodies aren't available.
+    /// </remarks>
+    public WebViewWebResourceResponse? Response { get; set; }
+
+    /// <summary>
+    /// Gets a deferral that delays the request until it is disposed,
+    /// so <see cref="Response"/> can be set asynchronously.
+    /// </summary>
+    /// <remarks>
+    /// Take it before the handler's first await, a later deferral doesn't delay the request.
+    /// Only requests that <see cref="Response"/> applies to wait for it.
+    /// Disposing it more than once has no effect.
+    /// Android WebView blocks one of its loading threads until it's disposed.
+    /// </remarks>
+    public IDisposable GetDeferral() => new Deferral((_deferralManager ??= new DeferralManager()).GetDeferral());
+
+    internal Task WaitForDeferralsAsync() => _deferralManager?.WaitForDeferralsAsync() ?? Task.CompletedTask;
+
+    // A second Dispose would release another handler's deferral.
+    private sealed class Deferral(IDisposable deferral) : IDisposable
+    {
+        private IDisposable? _deferral = deferral;
+
+        public void Dispose() => Interlocked.Exchange(ref _deferral, null)?.Dispose();
+    }
+}
+
+/// <summary>
+/// A response synthesized by the application, see <see cref="WebResourceRequestedEventArgs.Response"/>.
+/// </summary>
+public sealed class WebViewWebResourceResponse
+{
+    private readonly int _statusCode = (int)HttpStatusCode.OK;
+
+    /// <summary>
+    /// Gets the HTTP status code, from 100 to 599. Defaults to 200.
+    /// </summary>
+    /// <remarks>
+    /// Android WebView rejects redirect codes (300-399), so they become 500 there,
+    /// and WKWebView, WebKitGTK and WPE don't follow them.
+    /// </remarks>
+    public int StatusCode
+    {
+        get => _statusCode;
+        init => _statusCode = value is >= 100 and <= 599 ?
+            value :
+            throw new ArgumentOutOfRangeException(nameof(value), value, "HTTP status codes range from 100 to 599.");
+    }
+
+    /// <summary>
+    /// Gets the HTTP reason phrase. Defaults to the standard phrase of <see cref="StatusCode"/>.
+    /// </summary>
+    /// <remarks>
+    /// WKWebView doesn't pass the reason phrase on.
+    /// A blank phrase, or one that isn't printable ASCII, is replaced by the standard phrase.
+    /// </remarks>
+    public string? ReasonPhrase { get; init; }
+
+    /// <summary>
+    /// Gets the response headers, such as <c>Content-Type</c>. Header names are case-insensitive.
+    /// </summary>
+    public IDictionary<string, string> Headers { get; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the response body, or null for an empty body.
+    /// </summary>
+    /// <remarks>
+    /// With status 200, a seekable stream also answers a single-range Range request with 206,
+    /// which audio and video need to seek. The body starts at the stream's position.
+    /// WebView2 reads each body into memory. For http and https it answers an open-ended range, such as
+    /// <c>bytes=0-</c>, with at most 4 MiB and the client asks for the rest, but Chromium only honors
+    /// Content-Range there, so a custom scheme reads the rest of the file at once. Serve long media from an
+    /// https host, such as the one on Android, there.
+    /// WebKitGTK and WPE don't play audio or video from custom schemes, a page can use a blob URL there.
+    /// </remarks>
+    public Stream? Content { get; init; }
 }
 
 public abstract class WebViewWebRequestHeaders : IReadOnlyDictionary<string, string>
@@ -305,6 +411,7 @@ internal interface IWebView
     /// Arguments include request information, and headers dictionary.
     /// Headers dictionary can be readonly depending on the request or platform.
     /// Always check result of the `TrySet` and `TryRemove` methods.
+    /// Set <see cref="WebResourceRequestedEventArgs.Response"/> to answer the request from the application.
     /// </remarks>
     event EventHandler<WebResourceRequestedEventArgs> WebResourceRequested;
     

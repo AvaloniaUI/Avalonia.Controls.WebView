@@ -15,9 +15,11 @@ namespace Avalonia.Controls.Gtk;
 
 internal static partial class AvaloniaGtk
 {
+    private static readonly Dictionary<string, string[]> s_libraries;
+
     static AvaloniaGtk()
     {
-        var map = new Dictionary<string, string[]>
+        var map = s_libraries = new Dictionary<string, string[]>
         {
             [GtkInterop.LibGtk] = ["libgtk-3.so.0", "libgtk-3.so"],
             [GtkInterop.LibGdk] = ["libgdk-3.so.0", "libgdk-3.so"],
@@ -64,6 +66,20 @@ internal static partial class AvaloniaGtk
     }
 
     public static bool HasSoup3 { get; }
+
+    /// <summary>
+    /// Loads a library by its <see cref="GtkInterop"/> name, which NativeLibrary.Load doesn't resolve.
+    /// </summary>
+    public static IntPtr LoadLibrary(string name)
+    {
+        foreach (var candidate in s_libraries[name])
+        {
+            if (NativeLibrary.TryLoad(candidate, out var handle))
+                return handle;
+        }
+        throw new DllNotFoundException(
+            $"Unable to load {name}, expected one of: {string.Join(',', s_libraries[name])}");
+    }
 
     /// <summary>
     /// Checks that GTK can initialize with the x11 GDK backend, which the GTK adapters require.
