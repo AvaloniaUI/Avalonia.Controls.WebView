@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AvaloniaUI.Xpf.WpfAbstractions" Version="1.0.2-cibuild000026"/>
+    <PackageReference Include="AvaloniaUI.Xpf.WpfAbstractions" Version="1.0.2-cibuild000029"/>
   </ItemGroup>
 
   <ItemGroup>
