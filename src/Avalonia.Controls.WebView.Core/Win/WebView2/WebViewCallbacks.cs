@@ -12,7 +12,8 @@ namespace Avalonia.Controls.Win.WebView2;
 internal partial class WebViewCallbacks(WeakReference<WebView2BaseAdapter> weakAdapter) : ICoreWebView2NavigationStartingEventHandler,
     ICoreWebView2NavigationCompletedEventHandler, ICoreWebView2WebMessageReceivedEventHandler,
     ICoreWebView2NewWindowRequestedEventHandler, ICoreWebView2WebResourceRequestedEventHandler,
-    ICoreWebView2MoveFocusRequestedEventHandler, ICoreWebView2FocusChangedEventHandler, ICoreWebView2CursorChangedEventHandler
+    ICoreWebView2MoveFocusRequestedEventHandler, ICoreWebView2FocusChangedEventHandler, ICoreWebView2CursorChangedEventHandler,
+    ICoreWebView2ProcessFailedEventHandler
 {
     public void Invoke(ICoreWebView2 sender, ICoreWebView2NavigationStartingEventArgs e)
     {
@@ -23,6 +24,29 @@ internal partial class WebViewCallbacks(WeakReference<WebView2BaseAdapter> weakA
             var args = new WebViewNavigationStartingEventArgs { Request = uri };
             handler.Invoke(adapter, args);
             if (args.Cancel) e.SetCancel(1);
+        }
+    }
+
+    public void Invoke(ICoreWebView2 sender, ICoreWebView2ProcessFailedEventArgs e)
+    {
+        if (weakAdapter.TryGetTarget(out var adapter)
+            && adapter.GetProcessTerminated() is { } handler)
+        {
+            var kind = e.GetProcessFailedKind();
+            // Only render and browser process exits mean the web content is gone.
+            // WebView2 recovers automatically from the rest (unresponsive, GPU process, etc.).
+            if (kind is COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED
+                or COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED
+                or COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_FRAME_RENDER_PROCESS_EXITED)
+            {
+                var reason = kind switch
+                {
+                    COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED => "BrowserProcessExited",
+                    COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED => "RenderProcessExited",
+                    _ => "FrameRenderProcessExited",
+                };
+                handler.Invoke(adapter, new WebViewProcessTerminatedEventArgs { Reason = reason });
+            }
         }
     }
 

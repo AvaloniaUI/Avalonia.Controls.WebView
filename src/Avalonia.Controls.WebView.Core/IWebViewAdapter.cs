@@ -100,6 +100,14 @@ public class WebViewNavigationEventArgs : EventArgs
     public Uri? Request { get; init; }
 }
 
+public sealed class WebViewProcessTerminatedEventArgs : EventArgs
+{
+    /// <summary>
+    /// Platform-specific detail about the web content process termination, or null if the platform doesn't provide one.
+    /// </summary>
+    public string? Reason { get; init; }
+}
+
 public sealed class WebViewNavigationCompletedEventArgs : WebViewNavigationEventArgs
 {
     public bool IsSuccess { get; init; } = true;
@@ -388,6 +396,16 @@ internal interface IWebViewAdapterWithFocus : IWebViewAdapter
 internal interface IWebViewAdapterWithInputRedirect : IWebViewAdapter
 {
     event Action<RoutedEventArgs> Input;
+}
+
+internal interface IWebViewAdapterWithProcessTermination : IWebViewAdapter
+{
+    /// <summary>
+    ///     ProcessTerminated dispatches when the web content process backing the webview is gone,
+    ///     for example after a crash or when the operating system reclaims its memory.
+    ///     The event is not raised for recoverable conditions, such as process unresponsiveness.
+    /// </summary>
+    event EventHandler<WebViewProcessTerminatedEventArgs>? ProcessTerminated;
 }
 
 internal interface IWebViewAdapterWithCommands

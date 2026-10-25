@@ -39,6 +39,7 @@ namespace Avalonia.Xpf.Controls
         private EventHandler<Core.WebViewNewWindowRequestedEventArgs>? _newWindowRequested;
         private EventHandler<Core.WebMessageReceivedEventArgs>? _webMessageReceived;
         private EventHandler<Core.WebResourceRequestedEventArgs>? _webResourceRequested;
+        private EventHandler<Core.WebViewProcessTerminatedEventArgs>? _processTerminated;
         private object? _lastSource;
         private string? _initialTitle;
         private bool? _initialCanUserResize;
@@ -210,6 +211,29 @@ namespace Avalonia.Xpf.Controls
                     && TryGetAdapter() is { } adapter)
                 {
                     adapter.WebResourceRequested -= WebViewAdapterOnWebResourceRequested;
+                }
+            }
+        }
+
+        /// <inheritdoc cref="Core.IWebViewAdapterWithProcessTermination.ProcessTerminated"/>
+        public event EventHandler<Core.WebViewProcessTerminatedEventArgs>? ProcessTerminated
+        {
+            add
+            {
+                if (this._processTerminated is null
+                    && TryGetAdapter() is Core.IWebViewAdapterWithProcessTermination adapter)
+                {
+                    adapter.ProcessTerminated += WebViewAdapterOnProcessTerminated;
+                }
+                this._processTerminated += value;
+            }
+            remove
+            {
+                this._processTerminated -= value;
+                if (this._processTerminated is null
+                    && TryGetAdapter() is Core.IWebViewAdapterWithProcessTermination adapter)
+                {
+                    adapter.ProcessTerminated -= WebViewAdapterOnProcessTerminated;
                 }
             }
         }
@@ -596,6 +620,10 @@ namespace Avalonia.Xpf.Controls
             adapter.WebMessageReceived -= WebViewAdapterOnWebMessageReceived;
             adapter.WebResourceRequested -= WebViewAdapterOnWebResourceRequested;
             adapter.NewWindowRequested -= WebViewAdapterOnNewWindowRequested;
+            if (adapter is Core.IWebViewAdapterWithProcessTermination withProcessTermination)
+            {
+                withProcessTermination.ProcessTerminated -= WebViewAdapterOnProcessTerminated;
+            }
             _dialogInitialized = false;
             _shown = false;
             AdapterDestroyed?.Invoke(this, e);
@@ -624,6 +652,11 @@ namespace Avalonia.Xpf.Controls
                 adapter.WebResourceRequested += WebViewAdapterOnWebResourceRequested;
             if (_newWindowRequested is not null)
                 adapter.NewWindowRequested += WebViewAdapterOnNewWindowRequested;
+            if (adapter is Core.IWebViewAdapterWithProcessTermination withProcessTermination
+                && _processTerminated is not null)
+            {
+                withProcessTermination.ProcessTerminated += WebViewAdapterOnProcessTerminated;
+            }
             if (_lastSource is Uri url)
                 adapter.Source = url;
             else if (_lastSource is ValueTuple<string, Uri?> pair)
@@ -661,6 +694,11 @@ namespace Avalonia.Xpf.Controls
         private void WebViewAdapterOnNewWindowRequested(object? sender, Core.WebViewNewWindowRequestedEventArgs e)
         {
             _newWindowRequested?.Invoke(this, e);
+        }
+
+        private void WebViewAdapterOnProcessTerminated(object? sender, Core.WebViewProcessTerminatedEventArgs e)
+        {
+            _processTerminated?.Invoke(this, e);
         }
     }
 }
