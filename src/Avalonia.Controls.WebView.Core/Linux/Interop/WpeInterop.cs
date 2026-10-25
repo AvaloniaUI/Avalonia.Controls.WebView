@@ -293,6 +293,9 @@ internal static unsafe partial class WpeInterop
     public static partial void g_main_context_dispatch(IntPtr context);
 
     [LibraryImport(LibGLib)]
+    public static partial void g_main_context_wakeup(IntPtr context);
+
+    [LibraryImport(LibGLib)]
     public static partial void g_free(IntPtr mem);
 
     [LibraryImport(LibGLib)]

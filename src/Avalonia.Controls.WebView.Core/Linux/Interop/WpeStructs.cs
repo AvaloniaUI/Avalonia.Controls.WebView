@@ -120,6 +120,56 @@ internal struct WpeViewBackendExportableFdoClient
     public IntPtr Reserved1;
 }
 
+internal enum WpeEventType
+{
+    None = 0,
+    PointerDown = 1,
+    PointerUp = 2,
+    PointerMove = 3,
+    PointerEnter = 4,
+    PointerLeave = 5,
+    Scroll = 6,
+    KeyboardKeyDown = 7,
+    KeyboardKeyUp = 8
+}
+
+internal enum WpeInputSource
+{
+    Mouse = 0,
+    Pen = 1,
+    Keyboard = 2
+}
+
+internal static class WpePlatformModifier
+{
+    public const uint PointerButton1 = 1 << 8;
+    public const uint PointerButton2 = 1 << 9;
+    public const uint PointerButton3 = 1 << 10;
+}
+
+internal static class DrmFourcc
+{
+    public const uint Argb8888 = 0x34325241;
+    public const uint Xrgb8888 = 0x34325258;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct GError
+{
+    public uint Domain;
+    public int Code;
+    public IntPtr Message;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct GTypeQuery
+{
+    public IntPtr Type;
+    public IntPtr TypeName;
+    public uint ClassSize;
+    public uint InstanceSize;
+}
+
 [StructLayout(LayoutKind.Sequential)]
 internal struct GValue
 {

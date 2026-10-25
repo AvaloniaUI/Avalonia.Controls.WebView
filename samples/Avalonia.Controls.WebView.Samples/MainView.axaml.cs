@@ -288,6 +288,8 @@ public partial class MainView : UserControl
     private unsafe void NativeWebView_OnAdapterCreated(object? sender, AC.WebViewAdapterEventArgs e)
     {
         LogList.Text += "\r\nNativeWebView_OnAdapterCreated " + e.TryGetPlatformHandle()?.GetType().Name;
+        if (e.TryGetPlatformHandle() is AP.ILinuxWpePlatformHandle wpe)
+            LogList.Text += "\r\nWPE API: " + (wpe.WpeView != IntPtr.Zero ? AP.WpeApi.Platform : AP.WpeApi.Legacy);
 
         // if (e.TryGetPlatformHandle() is IWindowsWebView2PlatformHandle webView2)
         // {
@@ -326,6 +328,18 @@ public partial class MainView : UserControl
             wkWebView.ApplicationNameForUserAgent = "Avalonia WebView Sample";
             wkWebView.LimitsNavigationsToAppBoundDomains = true;
         }
+        else if (e is AP.LinuxWpeWebViewEnvironmentRequestedEventArgs wpe)
+        {
+            ConfigureWpe(wpe);
+        }
+    }
+
+    private static void ConfigureWpe(AP.LinuxWpeWebViewEnvironmentRequestedEventArgs wpe)
+    {
+        if (Enum.TryParse<AP.WpeApi>(Environment.GetEnvironmentVariable("SAMPLE_WPE_API"), true, out var api))
+            wpe.Api = api;
+        if (Enum.TryParse<AP.WpeRenderingMode>(Environment.GetEnvironmentVariable("SAMPLE_WPE_RENDERING_MODE"), true, out var mode))
+            wpe.RenderingMode = mode;
     }
 
     private void Make_Transparent_Clicked(object? sender, RoutedEventArgs e)
@@ -431,6 +445,8 @@ public partial class MainView : UserControl
         dialog.EnvironmentRequested += (_, args) =>
         {
             args.EnableDevTools = true;
+            if (args is AP.LinuxWpeWebViewEnvironmentRequestedEventArgs wpe)
+                ConfigureWpe(wpe);
         };
         dialog.Show();
     }
