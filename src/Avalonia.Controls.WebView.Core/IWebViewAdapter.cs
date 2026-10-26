@@ -403,8 +403,13 @@ internal interface IWebViewAdapterWithProcessTermination : IWebViewAdapter
     /// <summary>
     ///     ProcessTerminated dispatches when the web content process backing the webview is gone,
     ///     for example after a crash or when the operating system reclaims its memory.
-    ///     The event is not raised for recoverable conditions, such as process unresponsiveness.
+    ///     The event is not raised for recoverable conditions, such as process unresponsiveness,
+    ///     nor when only subframe processes exit and the top-level document survives.
     /// </summary>
+    /// <remarks>
+    ///     Raised by the WebView2, WKWebView, WebKitGTK and WPE WebKit adapters.
+    ///     The headless, browser and Android adapters do not raise it.
+    /// </remarks>
     event EventHandler<WebViewProcessTerminatedEventArgs>? ProcessTerminated;
 }
 

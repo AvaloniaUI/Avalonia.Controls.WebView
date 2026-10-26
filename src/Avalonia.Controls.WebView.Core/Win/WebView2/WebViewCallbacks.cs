@@ -33,17 +33,17 @@ internal partial class WebViewCallbacks(WeakReference<WebView2BaseAdapter> weakA
             && adapter.GetProcessTerminated() is { } handler)
         {
             var kind = e.GetProcessFailedKind();
-            // Only render and browser process exits mean the web content is gone.
-            // WebView2 recovers automatically from the rest (unresponsive, GPU process, etc.).
+            // Only browser and main-frame render process exits mean the web content is gone.
+            // A frame-only render exit leaves the top-level document running and replaces the
+            // affected frames with error pages, so it is not reported here. WebView2 recreates
+            // the remaining processes automatically (unresponsive, GPU, utility, sandbox helper).
             if (kind is COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED
-                or COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED
-                or COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_FRAME_RENDER_PROCESS_EXITED)
+                or COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED)
             {
                 var reason = kind switch
                 {
                     COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED => "BrowserProcessExited",
-                    COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED => "RenderProcessExited",
-                    _ => "FrameRenderProcessExited",
+                    _ => "RenderProcessExited",
                 };
                 handler.Invoke(adapter, new WebViewProcessTerminatedEventArgs { Reason = reason });
             }

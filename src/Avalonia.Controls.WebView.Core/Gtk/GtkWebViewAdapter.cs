@@ -25,22 +25,6 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
         Finished
     }
 
-    // WebKitWebProcessTerminationReason
-    private enum WebKitWebProcessTerminationReason
-    {
-        Crashed = 0,
-        ExceededMemoryLimit = 1,
-        TerminatedByApi = 2
-    }
-
-    internal static string GetTerminationReasonName(int reason) => reason switch
-    {
-        (int)WebKitWebProcessTerminationReason.Crashed => "Crashed",
-        (int)WebKitWebProcessTerminationReason.ExceededMemoryLimit => "ExceededMemoryLimit",
-        (int)WebKitWebProcessTerminationReason.TerminatedByApi => "TerminatedByApi",
-        _ => $"Unknown({reason})"
-    };
-
     private static readonly unsafe IntPtr s_decidePolicyCallback =
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, int, IntPtr, int>)&DecidePolicy);
 
@@ -643,7 +627,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
             return;
         }
 
-        var reasonName = GetTerminationReasonName(reason);
+        var reasonName = WebKitWebProcessTermination.GetReasonName(reason);
         WebViewDispatcher.InvokeAsync(() =>
         {
             handler.Invoke(adapter, new WebViewProcessTerminatedEventArgs { Reason = reasonName });

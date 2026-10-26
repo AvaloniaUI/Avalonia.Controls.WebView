@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Avalonia.Controls.Win.WebView2;
 using Avalonia.Controls.Win.WebView2.Interop;
-using Avalonia.Controls.Gtk;
+using Avalonia.Controls.Linux;
 using Avalonia.Controls.Win;
 using Avalonia.Headless.XUnit;
 using Xunit;
@@ -17,7 +17,6 @@ public class ProcessTerminatedTests : HeadlessTestsBase
     [Theory]
     [InlineData((int)COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED, "BrowserProcessExited")]
     [InlineData((int)COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED, "RenderProcessExited")]
-    [InlineData((int)COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_FRAME_RENDER_PROCESS_EXITED, "FrameRenderProcessExited")]
     public void WebView2Adapter_Raises_ProcessTerminated_With_Reason(int kind, string expectedReason)
     {
         var adapter = new TestableAdapter(new FakeController());
@@ -31,9 +30,10 @@ public class ProcessTerminatedTests : HeadlessTestsBase
     }
 
     [Theory]
+    [InlineData((int)COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_FRAME_RENDER_PROCESS_EXITED)]
     [InlineData((int)COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_UNRESPONSIVE)]
     [InlineData((int)COREWEBVIEW2_PROCESS_FAILED_KIND.COREWEBVIEW2_PROCESS_FAILED_KIND_GPU_PROCESS_EXITED)]
-    public void WebView2Adapter_Does_Not_Raise_ProcessTerminated_For_Recoverable_Failures(int kind)
+    public void WebView2Adapter_Does_Not_Raise_ProcessTerminated_For_Frame_Only_Or_Recoverable_Failures(int kind)
     {
         var adapter = new TestableAdapter(new FakeController());
         var raised = false;
@@ -49,9 +49,15 @@ public class ProcessTerminatedTests : HeadlessTestsBase
     [InlineData(1, "ExceededMemoryLimit")]
     [InlineData(2, "TerminatedByApi")]
     [InlineData(42, "Unknown(42)")]
-    public void GtkAdapter_Maps_Termination_Reason_Names(int reason, string expectedName)
+    public void WebKit_Process_Termination_Maps_Reason_Names(int reason, string expectedName)
     {
-        Assert.Equal(expectedName, GtkWebViewAdapter.GetTerminationReasonName(reason));
+        Assert.Equal(expectedName, WebKitWebProcessTermination.GetReasonName(reason));
+    }
+
+    [Fact]
+    public void WpeAdapter_Exposes_Process_Termination_Capability()
+    {
+        Assert.Contains(typeof(IWebViewAdapterWithProcessTermination), typeof(WpeWebViewAdapter).GetInterfaces());
     }
 
     [AvaloniaFact]
