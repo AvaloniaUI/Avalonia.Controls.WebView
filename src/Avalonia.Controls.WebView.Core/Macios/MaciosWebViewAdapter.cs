@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.Versioning;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls.Macios.Interop;
 using Avalonia.Controls.Macios.Interop.WebKit;
@@ -21,12 +22,17 @@ namespace Avalonia.Controls.Macios;
 internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterWithInputRedirect,
     IWebViewAdapterWithCookieManager, IWebViewAdapterWithCommands, IWebViewWithPrint, IAppleWKWebViewPlatformHandle
 {
+    private const int SchemeTaskChunkSize = 64 * 1024;
+
     private readonly string _scriptHandlerMessageName;
     private readonly NSString _scriptHandlerMessageNameNative;
     private readonly WKWebViewConfiguration _config;
     private readonly WKWebView _webView;
     private readonly WKNavigationDelegate _navDelegate;
     private readonly WKScriptMessageHandler _scriptHandler;
+    private readonly string[] _customSchemes;
+    private readonly WKURLSchemeHandler? _schemeHandler;
+    private readonly Dictionary<IntPtr, (WKURLSchemeTask Task, CancellationTokenSource Cancellation)> _schemeTasks = [];
     private bool _disposed;
 
     static MaciosWebViewAdapter()
@@ -36,6 +42,14 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
     public MaciosWebViewAdapter(AppleWKWebViewEnvironmentRequestedEventArgs options)
     {
+        _customSchemes = WebResourceResponseHelper.GetCustomSchemes(options);
+        foreach (var scheme in _customSchemes)
+        {
+            // WebKit raises an Objective-C exception for these.
+            if (WKWebView.HandlesURLScheme(scheme))
+                throw new ArgumentException($"WKWebView handles the '{scheme}' scheme itself.", nameof(options));
+        }
+
         _scriptHandler = new WKScriptMessageHandler();
         _scriptHandler.DidReceiveScriptMessage += OnScriptHandlerOnDidReceiveScriptMessage;
 
@@ -44,6 +58,18 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _config = new WKWebViewConfiguration { JavaScriptEnabled = true };
         _config.AddScriptMessageHandler(_scriptHandler, _scriptHandlerMessageNameNative);
         _config.AddUserScript(WebViewHelper.BuildWebKitInvokeCSharpActionScript(_scriptHandlerMessageName, stringify: true));
+
+        if (_customSchemes.Length > 0)
+        {
+            _schemeHandler = new WKURLSchemeHandler();
+            _schemeHandler.StartURLSchemeTask += OnSchemeHandlerStartURLSchemeTask;
+            _schemeHandler.StopURLSchemeTask += OnSchemeHandlerStopURLSchemeTask;
+            foreach (var scheme in _customSchemes)
+            {
+                using var nsScheme = NSString.Create(scheme);
+                _config.SetURLSchemeHandler(_schemeHandler, nsScheme);
+            }
+        }
 
         if (options.ApplicationNameForUserAgent is not null)
         {
@@ -238,6 +264,21 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         _webView.NavigationDelegate = null;
         _webView.LoadRequest(null);
 
+        if (_schemeHandler is not null)
+        {
+            _schemeHandler.StartURLSchemeTask -= OnSchemeHandlerStartURLSchemeTask;
+            _schemeHandler.StopURLSchemeTask -= OnSchemeHandlerStopURLSchemeTask;
+            foreach (var (schemeTask, cancellation) in _schemeTasks.Values)
+            {
+                // Not stopped by WebKit, so it still waits for an answer.
+                if (!cancellation.IsCancellationRequested)
+                    schemeTask.DidFailWithError(NSError.CreateUrlError(NSURLErrorCode.Cancelled));
+                cancellation.Cancel();
+            }
+            _schemeTasks.Clear();
+            _schemeHandler.Dispose();
+        }
+
         _scriptHandler.Dispose();
         _navDelegate.Dispose();
         _config.Dispose();
@@ -284,12 +325,92 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
         }
     }
 
+    private void OnSchemeHandlerStopURLSchemeTask(object? sender, WKURLSchemeHandler.URLSchemeTaskEventArgs e)
+    {
+        if (_schemeTasks.TryGetValue(e.Task, out var schemeTask))
+            schemeTask.Cancellation.Cancel();
+    }
+
+    private async void OnSchemeHandlerStartURLSchemeTask(object? sender, WKURLSchemeHandler.URLSchemeTaskEventArgs e)
+    {
+        // WebKit calls both callbacks on the main thread, and every continuation below returns to it.
+        using var task = new WKURLSchemeTask(e.Task);
+        using var cancellation = new CancellationTokenSource();
+        var ct = cancellation.Token;
+        _schemeTasks[e.Task] = (task, cancellation);
+        WebViewWebResourceResponse? response = null;
+        try
+        {
+            using var request = task.Request;
+            using var nsUrl = request.Url;
+            var headers = new NativeHeadersCollection(new WKWebKitNativeHttpRequestHeaders(request, true));
+            try
+            {
+                var webRequest = new WebViewWebResourceRequest
+                {
+                    Method = request.HTTPMethod.GetString() is { } method ? new HttpMethod(method) : HttpMethod.Get,
+                    Uri = new Uri(nsUrl.AbsoluteString!),
+                    Headers = headers,
+                };
+                // Waited without ct, so a late response is still disposed below.
+                response = await WebResourceResponseHelper.RaiseAsync(this, WebResourceRequested, webRequest)
+                    ?? WebResourceResponseHelper.NotFound();
+                response = WebResourceResponseHelper.ApplyRange(webRequest, response);
+            }
+            finally
+            {
+                headers.Dispose();
+            }
+
+            if (ct.IsCancellationRequested)
+                return;
+            using (var httpResponse = NSHTTPURLResponse.Create(
+                       nsUrl, response.StatusCode, WebResourceResponseHelper.GetValidHeaders(response)))
+            {
+                task.DidReceiveResponse(httpResponse);
+            }
+
+            if (response.Content is { } content)
+            {
+                var buffer = new byte[SchemeTaskChunkSize];
+                int read;
+                while ((read = await content.ReadAsync(buffer, ct)) > 0)
+                {
+                    if (ct.IsCancellationRequested)
+                        return;
+                    using var data = NSData.Create(buffer.AsSpan(0, read));
+                    task.DidReceiveData(data);
+                }
+            }
+
+            if (!ct.IsCancellationRequested)
+                task.DidFinish();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Stopped by WebKit.
+        }
+        catch (Exception ex)
+        {
+            WebResourceResponseHelper.LogError("Failed to answer a custom scheme request: {Exception}", ex);
+            if (!ct.IsCancellationRequested)
+                task.DidFailWithError(NSError.CreateUrlError(NSURLErrorCode.ResourceUnavailable));
+        }
+        finally
+        {
+            _schemeTasks.Remove(e.Task);
+            WebResourceResponseHelper.DisposeContent(response);
+        }
+    }
+
     private void OnDelegateOnDecidePolicyNavigation(object? _, WKNavigationDelegate.DecidePolicyNavigationEventArgs args)
     {
         using var nsUrl = args.Request.Url;
         var url = new Uri(nsUrl.AbsoluteString!);
 
-        if (WebResourceRequested is { } webResourceRequested)
+        // Custom scheme requests are raised by the scheme handler instead, where they can be answered.
+        if (WebResourceRequested is { } webResourceRequested
+            && !WebResourceResponseHelper.IsCustomScheme(url, _customSchemes))
         {
             var headers = new WKWebKitNativeHttpRequestHeaders(args.Request, true);
             var headersWrapper = new NativeHeadersCollection(headers);
@@ -305,6 +426,8 @@ internal class MaciosWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapterW
 
             webResourceRequested.Invoke(this, webResourceArgs);
             headersWrapper.Dispose();
+            // WebKit can't answer http(s) requests from the app.
+            WebResourceResponseHelper.DisposeContentWhenDone(webResourceArgs);
         }
 
         if (args.TargetFrame == IntPtr.Zero)

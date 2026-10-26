@@ -509,12 +509,19 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
                     }
                 };
 
+                // A background thread, so wait for the handlers and their deferrals, which may answer the request.
+                WebViewDispatcher.Invoke(() =>
+                    WebResourceResponseHelper.Raise(this, webResourceRequested, webResourceArgs));
+                webResourceArgs.WaitForDeferralsAsync().GetAwaiter().GetResult();
+
+                if (webResourceArgs.Response is { } response)
+                {
+                    return CreateResponse(webResourceArgs.Request, response);
+                }
+
                 // This flow is tricky. It's only possible to modify request headers for GET requests.
-                // We also don't want to block thread with sync Invoke if not necessary.
                 if (canEditHeaders)
                 {
-                    WebViewDispatcher.Invoke(() => webResourceRequested.Invoke(this, webResourceArgs));
-
                     if (headersWrapper.HasChanges)
                     {
                         try
@@ -567,14 +574,70 @@ internal class AndroidWebViewAdapter : IWebViewAdapterWithFocus, IWebViewAdapter
                         }
                     }
                 }
-                else
-                {
-                    // fallback to base.ShouldInterceptRequest
-                    WebViewDispatcher.InvokeAsync(() => webResourceRequested.Invoke(this, webResourceArgs));
-                }
             }
 
             return base.ShouldInterceptRequest(view, request);
+        }
+
+        private static WebResourceResponse CreateResponse(
+            WebViewWebResourceRequest request, WebViewWebResourceResponse response)
+        {
+            try
+            {
+                response = WebResourceResponseHelper.ApplyRange(request, response, engineSkipsToFirstByte: true);
+                var (mediaType, charSet) = WebResourceResponseHelper.GetContentType(response);
+                var headers = WebResourceResponseHelper.GetValidHeaders(response);
+                // WebView sets both, from the media type and from available(), and would repeat ours.
+                var size = GetBodySize(response, headers);
+                headers.Remove(HttpHeaderNames.ContentLength);
+                if (!string.IsNullOrEmpty(mediaType))
+                    headers.Remove(HttpHeaderNames.ContentType);
+                return new WebResourceResponse(
+                    mediaType,
+                    charSet,
+                    response.StatusCode,
+                    WebResourceResponseHelper.GetReasonPhrase(response),
+                    headers,
+                    // The binding unwraps the invoker, so Java reads our stream.
+                    response.Content is { } content ?
+                        new InputStreamInvoker(new ResponseInputStream(content, size)) :
+                        System.IO.Stream.Null);
+            }
+            catch (Exception ex)
+            {
+                // Android rejects redirect status codes, for example.
+                WebResourceResponseHelper.DisposeContent(response);
+                WebResourceResponseHelper.LogError(
+                    "Failed to create the response for a web resource request: {Exception}", ex);
+                // Null would send the request to the network.
+                var error = new WebViewWebResourceResponse { StatusCode = (int)HttpStatusCode.InternalServerError };
+                return new WebResourceResponse(null, null, error.StatusCode,
+                    WebResourceResponseHelper.GetReasonPhrase(error), null, System.IO.Stream.Null);
+            }
+        }
+
+        // What's left of the stream, or else a 200 response's Content-Length. 0 is unknown, and so is a body
+        // past 2 GB, which WebView would also check ranges against.
+        private static int GetBodySize(WebViewWebResourceResponse response, Dictionary<string, string> headers)
+        {
+            long size = -1;
+            if (response.Content is RangeStream range)
+                size = range.Remaining;
+            else if (response.Content is { CanSeek: true } content)
+            {
+                try
+                {
+                    size = content.Length - content.Position;
+                }
+                catch (NotSupportedException)
+                {
+                }
+            }
+            if (size < 0 && response.StatusCode == (int)HttpStatusCode.OK
+                && headers.TryGetValue(HttpHeaderNames.ContentLength, out var value))
+                long.TryParse(value, System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out size);
+            return size is > 0 and <= int.MaxValue ? (int)size : 0;
         }
 
 #pragma warning disable CS0672 // Member overrides obsolete member

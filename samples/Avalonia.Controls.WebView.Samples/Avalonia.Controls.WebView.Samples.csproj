@@ -15,6 +15,9 @@
         </PackageReference>
     </ItemGroup>
     <ItemGroup>
+        <EmbeddedResource Include="LocalContent\**" LogicalName="LocalContent/%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+    <ItemGroup>
 <!--      <PackageReference Include="Avalonia.Controls.WebView" Version="9999.0.0-localbuild" />-->
         <ProjectReference Include="..\..\src\Avalonia.Controls.WebView\Avalonia.Controls.WebView.csproj" />
         <ProjectReference Include="..\..\src\Avalonia.Controls.WebView.Core\Avalonia.Controls.WebView.Core.csproj" />

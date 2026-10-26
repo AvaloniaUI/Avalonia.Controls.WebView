@@ -24,6 +24,7 @@ internal class WKWebViewConfiguration : NSObject
     private static readonly IntPtr s_userScriptInit = Libobjc.sel_getUid("initWithSource:injectionTime:forMainFrameOnly:");
     private static readonly IntPtr s_alloc = Libobjc.sel_getUid("alloc");
     private static readonly IntPtr s_release = Libobjc.sel_getUid("release");
+    private static readonly IntPtr s_setURLSchemeHandler = Libobjc.sel_getUid("setURLSchemeHandler:forURLScheme:");
 
     public WKWebViewConfiguration() : base(s_class)
     {
@@ -85,6 +86,11 @@ internal class WKWebViewConfiguration : NSObject
     {
         var controllerPtr = Libobjc.intptr_objc_msgSend(Handle, s_userContentController);
         Libobjc.void_objc_msgSend(controllerPtr, s_contentRemoveScriptMessageHandlerForName, handlerName.Handle);
+    }
+
+    public void SetURLSchemeHandler(WKURLSchemeHandler handler, NSString scheme)
+    {
+        Libobjc.void_objc_msgSend(Handle, s_setURLSchemeHandler, handler.Handle, scheme.Handle);
     }
 
     public WKPreferences Preferences { get; }

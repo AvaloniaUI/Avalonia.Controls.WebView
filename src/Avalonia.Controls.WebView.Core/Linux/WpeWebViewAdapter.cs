@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls.Linux.Interop;
 using Avalonia.Controls.Rendering;
+using Avalonia.Controls.Utils;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -21,7 +22,8 @@ internal sealed unsafe class WpeWebViewAdapter
       IWebViewAdapterWithCookieManager,
       IWebViewAdapterWithVisibility,
       IWebViewAdapterWithGpuSurface,
-      ILinuxWpePlatformHandle
+      ILinuxWpePlatformHandle,
+      IWebKitUriSchemeTarget
 {
     private IntPtr _webView;
     private IWpeViewBackend? _backend;
@@ -32,6 +34,7 @@ internal sealed unsafe class WpeWebViewAdapter
     private float _currentDeviceScale;
     private Control? _parentControl;
     private bool _disposed;
+    private string[] _customSchemes = [];
 
     // Pin callback delegates to prevent GC
     private readonly GSignalCallback _loadChangedCallback;
@@ -85,6 +88,7 @@ internal sealed unsafe class WpeWebViewAdapter
     {
         _parentControl = parent;
         Dispatcher.UIThread.VerifyAccess();
+        _customSchemes = WebResourceResponseHelper.GetCustomSchemes(args);
 
         _selfHandle = GCHandle.Alloc(this);
         var selfPtr = GCHandle.ToIntPtr(_selfHandle);
@@ -111,6 +115,10 @@ internal sealed unsafe class WpeWebViewAdapter
         if (_userContentManager == IntPtr.Zero)
             throw new InvalidOperationException("webkit_user_content_manager_new failed.");
 
+        // Scheme handlers have to exist before the web view, which uses the default context.
+        if (_customSchemes.Length > 0)
+            WebKitUriSchemeHandler.Wpe.Register(WebKitUriSchemeHandler.Wpe.GetDefaultContext(), _customSchemes);
+
         var webViewType = WpeInterop.webkit_web_view_get_type();
         var networkSessionType = WpeInterop.webkit_network_session_get_type();
         var contentManagerType = WpeInterop.webkit_user_content_manager_get_type();
@@ -124,6 +132,8 @@ internal sealed unsafe class WpeWebViewAdapter
         _webView = WpeInterop.g_object_new_with_properties(webViewType, 3, keys, values);
         if (_webView == IntPtr.Zero)
             throw new InvalidOperationException("webkit_web_view_new failed.");
+        if (_customSchemes.Length > 0)
+            WebKitUriSchemeHandler.Wpe.AddWebView(_webView, this, _customSchemes);
 
         var viewContentManager = WpeInterop.webkit_web_view_get_user_content_manager(_webView);
         if (viewContentManager != IntPtr.Zero && viewContentManager != _userContentManager)
@@ -725,6 +735,12 @@ internal sealed unsafe class WpeWebViewAdapter
     public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
     public event EventHandler<WebResourceRequestedEventArgs>? WebResourceRequested;
 
+    // Posted out of the GLib dispatch, where synchronous calls like AddOrUpdateCookie would deadlock.
+    // Not raised once disposed, the request then gets a 404.
+    public Task<WebViewWebResourceResponse?> RaiseUriSchemeRequestAsync(WebViewWebResourceRequest request) =>
+        Dispatcher.UIThread.InvokeAsync(() =>
+            WebResourceResponseHelper.RaiseAsync(this, _disposed ? null : WebResourceRequested, request));
+
     // --- Static info ---
 
     internal static DetailedWebViewAdapterInfo GetWpeInfo()
@@ -767,6 +783,9 @@ internal sealed unsafe class WpeWebViewAdapter
 
         if (_webView != IntPtr.Zero)
         {
+            if (_customSchemes.Length > 0)
+                WebKitUriSchemeHandler.Wpe.RemoveWebView(_webView);
+
             // Destroying the web view will also destroy the exportable via the
             // GDestroyNotify callback we passed to webkit_web_view_backend_new.
             WpeInterop.g_object_unref(_webView);

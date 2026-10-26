@@ -16,6 +16,7 @@ internal class WKWebView : AppleView
     private static readonly IntPtr s_loadHTMLString = Libobjc.sel_getUid("loadHTMLString:baseURL:");
     private static readonly IntPtr s_url = Libobjc.sel_getUid("URL");
     private static readonly IntPtr s_scrollView = Libobjc.sel_getUid("scrollView");
+    private static readonly IntPtr s_handlesURLScheme = Libobjc.sel_getUid("handlesURLScheme:");
 
     private static readonly IntPtr s_canGoBack = Libobjc.sel_getUid("canGoBack");
     private static readonly IntPtr s_goBack = Libobjc.sel_getUid("goBack");
@@ -65,6 +66,15 @@ internal class WKWebView : AppleView
         // NSObject(IntPtr classHandle) retains on top of the +1 from `alloc`.
         // Drop the `alloc` reference, so the wrapper holds exactly one, and the view is freed once that one is released.
         Release();
+    }
+
+    /// <summary>
+    /// Whether WebKit handles the scheme itself, such schemes can't get a WKURLSchemeHandler.
+    /// </summary>
+    public static bool HandlesURLScheme(string scheme)
+    {
+        using var nsScheme = NSString.Create(scheme);
+        return Libobjc.byte_objc_msgSend(Libobjc.objc_getClass("WKWebView"), s_handlesURLScheme, nsScheme.Handle) != 0;
     }
 
     public WKNavigationDelegate? NavigationDelegate

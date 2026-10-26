@@ -221,6 +221,27 @@ internal static unsafe partial class GtkInterop
     [DllImport(LibGLib)]
     internal static extern void g_error_free(GError* error);
 
+    [LibraryImport(LibGLib, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial GError* g_error_new_literal(uint domain, int code, string message);
+
+    [LibraryImport(LibGLib, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial uint g_quark_from_string(string value);
+
+    [DllImport(LibGLib)]
+    internal static extern IntPtr g_bytes_new(void* data, nuint size);
+
+    [DllImport(LibGLib)]
+    internal static extern void g_bytes_unref(IntPtr bytes);
+
+    [DllImport(LibGio)]
+    internal static extern IntPtr g_memory_input_stream_new_from_bytes(IntPtr bytes);
+
+    [LibraryImport(LibGObject, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial IntPtr g_object_get_data(IntPtr obj, string key);
+
+    [LibraryImport(LibGObject, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial void g_object_set_data(IntPtr obj, string key, IntPtr data);
+
     [DllImport(LibGObject)]
     internal static extern IntPtr g_object_ref(IntPtr handle);
 

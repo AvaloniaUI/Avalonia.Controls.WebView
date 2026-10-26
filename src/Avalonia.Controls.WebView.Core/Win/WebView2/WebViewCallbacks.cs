@@ -68,25 +68,32 @@ internal partial class WebViewCallbacks(WeakReference<WebView2BaseAdapter> weakA
 
     public void Invoke(ICoreWebView2 sender, ICoreWebView2WebResourceRequestedEventArgs e)
     {
-        if (weakAdapter.TryGetTarget(out var adapter)
-            && adapter.GetWebResourceRequested() is { } handler)
-        {
-            var nativeRequest = e.GetRequest();
-            if (Uri.TryCreate(nativeRequest.GetUri(), UriKind.Absolute, out var uri))
-            {
-                var headersWrapper = new NativeHeadersCollection(new WebView2NativeHttpRequestHeaders(nativeRequest.GetHeaders()));
-                var request = new WebViewWebResourceRequest
-                {
-                    Headers = headersWrapper,
-                    Method = new HttpMethod(nativeRequest.GetMethod()),
-                    Uri = uri
-                };
+        if (!weakAdapter.TryGetTarget(out var adapter))
+            return;
 
-                var args = new WebResourceRequestedEventArgs { Request = request };
-                handler.Invoke(adapter, args);
-                headersWrapper.Dispose();
-            }
+        var nativeRequest = e.GetRequest();
+        if (!Uri.TryCreate(nativeRequest.GetUri(), UriKind.Absolute, out var uri))
+            return;
+
+        var isCustomScheme = WebResourceResponseHelper.IsCustomScheme(uri, adapter.CustomSchemes);
+        if (adapter.GetWebResourceRequested() is not { } handler)
+        {
+            WebView2ResourceResponse.Answer(adapter, e, null, isCustomScheme, null);
+            return;
         }
+
+        var headersWrapper = new NativeHeadersCollection(
+            new WebView2NativeHttpRequestHeaders(nativeRequest.GetHeaders()));
+        var request = new WebViewWebResourceRequest
+        {
+            Headers = headersWrapper,
+            Method = new HttpMethod(nativeRequest.GetMethod()),
+            Uri = uri
+        };
+
+        var args = new WebResourceRequestedEventArgs { Request = request };
+        WebResourceResponseHelper.Raise(adapter, handler, args);
+        WebView2ResourceResponse.Answer(adapter, e, args, isCustomScheme, headersWrapper);
     }
 
     public void Invoke(ICoreWebView2Controller sender, ICoreWebView2MoveFocusRequestedEventArgs e)
