@@ -45,7 +45,7 @@ internal partial interface ICoreWebView2
     void add_PermissionRequested([MarshalAs(UnmanagedType.Interface)] IntPtr eventHandler, out EventRegistrationToken token);
     void remove_PermissionRequested(EventRegistrationToken token);
 
-    void add_ProcessFailed([MarshalAs(UnmanagedType.Interface)] IntPtr eventHandler, out EventRegistrationToken token);
+    void add_ProcessFailed([MarshalAs(UnmanagedType.Interface)] ICoreWebView2ProcessFailedEventHandler eventHandler, out EventRegistrationToken token);
     void remove_ProcessFailed(EventRegistrationToken token);
 
     void AddScriptToExecuteOnDocumentCreated([MarshalAs(UnmanagedType.LPWStr)] string javaScript, [MarshalAs(UnmanagedType.Interface)] ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler handler);

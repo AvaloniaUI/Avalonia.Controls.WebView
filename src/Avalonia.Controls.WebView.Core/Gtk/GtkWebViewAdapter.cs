@@ -14,7 +14,8 @@ using static Avalonia.Controls.Gtk.AvaloniaGtk;
 
 namespace Avalonia.Controls.Gtk;
 
-internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatformHandle, IWebViewWithPrintWithOptions
+internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebViewPlatformHandle, IWebViewWithPrintWithOptions,
+    IWebViewAdapterWithProcessTermination
 {
     internal enum WebKitLoadEvent
     {
@@ -45,6 +46,9 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     private static readonly unsafe IntPtr s_resourceLoadStartedCallback =
         new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, IntPtr, void>)&ResourceLoadStartedCallback);
 
+    private static readonly unsafe IntPtr s_processTerminatedCallback =
+        new((delegate* unmanaged[Cdecl]<IntPtr, int, IntPtr, void>)&ProcessTerminatedCallback);
+
     private readonly IntPtr _settings;
     private IntPtr _webViewHandle;
     private GtkSignal? _loadChangedSignal;
@@ -53,6 +57,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     private GtkSignal? _focusOutSignal;
     private GtkSignal? _scriptMessageReceivedSignal;
     private GtkSignal? _resourceLoadStarted;
+    private GtkSignal? _processTerminatedSignal;
     private Uri _source = WebViewHelper.EmptyPage;
     private bool _hostFocusChange;
 
@@ -135,6 +140,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
         _focusInSignal = new GtkSignal(WebViewHandle, "focus-in-event", s_focusInCallback, this);
         _focusOutSignal = new GtkSignal(WebViewHandle, "focus-out-event", s_focusOutCallback, this);
         _resourceLoadStarted = new GtkSignal(WebViewHandle, "resource-load-started", s_resourceLoadStartedCallback, this);
+        _processTerminatedSignal = new GtkSignal(WebViewHandle, "web-process-terminated", s_processTerminatedCallback, this);
     }
 
     public IntPtr WebViewHandle => _webViewHandle;
@@ -185,6 +191,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     public event EventHandler<WebResourceRequestedEventArgs>? WebResourceRequested;
     public event EventHandler? GotFocus;
     public event EventHandler<IWebViewAdapterWithFocus.LostFocusDirection>? LostFocus;
+    public event EventHandler<WebViewProcessTerminatedEventArgs>? ProcessTerminated;
 
     /// <summary>
     /// The GTK toplevel holding the web view, or zero when the adapter has none.
@@ -612,6 +619,22 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void ProcessTerminatedCallback(IntPtr webView, int reason, IntPtr data)
+    {
+        if (!GtkSignal.TryGetState<GtkWebViewAdapter>(data, out var adapter)
+            || adapter.ProcessTerminated is not { } handler)
+        {
+            return;
+        }
+
+        var reasonName = WebKitWebProcessTermination.GetReasonName(reason);
+        WebViewDispatcher.InvokeAsync(() =>
+        {
+            handler.Invoke(adapter, new WebViewProcessTerminatedEventArgs { Reason = reasonName });
+        });
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void ResourceLoadStartedCallback(IntPtr widget, IntPtr resource, IntPtr request, IntPtr data)
     {
         if (!GtkSignal.TryGetState<GtkWebViewAdapter>(data, out var adapter)
@@ -696,6 +719,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
             Interlocked.Exchange(ref _focusOutSignal, null)?.Dispose();
             Interlocked.Exchange(ref _scriptMessageReceivedSignal, null)?.Dispose();
             Interlocked.Exchange(ref _resourceLoadStarted, null)?.Dispose();
+            Interlocked.Exchange(ref _processTerminatedSignal, null)?.Dispose();
         }
 
         var webView = Interlocked.Exchange(ref _webViewHandle, IntPtr.Zero);

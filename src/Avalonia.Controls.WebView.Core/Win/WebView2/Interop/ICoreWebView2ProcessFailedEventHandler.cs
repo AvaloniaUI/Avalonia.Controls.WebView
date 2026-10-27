@@ -1,0 +1,32 @@
+﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
+
+namespace Avalonia.Controls.Win.WebView2.Interop;
+
+internal enum COREWEBVIEW2_PROCESS_FAILED_KIND
+{
+    COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED,
+    COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED,
+    COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_UNRESPONSIVE,
+    COREWEBVIEW2_PROCESS_FAILED_KIND_FRAME_RENDER_PROCESS_EXITED,
+    COREWEBVIEW2_PROCESS_FAILED_KIND_UTILITY_PROCESS_EXITED,
+    COREWEBVIEW2_PROCESS_FAILED_KIND_SANDBOX_HELPER_PROCESS_EXITED,
+    COREWEBVIEW2_PROCESS_FAILED_KIND_GPU_PROCESS_EXITED,
+    COREWEBVIEW2_PROCESS_FAILED_KIND_PPAPI_PLUGIN_PROCESS_EXITED,
+    COREWEBVIEW2_PROCESS_FAILED_KIND_PPAPI_BROKER_PROCESS_EXITED,
+    COREWEBVIEW2_PROCESS_FAILED_KIND_UNKNOWN_PROCESS_EXITED
+}
+
+[GeneratedComInterface(Options = ComInterfaceOptions.ComObjectWrapper)]
+[Guid("8155A9A4-1474-4A86-8CAE-151B0FA6B8CA")]
+internal partial interface ICoreWebView2ProcessFailedEventArgs
+{
+    COREWEBVIEW2_PROCESS_FAILED_KIND GetProcessFailedKind();
+}
+
+[GeneratedComInterface(Options = ComInterfaceOptions.ManagedObjectWrapper)]
+[Guid("79E0AEA4-990B-42D9-AA1D-0FCC2E5BC7F1")]
+internal partial interface ICoreWebView2ProcessFailedEventHandler
+{
+    void Invoke([MarshalAs(UnmanagedType.Interface)] ICoreWebView2 sender, [MarshalAs(UnmanagedType.Interface)] ICoreWebView2ProcessFailedEventArgs args);
+}

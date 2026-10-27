@@ -17,7 +17,8 @@ namespace Avalonia.Controls.Win.WebView2;
 
 [SupportedOSPlatform("windows6.1")] // win7
 internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller controller)
-    : IWebViewAdapterWithCookieManager, IWebViewAdapterWithFocus, IWindowsWebView2PlatformHandle, IWebViewWithPrintWithOptions
+    : IWebViewAdapterWithCookieManager, IWebViewAdapterWithFocus, IWebViewAdapterWithProcessTermination,
+    IWindowsWebView2PlatformHandle, IWebViewWithPrintWithOptions
 {
     private EventHandler<WebResourceRequestedEventArgs>? _webResourceRequested;
     private Action? _subscriptions;
@@ -86,6 +87,7 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
 
     public event EventHandler? GotFocus;
     public event EventHandler<IWebViewAdapterWithFocus.LostFocusDirection>? LostFocus;
+    public event EventHandler<WebViewProcessTerminatedEventArgs>? ProcessTerminated;
 
     public Color DefaultBackground
     {
@@ -291,6 +293,7 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
     internal EventHandler<WebViewNewWindowRequestedEventArgs>? GetNewWindowRequested() => NewWindowRequested;
     internal EventHandler? GetGotFocus() => GotFocus;
     internal EventHandler<IWebViewAdapterWithFocus.LostFocusDirection>? GetLostFocus() => LostFocus;
+    internal EventHandler<WebViewProcessTerminatedEventArgs>? GetProcessTerminated() => ProcessTerminated;
 
     public async Task InitializeAsync(WindowsWebView2EnvironmentRequestedEventArgs environmentArgs)
     {
@@ -344,6 +347,7 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
         webView.add_WebMessageReceived(callbacks, out var webMessageReceivedToken);
         webView.add_WebResourceRequested(callbacks, out var webResourceRequestedToken);
         webView.add_NewWindowRequested(callbacks, out var newWindowRequestedToken);
+        webView.add_ProcessFailed(callbacks, out var processFailedToken);
         controller.add_MoveFocusRequested(callbacks, out var moveFocusRequestedToken);
         controller.add_GotFocus(callbacks, out var gotFocusToken);
         RegisterCallbacks(callbacks);
@@ -355,6 +359,7 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
             webView.remove_WebMessageReceived(webMessageReceivedToken);
             webView.remove_WebResourceRequested(webResourceRequestedToken);
             webView.remove_NewWindowRequested(newWindowRequestedToken);
+            webView.remove_ProcessFailed(processFailedToken);
             controller.remove_MoveFocusRequested(moveFocusRequestedToken);
             controller.remove_GotFocus(gotFocusToken);
             UnregisterCallbacks();

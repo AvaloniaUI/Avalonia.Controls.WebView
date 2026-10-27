@@ -21,6 +21,7 @@ internal sealed unsafe class WpeWebViewAdapter
       IWebViewAdapterWithCookieManager,
       IWebViewAdapterWithVisibility,
       IWebViewAdapterWithGpuSurface,
+      IWebViewAdapterWithProcessTermination,
       ILinuxWpePlatformHandle
 {
     private IntPtr _webView;
@@ -35,6 +36,7 @@ internal sealed unsafe class WpeWebViewAdapter
 
     // Pin callback delegates to prevent GC
     private readonly GSignalCallback _loadChangedCallback;
+    private readonly GSignalCallback _processTerminatedCallback;
     private readonly GSignalDecidePolicyCallback _decidePolicyCallback;
     private readonly GSignalCreateCallback _createCallback;
     private readonly GSignalScriptMessageCallback _scriptMessageCallback;
@@ -45,6 +47,7 @@ internal sealed unsafe class WpeWebViewAdapter
     {
         // Pin callbacks as instance fields
         _loadChangedCallback = OnLoadChanged;
+        _processTerminatedCallback = OnProcessTerminated;
         _decidePolicyCallback = OnDecidePolicy;
         _createCallback = OnCreate;
         _scriptMessageCallback = OnScriptMessageReceived;
@@ -149,6 +152,7 @@ internal sealed unsafe class WpeWebViewAdapter
         ConnectSignal(_webView, "load-failed", Marshal.GetFunctionPointerForDelegate(_loadFailedCallback), selfPtr);
         ConnectSignal(_webView, "decide-policy", Marshal.GetFunctionPointerForDelegate(_decidePolicyCallback), selfPtr);
         ConnectSignal(_webView, "create", Marshal.GetFunctionPointerForDelegate(_createCallback), selfPtr);
+        ConnectSignal(_webView, "web-process-terminated", Marshal.GetFunctionPointerForDelegate(_processTerminatedCallback), selfPtr);
 
         // 4. Register the message handler, connecting before registering so that no message can arrive unhandled.
         ConnectSignal(_userContentManager, $"script-message-received::{WebViewHelper.PostAvWebViewMessageName}",
@@ -226,6 +230,15 @@ internal sealed unsafe class WpeWebViewAdapter
         Uri.TryCreate(failingUri, UriKind.Absolute, out var uri);
         adapter.NavigationCompleted?.Invoke(adapter, new WebViewNavigationCompletedEventArgs { Request = uri, IsSuccess = false });
         return 0; // FALSE = don't suppress default handling
+    }
+
+    private static void OnProcessTerminated(IntPtr webView, int reason, IntPtr userData)
+    {
+        var adapter = (WpeWebViewAdapter)GCHandle.FromIntPtr(userData).Target!;
+        adapter.ProcessTerminated?.Invoke(adapter, new WebViewProcessTerminatedEventArgs
+        {
+            Reason = WebKitWebProcessTermination.GetReasonName(reason)
+        });
     }
 
     // WebKitPolicyDecisionType
@@ -724,6 +737,7 @@ internal sealed unsafe class WpeWebViewAdapter
     public event EventHandler<WebViewNewWindowRequestedEventArgs>? NewWindowRequested;
     public event EventHandler<WebMessageReceivedEventArgs>? WebMessageReceived;
     public event EventHandler<WebResourceRequestedEventArgs>? WebResourceRequested;
+    public event EventHandler<WebViewProcessTerminatedEventArgs>? ProcessTerminated;
 
     // --- Static info ---
 

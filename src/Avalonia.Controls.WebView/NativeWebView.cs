@@ -50,6 +50,7 @@ namespace Avalonia.Xpf.Controls
         private EventHandler<Core.WebViewNewWindowRequestedEventArgs>? _newWindowRequested;
         private EventHandler<Core.WebMessageReceivedEventArgs>? _webMessageReceived;
         private EventHandler<Core.WebResourceRequestedEventArgs>? _webResourceRequested;
+        private EventHandler<Core.WebViewProcessTerminatedEventArgs>? _processTerminated;
 
 #if WPF
         public static readonly DependencyProperty SourceProperty = DependencyProperty.Register(
@@ -259,6 +260,29 @@ namespace Avalonia.Xpf.Controls
             }
         }
 
+        /// <inheritdoc cref="IWebViewAdapterWithProcessTermination.ProcessTerminated"/>
+        public event EventHandler<Core.WebViewProcessTerminatedEventArgs>? ProcessTerminated
+        {
+            add
+            {
+                if (this._processTerminated is null
+                    && TryGetAdapter() is Core.IWebViewAdapterWithProcessTermination adapter)
+                {
+                    adapter.ProcessTerminated += WebViewAdapterOnProcessTerminated;
+                }
+                this._processTerminated += value;
+            }
+            remove
+            {
+                this._processTerminated -= value;
+                if (this._processTerminated is null
+                    && TryGetAdapter() is Core.IWebViewAdapterWithProcessTermination adapter)
+                {
+                    adapter.ProcessTerminated -= WebViewAdapterOnProcessTerminated;
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public event EventHandler<Core.WebViewAdapterEventArgs>? AdapterCreated;
 
@@ -442,6 +466,12 @@ namespace Avalonia.Xpf.Controls
             _newWindowRequested?.Invoke(this, e);
         }
 
+        private void WebViewAdapterOnProcessTerminated(object? sender, Core.WebViewProcessTerminatedEventArgs e)
+        {
+            Core.WebViewDispatcher.VerifyAccess();
+            _processTerminated?.Invoke(this, e);
+        }
+
 #if AVALONIA
         protected override async void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
@@ -581,6 +611,10 @@ namespace Avalonia.Xpf.Controls
             {
                 withInput.Input -= WithInputOnInput;
             }
+            if (adapter is Core.IWebViewAdapterWithProcessTermination withProcessTermination)
+            {
+                withProcessTermination.ProcessTerminated -= WebViewAdapterOnProcessTerminated;
+            }
 
             AdapterDestroyed?.Invoke(this, new Core.WebViewAdapterEventArgs(adapter));
         }
@@ -611,6 +645,11 @@ namespace Avalonia.Xpf.Controls
             if (adapter is Core.IWebViewAdapterWithInputRedirect withInput)
             {
                 withInput.Input += WithInputOnInput;
+            }
+            if (adapter is Core.IWebViewAdapterWithProcessTermination withProcessTermination
+                && _processTerminated is not null)
+            {
+                withProcessTermination.ProcessTerminated += WebViewAdapterOnProcessTerminated;
             }
 
             if (_lastSource is Uri url)
