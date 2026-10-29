@@ -18,6 +18,7 @@ namespace Avalonia.Xpf.Controls;
 internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterFactory factory) : Control, INativeWebViewControlImpl
 {
     private WebViewTextInputMethodClient? _imClient;
+    private long _initializationAttemptId;
     private TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer?>? _webViewReadyCompletion;
     //private ReparentingScope? _reparentingScope;
     private CompositionCustomVisual? _customVisual;
@@ -38,6 +39,8 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
 
     /// <inheritdoc />
     public event EventHandler<IWebViewAdapter>? AdapterDestroyed;
+
+    public event EventHandler<Avalonia.Controls.WebViewInitializationFailedEventArgs>? InitializationFailed;
 
     /// <inheritdoc />
     public IWebViewAdapter? TryGetAdapter() => _webViewReadyCompletion?.Task.Status == TaskStatus.RanToCompletion ?
@@ -90,14 +93,30 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
         _customVisual.Size = new Vector(Bounds.Width, Bounds.Height);
         ElementComposition.SetElementChildVisual(this, _customVisual);
 
-        _webViewReadyCompletion = new TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var adapterTask = factory.InvokeAsync(this);
+        var attemptId = ++_initializationAttemptId;
+        var completion = _webViewReadyCompletion = new TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer?>(TaskCreationOptions.RunContinuationsAsynchronously);
         CompleteAdapter();
 
-        // ReSharper disable once AsyncVoidMethod - let it flow to the dispatcher
         async void CompleteAdapter()
         {
-            var adapter = await adapterTask;
+            IWebViewAdapterWithOffscreenBuffer adapter;
+            try
+            {
+                adapter = await factory.InvokeAsync(this);
+            }
+            catch (Exception error)
+            {
+                completion.TrySetException(error);
+                _ = completion.Task.Exception;
+                InitializationFailed?.Invoke(this, new(error, attemptId, ReferenceEquals(_webViewReadyCompletion, completion)));
+                return;
+            }
+            if (!ReferenceEquals(_webViewReadyCompletion, completion))
+            {
+                try { adapter.Dispose(); }
+                catch (Exception error) { InitializationFailed?.Invoke(this, new(error, attemptId, ReferenceEquals(_webViewReadyCompletion, completion))); }
+                return;
+            }
             WebViewAdapterOnInitialized(adapter);
         }
     }
@@ -111,27 +130,26 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
         _webViewReadyCompletion?.TrySetCanceled();
         _webViewReadyCompletion = null;
 
-        if (adapter is not null)
-        {
-            adapter.DrawRequested -= OffscreenAdapter_OnDrawRequested;
-            if (adapter is IWebViewAdapterWithExplicitCursor cursorAdapter)
-            {
-                cursorAdapter.CursorChanged -= CursorAdapter_OnCursorChanged;
-            }
-            AdapterDestroyed?.Invoke(this, adapter);
-            adapter.Dispose();
-        }
-
-        if (_customVisual is not null)
-        {
-            _customVisual.SendHandlerMessage(VisualHandler.Stop);
-            ElementComposition.SetElementChildVisual(this, null);
-            _customVisual = null;
-        }
-
-        // Not disposed on purpose - the consumer might still be holding frames on the render thread.
+        // Clear owned state before callbacks can reattach and create another visual.
+        var ownedVisual = _customVisual;
+        _customVisual = null;
         _frameChain = null;
         _adapterSize = default;
+        ElementComposition.SetElementChildVisual(this, null);
+        ownedVisual?.SendHandlerMessage(VisualHandler.Stop);
+
+        if (adapter is not null)
+        {
+            try
+            {
+                adapter.DrawRequested -= OffscreenAdapter_OnDrawRequested;
+                if (adapter is IWebViewAdapterWithExplicitCursor cursorAdapter)
+                    cursorAdapter.CursorChanged -= CursorAdapter_OnCursorChanged;
+                AdapterDestroyed?.Invoke(this, adapter);
+            }
+            finally { adapter.Dispose(); }
+        }
+        // Frames remain alive while the render thread's consumer holds them.
     }
 
     private void WebViewAdapterOnInitialized(IWebViewAdapterWithOffscreenBuffer adapter)
@@ -140,7 +158,6 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
         _customVisual?.SendHandlerMessage(_frameChain.Consumer);
 
         _webViewReadyCompletion?.TrySetResult(adapter);
-        AdapterCreated?.Invoke(this, adapter);
         adapter.DrawRequested += OffscreenAdapter_OnDrawRequested;
 
         UpdateAdapterSize(Bounds.Size);
@@ -149,6 +166,7 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
             Cursor = new Cursor(cursorAdapter.CurrentCursorType);
             cursorAdapter.CursorChanged += CursorAdapter_OnCursorChanged;
         }
+        AdapterCreated?.Invoke(this, adapter);
     }
 
     private async void OffscreenAdapter_OnDrawRequested()

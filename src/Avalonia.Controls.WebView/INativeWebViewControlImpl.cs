@@ -16,6 +16,8 @@ internal interface INativeWebViewControlImpl
     /// <inheritdoc cref="NativeWebView.AdapterDestroyed"/>.
     event EventHandler<IWebViewAdapter>? AdapterDestroyed;
 
+    event EventHandler<Avalonia.Controls.WebViewInitializationFailedEventArgs>? InitializationFailed;
+
     /// <summary>
     /// Returns adapter, if both control and adapter are initialized and ready to use.
     /// </summary>

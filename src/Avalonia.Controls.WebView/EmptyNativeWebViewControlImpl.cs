@@ -23,6 +23,8 @@ internal class EmptyNativeWebViewControlImpl : Control, INativeWebViewControlImp
 
     public event EventHandler<IWebViewAdapter>? AdapterCreated;
     public event EventHandler<IWebViewAdapter>? AdapterDestroyed;
+
+    public event EventHandler<Avalonia.Controls.WebViewInitializationFailedEventArgs>? InitializationFailed;
     public IWebViewAdapter? TryGetAdapter() => null;
 
     public Task<IWebViewAdapter?> GetAdapterAsync() => Task.FromResult<IWebViewAdapter?>(null);
