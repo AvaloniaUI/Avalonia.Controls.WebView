@@ -345,6 +345,46 @@ internal static unsafe partial class GtkInterop
 
     [DllImport(LibGdk)]
     internal static extern IntPtr gdk_display_get_default();
+    // GObject type plumbing, used by GtkOffscreenHostWindow to register a GtkWindow subtype at runtime.
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct GTypeQuery
+    {
+        public IntPtr type;
+        public IntPtr type_name;
+        public uint class_size;
+        public uint instance_size;
+    }
+
+    [DllImport(LibGObject)]
+    internal static extern unsafe void g_type_query(IntPtr type, GTypeQuery* query);
+    [LibraryImport(LibGObject, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial IntPtr g_type_from_name(string name);
+    [DllImport(LibGObject)]
+    internal static extern IntPtr g_type_class_ref(IntPtr type);
+    [DllImport(LibGObject)]
+    internal static extern IntPtr g_type_class_peek(IntPtr type);
+    [DllImport(LibGObject)]
+    internal static extern IntPtr g_initially_unowned_get_type();
+    [LibraryImport(LibGObject, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial IntPtr g_type_register_static_simple(IntPtr parentType, string typeName, uint classSize,
+        IntPtr classInit, uint instanceSize, IntPtr instanceInit, int flags);
+    [DllImport(LibGObject)]
+    internal static extern IntPtr g_object_new_with_properties(IntPtr type, uint nProperties, IntPtr names, IntPtr values);
+
+    [DllImport(LibGtk)]
+    internal static extern IntPtr gtk_window_get_type();
+    [DllImport(LibGtk)]
+    internal static extern IntPtr gtk_offscreen_window_get_type();
+
+    [DllImport(LibGdk)]
+    internal static extern IntPtr gdk_offscreen_window_get_surface(IntPtr window);
+    [DllImport(LibGdk)]
+    internal static extern int gdk_window_get_width(IntPtr window);
+    [DllImport(LibGdk)]
+    internal static extern int gdk_window_get_height(IntPtr window);
+    [DllImport(LibGdk)]
+    internal static extern IntPtr gdk_pixbuf_get_from_surface(IntPtr surface, int x, int y, int width, int height);
+
     [DllImport(LibGdk)]
     internal static extern IntPtr gdk_display_get_default_seat(IntPtr display);
     [DllImport(LibGdk)]
