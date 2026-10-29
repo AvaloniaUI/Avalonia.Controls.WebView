@@ -83,6 +83,9 @@ namespace Avalonia.Xpf.Controls
 #endif
 
         private readonly TaskCompletionSource<INativeWebViewControlImpl> _controlHostImplTcs = new();
+        private bool _factoryStarted;
+        private bool _isAttached;
+        private bool _hostPublished;
 
         static NativeWebView()
         {
@@ -128,7 +131,7 @@ namespace Avalonia.Xpf.Controls
         internal Core.IWebViewAdapter? TryGetAdapter() => TryGetImpl()?.TryGetAdapter();
 
 #if WPF
-        protected override int VisualChildrenCount => TryGetImpl() is not null ? 1 : 0;
+        protected override int VisualChildrenCount => _hostPublished ? 1 : 0;
         protected override System.Windows.Media.Visual? GetVisualChild(int index) => (System.Windows.Media.Visual?)TryGetImpl();
 #endif
 
@@ -285,6 +288,14 @@ namespace Avalonia.Xpf.Controls
 
         /// <inheritdoc/>
         public event EventHandler<Core.WebViewAdapterEventArgs>? AdapterCreated;
+
+        /// <summary>
+        /// Raised when environment or adapter initialization fails. The original exception is preserved.
+        /// Factory failure is terminal; adapter failures may be followed by an explicit reattachment.
+        /// Detaching cancels the old adapter wait; its later failure is still reported by this event.
+        /// Exceptions thrown by application event handlers are not intercepted.
+        /// </summary>
+        public event EventHandler<Core.WebViewInitializationFailedEventArgs>? InitializationFailed;
 
         /// <inheritdoc/>
         public event EventHandler<Core.WebViewAdapterEventArgs>? AdapterDestroyed;
@@ -473,29 +484,52 @@ namespace Avalonia.Xpf.Controls
         }
 
 #if AVALONIA
-        protected override async void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
-#elif WPF
-        protected override async void OnVisualParentChanged(DependencyObject oldParent)
-        {
-            base.OnVisualParentChanged(oldParent);
-#endif
+            _isAttached = true;
             OnAttached();
         }
 
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            _isAttached = false;
+            base.OnDetachedFromVisualTree(e);
+        }
+#elif WPF
+        protected override void OnVisualParentChanged(DependencyObject oldParent)
+        {
+            base.OnVisualParentChanged(oldParent);
+            _isAttached = System.Windows.Media.VisualTreeHelper.GetParent(this) is not null;
+            if (_isAttached)
+                OnAttached();
+        }
+#endif
+
         private async void OnAttached()
         {
-            // NativeWebView currently expects internal adapter to be determined exactly once.
-            // Note that NativeWebViewControlHost and NativeWebViewCompositorHost still manage proper attached/detached cycle on their own.
-            // Ensuring that native handles are disposed on control detash, unless BeginReparenting is used.
-            if (_controlHostImplTcs.Task.IsCompleted)
+            // Factory selection belongs to the control, adapter creation to each host attachment.
+            if (_factoryStarted)
+            {
+                PublishHost();
                 return;
+            }
+            _factoryStarted = true;
 
-            var adapterPreference = AdapterPreference?.ToArray();
-            var adapterFactory = await Core.WebViewAdapter.CreateFactory(
-                args => EnvironmentRequested?.Invoke(this, args),
-                adapterPreference);
+            Core.WebViewAdapter.AdapterFactory? adapterFactory;
+            try
+            {
+                adapterFactory = await Core.WebViewAdapter.CreateFactory(
+                    args => EnvironmentRequested?.Invoke(this, args), AdapterPreference?.ToArray());
+            }
+            catch (Exception error)
+            {
+                _controlHostImplTcs.TrySetException(error);
+                _ = _controlHostImplTcs.Task.Exception;
+                InitializationFailed?.Invoke(this, new Core.WebViewInitializationFailedEventArgs(error, 0, true));
+                return;
+            }
+
             INativeWebViewControlImpl controlHostImpl = adapterFactory switch
             {
 #if !WPF
@@ -504,13 +538,19 @@ namespace Avalonia.Xpf.Controls
                 Core.WebViewAdapter.NativeHostAdapterFactory native => new NativeWebViewControlHost(native),
                 _ => new EmptyNativeWebViewControlImpl()
             };
-
             controlHostImpl.AdapterCreated += ControlHostImplOnAdapterCreated;
             controlHostImpl.AdapterDestroyed += ControlHostImplOnAdapterDeinitialized;
-
+            controlHostImpl.InitializationFailed += (_, error) => InitializationFailed?.Invoke(this, error);
             _controlHostImplTcs.TrySetResult(controlHostImpl);
             AdapterInfo = adapterFactory?.Info ?? AvPlatform.WebViewAdapterInfo.PlatformNotSupported();
+            PublishHost();
+        }
 
+        private void PublishHost()
+        {
+            if (!_isAttached || _hostPublished || TryGetImpl() is not { } controlHostImpl)
+                return;
+            _hostPublished = true;
 #if AVALONIA
             VisualChildren.Add((Control)controlHostImpl);
             InvalidateMeasure();

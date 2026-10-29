@@ -297,6 +297,20 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
 
     public async Task InitializeAsync(WindowsWebView2EnvironmentRequestedEventArgs environmentArgs)
     {
+        try
+        {
+            await InitializeCoreAsync(environmentArgs);
+        }
+        catch (Exception initializationError)
+        {
+            try { Dispose(); }
+            catch (Exception cleanupError) { throw new AggregateException(initializationError, cleanupError); }
+            throw;
+        }
+    }
+
+    private async Task InitializeCoreAsync(WindowsWebView2EnvironmentRequestedEventArgs environmentArgs)
+    {
         var addScriptCompletion = new AddScriptToExecuteOnDocumentCreatedCompletedHandler();
         var webView = TryGetWebView2() ?? throw new InvalidOperationException("WebView2 is not initialized.");
         webView.AddScriptToExecuteOnDocumentCreated(
@@ -438,7 +452,16 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
         }
 
         Disposed = true;
-        Interlocked.Exchange(ref _subscriptions, null)?.Invoke();
+        try
+        {
+            Interlocked.Exchange(ref _subscriptions, null)?.Invoke();
+        }
+        catch (Exception unsubscribeError)
+        {
+            try { controller?.Close(); }
+            catch (Exception closeError) { throw new AggregateException(unsubscribeError, closeError); }
+            throw;
+        }
         controller?.Close();
     }
 

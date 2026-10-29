@@ -119,9 +119,18 @@ internal partial class WebView2CompAdapter
 
             var controller = await handler.Result.Task;
 
-            var compositionVisual = s_compositor.Value.CreateContainerVisual();
-
-            var webView = new WebView2CompAdapter(compositionVisual, s_compositor.Value, controller);
+            WebView2CompAdapter webView;
+            try
+            {
+                var compositionVisual = s_compositor.Value.CreateContainerVisual();
+                webView = new WebView2CompAdapter(compositionVisual, s_compositor.Value, controller);
+            }
+            catch (Exception initializationError)
+            {
+                try { ((ICoreWebView2Controller)controller).Close(); }
+                catch (Exception cleanupError) { throw new AggregateException(initializationError, cleanupError); }
+                throw;
+            }
             await webView.InitializeAsync(environmentArgs);
 
             return webView;
@@ -281,7 +290,13 @@ internal partial class WebView2CompAdapter
     {
         if (disposing && !Disposed)
         {
-            _controller.SetRootVisualTarget(null);
+            try { _controller.SetRootVisualTarget(null); }
+            catch (Exception detachError)
+            {
+                try { base.Dispose(disposing); }
+                catch (Exception closeError) { throw new AggregateException(detachError, closeError); }
+                throw;
+            }
         }
 
         base.Dispose(disposing);

@@ -20,6 +20,7 @@ namespace Avalonia.Xpf.Controls
 {
     internal class NativeWebViewControlHost(WebViewAdapter.NativeHostAdapterFactory factory) : NativeControlHost, INativeWebViewControlImpl
     {
+        private long _initializationAttemptId;
         private TaskCompletionSource<IWebViewAdapter?>? _webViewReadyCompletion;
         private ReparentingScope? _reparentingScope;
         private IPlatformHandle? _defaultChildHandle;
@@ -33,32 +34,58 @@ namespace Avalonia.Xpf.Controls
         /// <inheritdoc />
         public event EventHandler<IWebViewAdapter>? AdapterDestroyed;
 
+        public event EventHandler<Avalonia.Controls.WebViewInitializationFailedEventArgs>? InitializationFailed;
+
         protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
         {
-            if (_reparentingScope is not null)
+            if (_reparentingScope is { HasPendingAdapter: true })
             {
                 return _reparentingScope.ReparentRequested(parent);
             }
 
+            var attemptId = ++_initializationAttemptId;
             var completion = _webViewReadyCompletion =
                 new TaskCompletionSource<IWebViewAdapter?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             IPlatformHandle? defaultChildHandle = null;
-            var adapterWrapper = factory.InvokeAsync(parent, p => defaultChildHandle = base.CreateNativeControlCore(p));
+            WebViewAdapter.AdapterWrapper adapterWrapper;
+            try
+            {
+                adapterWrapper = factory.InvokeAsync(parent, p => defaultChildHandle = base.CreateNativeControlCore(p));
+            }
+            catch (Exception error)
+            {
+                completion.TrySetException(error);
+                _ = completion.Task.Exception;
+                if (defaultChildHandle is not null)
+                    base.DestroyNativeControlCore(defaultChildHandle);
+                InitializationFailed?.Invoke(this, new(error, attemptId, ReferenceEquals(_webViewReadyCompletion, completion)));
+                throw;
+            }
             _defaultChildHandle = defaultChildHandle;
             CompleteAdapter(adapterWrapper);
             return adapterWrapper.AdapterHandle;
 
-            // ReSharper disable once AsyncVoidMethod - let it flow to the dispatcher
             async void CompleteAdapter(WebViewAdapter.AdapterWrapper wrapper)
             {
-                var adapter = await wrapper.AdapterInitializeTask;
-                if (!ReferenceEquals(_webViewReadyCompletion, completion))
+                IWebViewAdapter adapter;
+                try
                 {
-                    adapter.Dispose();
+                    adapter = await wrapper.AdapterInitializeTask;
+                }
+                catch (Exception error)
+                {
+                    completion.TrySetException(error);
+                    _ = completion.Task.Exception;
+                    InitializationFailed?.Invoke(this, new(error, attemptId, ReferenceEquals(_webViewReadyCompletion, completion)));
                     return;
                 }
-
+                if (!ReferenceEquals(_webViewReadyCompletion, completion))
+                {
+                    try { adapter.Dispose(); }
+                    catch (Exception error) { InitializationFailed?.Invoke(this, new(error, attemptId, ReferenceEquals(_webViewReadyCompletion, completion))); }
+                    return;
+                }
                 WebViewAdapterOnInitialized(adapter);
             }
         }
@@ -90,16 +117,20 @@ namespace Avalonia.Xpf.Controls
             _adapterSize = default;
 #endif
 
-            if (adapter is not null)
+            var ownedChildHandle = _defaultChildHandle;
+            _defaultChildHandle = null;
+            try
             {
-                AdapterDestroyed?.Invoke(this, adapter);
-                adapter.Dispose();
+                if (adapter is not null)
+                {
+                    try { AdapterDestroyed?.Invoke(this, adapter); }
+                    finally { adapter.Dispose(); }
+                }
             }
-
-            if (_defaultChildHandle is { } defaultChildHandle)
+            finally
             {
-                _defaultChildHandle = null;
-                base.DestroyNativeControlCore(defaultChildHandle);
+                if (ownedChildHandle is not null)
+                    base.DestroyNativeControlCore(ownedChildHandle);
             }
         }
 
@@ -161,6 +192,7 @@ namespace Avalonia.Xpf.Controls
         private sealed class ReparentingScope(NativeWebViewControlHost webView, bool yieldOnLayoutBeforeExiting) : IDisposable, IAsyncDisposable
         {
             private IWebViewAdapter? _pendingAdapter;
+            public bool HasPendingAdapter => _pendingAdapter is not null;
             public void Dispose()
             {
                 var task = DisposeAsync().AsTask();
@@ -181,7 +213,7 @@ namespace Avalonia.Xpf.Controls
 #elif AVALONIA
                     var tcs = new TaskCompletionSource<bool>();
                     Dispatcher.UIThread.Post(_ => tcs.TrySetResult(true), DispatcherPriority.Render);
-                    await tcs.Task.ConfigureAwait(false);
+                    await tcs.Task;
 #endif
                 }
 
