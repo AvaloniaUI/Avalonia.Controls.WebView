@@ -466,7 +466,11 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
                 {
                     var args = new WebViewNavigationStartingEventArgs { Request = url };
                     WebViewDispatcher.Invoke(() => startedHandler.Invoke(adapter, args));
-                    return args.Cancel ? True : False;
+                    if (args.Cancel)
+                    {
+                        webkit_policy_decision_ignore(decision);
+                        return True;
+                    }
                 }
 
                 return False;
@@ -478,7 +482,11 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
                 {
                     var args = new WebViewNewWindowRequestedEventArgs { Request = winUrl };
                     WebViewDispatcher.Invoke(() => windowHandler.Invoke(adapter, args));
-                    return args.Handled ? True : False;
+                    if (args.Handled)
+                    {
+                        webkit_policy_decision_ignore(decision);
+                        return True;
+                    }
                 }
 
                 return False;

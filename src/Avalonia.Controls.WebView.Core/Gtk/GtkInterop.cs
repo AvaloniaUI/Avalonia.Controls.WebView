@@ -432,6 +432,9 @@ internal static unsafe partial class GtkInterop
     internal static extern void g_signal_handler_disconnect(IntPtr instance, ulong handlerId);
 
     [DllImport(LibWebKit)]
+    internal static extern void webkit_policy_decision_ignore(IntPtr decision);
+
+    [DllImport(LibWebKit)]
     internal static extern IntPtr webkit_navigation_policy_decision_get_navigation_action(IntPtr decision);
 
     [DllImport(LibWebKit)]
