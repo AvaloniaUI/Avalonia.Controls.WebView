@@ -242,10 +242,11 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
         Debug.WriteLine($"Disposing (finalize: {!disposing}, owns: {_owns}): {GetType()}");
 #endif
 
-        // if (_superRef != default)
-        // {
-        //     Marshal.Release(new IntPtr(_superRef));
-        // }
+        if (_superRef != default)
+        {
+            Marshal.FreeHGlobal(new IntPtr(_superRef));
+            _superRef = default;
+        }
 
         if (_owns)
         {
