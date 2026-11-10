@@ -27,6 +27,7 @@ internal sealed unsafe class WpeWebViewAdapter
     private IntPtr _webView;
     private IWpeViewBackend? _backend;
     private IntPtr _networkSession;
+    private bool _ownsNetworkSession;
     private IntPtr _userContentManager;
     private IntPtr _cookieManager;
     private PixelSize _currentSize;
@@ -106,7 +107,10 @@ internal sealed unsafe class WpeWebViewAdapter
         _backend.FrameReady = OnFrameReady;
 
         if (args.DataDirectory != null || args.CacheDirectory != null)
+        {
             _networkSession = WpeInterop.webkit_network_session_new(args.DataDirectory, args.CacheDirectory);
+            _ownsNetworkSession = true;
+        }
         else
             _networkSession = WpeInterop.webkit_network_session_get_default();
 
@@ -807,6 +811,13 @@ internal sealed unsafe class WpeWebViewAdapter
             WpeInterop.g_object_unref(_userContentManager);
             _userContentManager = IntPtr.Zero;
         }
+
+        _cookieManager = IntPtr.Zero;
+        if (_ownsNetworkSession && _networkSession != IntPtr.Zero)
+        {
+            WpeInterop.g_object_unref(_networkSession);
+        }
+        _networkSession = IntPtr.Zero;
 
         _backend?.Dispose();
         _backend = null;
