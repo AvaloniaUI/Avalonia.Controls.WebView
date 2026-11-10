@@ -265,7 +265,7 @@ internal sealed unsafe class WpeLegacyViewBackend : IWpeViewBackend
             Time = (uint)Environment.TickCount,
             KeyCode = keysym,
             HardwareKeyCode = hardwareKeycode,
-            Pressed = press ? 1 : 0,
+            Pressed = press ? (byte)1 : (byte)0,
             Modifiers = modifiers
         };
 

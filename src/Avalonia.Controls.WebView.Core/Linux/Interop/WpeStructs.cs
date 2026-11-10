@@ -9,7 +9,7 @@ internal struct WpeInputKeyboardEvent
     public uint Time;
     public uint KeyCode;
     public uint HardwareKeyCode;
-    public int Pressed; // bool in C is int-sized
+    public byte Pressed; // C bool
     public uint Modifiers;
 }
 
