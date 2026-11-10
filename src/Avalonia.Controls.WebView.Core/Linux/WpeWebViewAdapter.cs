@@ -423,6 +423,7 @@ internal sealed unsafe class WpeWebViewAdapter
 
         if (error != IntPtr.Zero || jsValue == IntPtr.Zero)
         {
+            WpeRuntime.TakeErrorMessage(error);
             tcs.TrySetResult(null);
             return;
         }
@@ -612,7 +613,8 @@ internal sealed unsafe class WpeWebViewAdapter
 
         IntPtr error = IntPtr.Zero;
         var ok = WpeInterop.webkit_cookie_manager_add_cookie_finish(sourceObject, result, &error);
-        tcs.TrySetResult(ok && error == IntPtr.Zero);
+        var message = WpeRuntime.TakeErrorMessage(error);
+        tcs.TrySetResult(ok && message is null);
     }
 
     public void DeleteCookie(string name, string domain, string path)
@@ -649,7 +651,8 @@ internal sealed unsafe class WpeWebViewAdapter
 
         IntPtr error = IntPtr.Zero;
         var ok = WpeInterop.webkit_cookie_manager_delete_cookie_finish(sourceObject, result, &error);
-        tcs.TrySetResult(ok && error == IntPtr.Zero);
+        var message = WpeRuntime.TakeErrorMessage(error);
+        tcs.TrySetResult(ok && message is null);
     }
 
     private static void WaitForCompletion(Task task)
@@ -690,6 +693,7 @@ internal sealed unsafe class WpeWebViewAdapter
 
         IntPtr error = IntPtr.Zero;
         var glist = WpeInterop.webkit_cookie_manager_get_all_cookies_finish(sourceObject, result, &error);
+        WpeRuntime.TakeErrorMessage(error);
 
         var cookies = new List<Cookie>();
         if (glist != IntPtr.Zero)
