@@ -23,47 +23,93 @@ internal static partial class AvaloniaGtk
             [GtkInterop.LibGdk] = ["libgdk-3.so.0", "libgdk-3.so"],
             [GtkInterop.LibGLib] = ["libglib-2.0.so.0", "libglib-2.0.so"],
             [GtkInterop.LibGObject] = ["libgobject-2.0.so.0", "libgobject-2.0.so"],
-            [GtkInterop.LibGio] = ["libgio-2.0.so.0", "libgio-2.0.so"],
-            [GtkInterop.LibWebKit] =
-            [
-                "libwebkit2gtk-4.1.so.0",
-                "libwebkit2gtk-4.1.so",
-                "libwebkit2gtk-4.0.so.37",
-                "libwebkit2gtk-4.0.so"
-            ],
-            [GtkInterop.LibSoup] =
-            [
-                "libsoup-3.0.so.0",
-                "libsoup-3.0.so",
-                "libsoup-2.4.so.1",
-                "libsoup-2.4.so"
-            ]
+            [GtkInterop.LibGio] = ["libgio-2.0.so.0", "libgio-2.0.so"]
         };
 
         NativeLibrary.SetDllImportResolver(typeof(AvaloniaGtk).Assembly, (name, assembly, searchPath) =>
         {
-            if (map.TryGetValue(name, out var candidates))
+            string[]? candidates;
+            IntPtr ptr;
+            if (name == GtkInterop.LibWebKit)
             {
-                foreach (var mapped in candidates)
-                {
-                    if (NativeLibrary.TryLoad(mapped, assembly, searchPath, out var ptr))
-                        return ptr;
-                }
+                candidates = s_webKitCandidates;
+                ptr = LoadWebKit(assembly, searchPath);
+            }
+            else if (name == GtkInterop.LibSoup)
+            {
+                // webkit2gtk-4.1 uses libsoup 3 and webkit2gtk-4.0 uses libsoup 2. Both can't be loaded in one process.
+                LoadWebKit(assembly, searchPath);
+                candidates = s_webKitUsesSoup3 == true ? s_soup3Candidates : s_soup2Candidates;
+                ptr = LoadFirst(candidates, assembly, searchPath);
+            }
+            else if (map.TryGetValue(name, out candidates))
+            {
+                ptr = LoadFirst(candidates, assembly, searchPath);
+            }
+            else
+            {
+                // Default
+                return IntPtr.Zero;
+            }
 
+            if (ptr == IntPtr.Zero)
+            {
                 Logger.TryGet(LogEventLevel.Error, "WebView")?.Log(null,
                     "Unable to resolve GTK assembly {Name}. Expected options are: {Candidates}", name,
                     string.Join(',', candidates));
             }
-
-            // Default
-            return IntPtr.Zero;
+            return ptr;
         });
-
-        HasSoup3 = NativeLibrary.TryLoad("libsoup-3.0.so.0", out _) ||
-                   NativeLibrary.TryLoad("libsoup-3.0.so", out _);
     }
 
-    public static bool HasSoup3 { get; }
+    private static IntPtr LoadFirst(string[] candidates, Assembly assembly, DllImportSearchPath? searchPath)
+    {
+        foreach (var candidate in candidates)
+        {
+            if (NativeLibrary.TryLoad(candidate, assembly, searchPath, out var ptr))
+                return ptr;
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private static readonly string[] s_webKitCandidates =
+    [
+        "libwebkit2gtk-4.1.so.0",
+        "libwebkit2gtk-4.1.so",
+        "libwebkit2gtk-4.0.so.37",
+        "libwebkit2gtk-4.0.so"
+    ];
+    private static readonly string[] s_soup3Candidates = ["libsoup-3.0.so.0", "libsoup-3.0.so"];
+    private static readonly string[] s_soup2Candidates = ["libsoup-2.4.so.1", "libsoup-2.4.so"];
+    private static bool? s_webKitUsesSoup3;
+
+    private static IntPtr LoadWebKit(Assembly assembly, DllImportSearchPath? searchPath)
+    {
+        foreach (var candidate in s_webKitCandidates)
+        {
+            if (NativeLibrary.TryLoad(candidate, assembly, searchPath, out var ptr))
+            {
+                s_webKitUsesSoup3 = candidate.StartsWith("libwebkit2gtk-4.1", StringComparison.Ordinal);
+                return ptr;
+            }
+        }
+
+        return IntPtr.Zero;
+    }
+
+    /// <summary>
+    /// True when the loaded webkit2gtk uses libsoup 3.
+    /// </summary>
+    public static bool HasSoup3
+    {
+        get
+        {
+            if (s_webKitUsesSoup3 is null)
+                LoadWebKit(typeof(AvaloniaGtk).Assembly, null);
+            return s_webKitUsesSoup3 == true;
+        }
+    }
 
     /// <summary>
     /// Checks that GTK can initialize with the x11 GDK backend, which the GTK adapters require.
