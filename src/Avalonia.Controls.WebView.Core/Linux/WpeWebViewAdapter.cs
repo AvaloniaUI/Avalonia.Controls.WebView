@@ -43,6 +43,7 @@ internal sealed unsafe class WpeWebViewAdapter
     private readonly GSignalScriptMessageCallback _scriptMessageCallback;
     private readonly GSignalLoadFailedCallback _loadFailedCallback;
     private GCHandle _selfHandle;
+    private readonly List<(IntPtr Instance, ulong Id)> _signals = new();
 
     private WpeWebViewAdapter()
     {
@@ -182,9 +183,17 @@ internal sealed unsafe class WpeWebViewAdapter
         Handle = _webView;
     }
 
-    private static void ConnectSignal(IntPtr instance, string signal, IntPtr handler, IntPtr userData)
+    private void ConnectSignal(IntPtr instance, string signal, IntPtr handler, IntPtr userData)
     {
-        WpeInterop.g_signal_connect_data(instance, signal, handler, userData, IntPtr.Zero, 0);
+        var id = WpeInterop.g_signal_connect_data(instance, signal, handler, userData, IntPtr.Zero, 0);
+        _signals.Add((instance, id));
+    }
+
+    private void DisconnectSignals()
+    {
+        foreach (var (instance, id) in _signals)
+            WpePlatformInterop.g_signal_handler_disconnect(instance, id);
+        _signals.Clear();
     }
 
     private bool OnFrameReady()
@@ -797,6 +806,9 @@ internal sealed unsafe class WpeWebViewAdapter
         _disposed = true;
 
         _backend?.ReleaseFrames();
+
+        // The unref below doesn't finalize the web view while WebKit still holds a reference to it.
+        DisconnectSignals();
 
         if (_webView != IntPtr.Zero)
         {

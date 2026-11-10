@@ -10,11 +10,6 @@ namespace Avalonia.Controls.Linux;
 
 internal sealed unsafe class WpeLegacyViewBackend : IWpeViewBackend
 {
-    private static readonly Lazy<IntPtr> s_fdoDestroyFn = new(() =>
-        NativeLibrary.GetExport(
-            NativeLibrary.Load("libWPEBackend-fdo-1.0.so.1"),
-            "wpe_view_backend_exportable_fdo_destroy"));
-
     private static bool s_backendLibraryConfigured;
 
     private IntPtr _exportable;
@@ -55,10 +50,35 @@ internal sealed unsafe class WpeLegacyViewBackend : IWpeViewBackend
         if (_viewBackend == IntPtr.Zero)
             throw new InvalidOperationException("wpe_view_backend_exportable_fdo_get_view_backend failed.");
 
-        _wkBackend = WpeInterop.webkit_web_view_backend_new(_viewBackend, s_fdoDestroyFn.Value, _exportable);
-        _exportableOwnedByWebKit = true;
+        _wkBackend = WpeInterop.webkit_web_view_backend_new(_viewBackend,
+            (IntPtr)(delegate* unmanaged[Cdecl]<IntPtr, void>)&OnBackendDestroyed, GCHandle.ToIntPtr(_selfHandle));
         if (_wkBackend == IntPtr.Zero)
             throw new InvalidOperationException("webkit_web_view_backend_new failed.");
+        _exportableOwnedByWebKit = true;
+    }
+
+    // WebKit destroys the backend when the web view is finalized, which can happen after Dispose.
+    // The exportable keeps pointers to the client struct and to _selfHandle until then.
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnBackendDestroyed(IntPtr data)
+    {
+        var backend = (WpeLegacyViewBackend)GCHandle.FromIntPtr(data).Target!;
+        backend._pendingShmExportedBuffer = IntPtr.Zero;
+        if (backend._exportable != IntPtr.Zero)
+        {
+            WpeInterop.wpe_view_backend_exportable_fdo_destroy(backend._exportable);
+            backend._exportable = IntPtr.Zero;
+        }
+        backend.FreeHandles();
+    }
+
+    private void FreeHandles()
+    {
+        if (_shmClientHandle.IsAllocated)
+            _shmClientHandle.Free();
+
+        if (_selfHandle.IsAllocated)
+            _selfHandle.Free();
     }
 
     public static void EnsureBackendLibrary()
@@ -323,16 +343,16 @@ internal sealed unsafe class WpeLegacyViewBackend : IWpeViewBackend
 
     public void Dispose()
     {
-        if (!_exportableOwnedByWebKit && _exportable != IntPtr.Zero)
-            WpeInterop.wpe_view_backend_exportable_fdo_destroy(_exportable);
-        _exportable = IntPtr.Zero;
+        FrameReady = null;
         _viewBackend = IntPtr.Zero;
         _wkBackend = IntPtr.Zero;
 
-        if (_shmClientHandle.IsAllocated)
-            _shmClientHandle.Free();
+        if (_exportableOwnedByWebKit)
+            return;
 
-        if (_selfHandle.IsAllocated)
-            _selfHandle.Free();
+        if (_exportable != IntPtr.Zero)
+            WpeInterop.wpe_view_backend_exportable_fdo_destroy(_exportable);
+        _exportable = IntPtr.Zero;
+        FreeHandles();
     }
 }
