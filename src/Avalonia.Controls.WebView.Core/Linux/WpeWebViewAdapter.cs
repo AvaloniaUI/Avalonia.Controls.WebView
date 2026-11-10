@@ -632,7 +632,20 @@ internal sealed unsafe class WpeWebViewAdapter
 
     public void DeleteCookie(string name, string domain, string path)
     {
-        DeleteCookie(new Cookie(name, "", path, domain));
+        if (_cookieManager == IntPtr.Zero || _disposed) return;
+
+        // libsoup matches cookies by value too, so the stored cookies are deleted with their values.
+        var cookies = GetCookiesAsync();
+        WaitForCompletion(cookies);
+        foreach (var cookie in cookies.Result)
+        {
+            if (cookie.Name == name
+                && string.Equals(cookie.Domain.TrimStart('.'), domain.TrimStart('.'), StringComparison.OrdinalIgnoreCase)
+                && cookie.Path == path)
+            {
+                DeleteCookie(cookie);
+            }
+        }
     }
 
     public void DeleteCookie(Cookie cookie)
