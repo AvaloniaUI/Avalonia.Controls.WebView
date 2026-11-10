@@ -12,6 +12,6 @@ internal partial class HStringResultHandler
 {
     public override void Invoke(IAsyncOperation_HString asyncInfo, AsyncStatus asyncStatus)
     {
-        SetResult(() => HStringInterop.FromIntPtr(asyncInfo.GetResults())!, asyncStatus);
+        SetResult(() => HStringInterop.TakeString(asyncInfo.GetResults())!, asyncStatus);
     }
 }

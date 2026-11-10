@@ -27,6 +27,7 @@ internal sealed unsafe class WpeWebViewAdapter
     private IntPtr _webView;
     private IWpeViewBackend? _backend;
     private IntPtr _networkSession;
+    private bool _ownsNetworkSession;
     private IntPtr _userContentManager;
     private IntPtr _cookieManager;
     private PixelSize _currentSize;
@@ -42,6 +43,7 @@ internal sealed unsafe class WpeWebViewAdapter
     private readonly GSignalScriptMessageCallback _scriptMessageCallback;
     private readonly GSignalLoadFailedCallback _loadFailedCallback;
     private GCHandle _selfHandle;
+    private readonly List<(IntPtr Instance, nuint Id)> _signals = new();
 
     private WpeWebViewAdapter()
     {
@@ -106,7 +108,10 @@ internal sealed unsafe class WpeWebViewAdapter
         _backend.FrameReady = OnFrameReady;
 
         if (args.DataDirectory != null || args.CacheDirectory != null)
+        {
             _networkSession = WpeInterop.webkit_network_session_new(args.DataDirectory, args.CacheDirectory);
+            _ownsNetworkSession = true;
+        }
         else
             _networkSession = WpeInterop.webkit_network_session_get_default();
 
@@ -178,9 +183,17 @@ internal sealed unsafe class WpeWebViewAdapter
         Handle = _webView;
     }
 
-    private static void ConnectSignal(IntPtr instance, string signal, IntPtr handler, IntPtr userData)
+    private void ConnectSignal(IntPtr instance, string signal, IntPtr handler, IntPtr userData)
     {
-        WpeInterop.g_signal_connect_data(instance, signal, handler, userData, IntPtr.Zero, 0);
+        var id = WpeInterop.g_signal_connect_data(instance, signal, handler, userData, IntPtr.Zero, 0);
+        _signals.Add((instance, id));
+    }
+
+    private void DisconnectSignals()
+    {
+        foreach (var (instance, id) in _signals)
+            WpePlatformInterop.g_signal_handler_disconnect(instance, id);
+        _signals.Clear();
     }
 
     private bool OnFrameReady()
@@ -423,6 +436,7 @@ internal sealed unsafe class WpeWebViewAdapter
 
         if (error != IntPtr.Zero || jsValue == IntPtr.Zero)
         {
+            WpeRuntime.TakeErrorMessage(error);
             tcs.TrySetResult(null);
             return;
         }
@@ -582,19 +596,24 @@ internal sealed unsafe class WpeWebViewAdapter
 
         if (soupCookie != IntPtr.Zero)
         {
-            WpeInterop.soup_cookie_set_secure(soupCookie, cookie.Secure);
-            WpeInterop.soup_cookie_set_http_only(soupCookie, cookie.HttpOnly);
+            try
+            {
+                WpeInterop.soup_cookie_set_secure(soupCookie, cookie.Secure);
+                WpeInterop.soup_cookie_set_http_only(soupCookie, cookie.HttpOnly);
 
-            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var tcsHandle = GCHandle.Alloc(tcs);
+                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var tcsHandle = GCHandle.Alloc(tcs);
 
-            WpeInterop.webkit_cookie_manager_add_cookie(
-                _cookieManager, soupCookie, IntPtr.Zero,
-                &OnAddCookieFinished, GCHandle.ToIntPtr(tcsHandle));
+                WpeInterop.webkit_cookie_manager_add_cookie(
+                    _cookieManager, soupCookie, IntPtr.Zero,
+                    &OnAddCookieFinished, GCHandle.ToIntPtr(tcsHandle));
 
-            WaitForCompletion(tcs.Task);
-
-            // soup cookie is consumed by webkit
+                WaitForCompletion(tcs.Task);
+            }
+            finally
+            {
+                WpeInterop.soup_cookie_free(soupCookie);
+            }
         }
     }
 
@@ -607,12 +626,26 @@ internal sealed unsafe class WpeWebViewAdapter
 
         IntPtr error = IntPtr.Zero;
         var ok = WpeInterop.webkit_cookie_manager_add_cookie_finish(sourceObject, result, &error);
-        tcs.TrySetResult(ok && error == IntPtr.Zero);
+        var message = WpeRuntime.TakeErrorMessage(error);
+        tcs.TrySetResult(ok && message is null);
     }
 
     public void DeleteCookie(string name, string domain, string path)
     {
-        DeleteCookie(new Cookie(name, "", path, domain));
+        if (_cookieManager == IntPtr.Zero || _disposed) return;
+
+        // libsoup matches cookies by value too, so the stored cookies are deleted with their values.
+        var cookies = GetCookiesAsync();
+        WaitForCompletion(cookies);
+        foreach (var cookie in cookies.Result)
+        {
+            if (cookie.Name == name
+                && string.Equals(cookie.Domain.TrimStart('.'), domain.TrimStart('.'), StringComparison.OrdinalIgnoreCase)
+                && cookie.Path == path)
+            {
+                DeleteCookie(cookie);
+            }
+        }
     }
 
     public void DeleteCookie(Cookie cookie)
@@ -644,7 +677,8 @@ internal sealed unsafe class WpeWebViewAdapter
 
         IntPtr error = IntPtr.Zero;
         var ok = WpeInterop.webkit_cookie_manager_delete_cookie_finish(sourceObject, result, &error);
-        tcs.TrySetResult(ok && error == IntPtr.Zero);
+        var message = WpeRuntime.TakeErrorMessage(error);
+        tcs.TrySetResult(ok && message is null);
     }
 
     private static void WaitForCompletion(Task task)
@@ -685,6 +719,7 @@ internal sealed unsafe class WpeWebViewAdapter
 
         IntPtr error = IntPtr.Zero;
         var glist = WpeInterop.webkit_cookie_manager_get_all_cookies_finish(sourceObject, result, &error);
+        WpeRuntime.TakeErrorMessage(error);
 
         var cookies = new List<Cookie>();
         if (glist != IntPtr.Zero)
@@ -695,29 +730,35 @@ internal sealed unsafe class WpeWebViewAdapter
                 var soupCookie = WpeInterop.g_list_nth_data(glist, i);
                 if (soupCookie == IntPtr.Zero) continue;
 
-                var name = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_name(soupCookie)) ?? "";
-                var value = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_value(soupCookie)) ?? "";
-                var domain = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_domain(soupCookie)) ?? "";
-                var path = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_path(soupCookie)) ?? "/";
-                var secure = WpeInterop.soup_cookie_get_secure(soupCookie);
-                var httpOnly = WpeInterop.soup_cookie_get_http_only(soupCookie);
-
-                var cookie = new Cookie(name, value, path, domain)
+                try
                 {
-                    Secure = secure,
-                    HttpOnly = httpOnly
-                };
+                    var name = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_name(soupCookie)) ?? "";
+                    var value = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_value(soupCookie)) ?? "";
+                    var domain = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_domain(soupCookie)) ?? "";
+                    var path = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_path(soupCookie)) ?? "/";
+                    var secure = WpeInterop.soup_cookie_get_secure(soupCookie);
+                    var httpOnly = WpeInterop.soup_cookie_get_http_only(soupCookie);
 
-                var expiresPtr = WpeInterop.soup_cookie_get_expires(soupCookie);
-                if (expiresPtr != IntPtr.Zero)
-                {
-                    var unixTime = WpeInterop.g_date_time_to_unix(expiresPtr);
-                    cookie.Expires = DateTimeOffset.FromUnixTimeSeconds(unixTime).DateTime;
+                    var cookie = new Cookie(name, value, path, domain)
+                    {
+                        Secure = secure,
+                        HttpOnly = httpOnly
+                    };
+
+                    var expiresPtr = WpeInterop.soup_cookie_get_expires(soupCookie);
+                    if (expiresPtr != IntPtr.Zero)
+                    {
+                        var unixTime = WpeInterop.g_date_time_to_unix(expiresPtr);
+                        cookie.Expires = DateTimeOffset.FromUnixTimeSeconds(unixTime).DateTime;
+                    }
+
+                    cookies.Add(cookie);
                 }
-
-                cookies.Add(cookie);
+                finally
+                {
+                    WpeInterop.soup_cookie_free(soupCookie);
+                }
             }
-            // GList of SoupCookie is freed with the cookies
             WpeInterop.g_list_free(glist);
         }
 
@@ -779,6 +820,9 @@ internal sealed unsafe class WpeWebViewAdapter
 
         _backend?.ReleaseFrames();
 
+        // The unref below doesn't finalize the web view while WebKit still holds a reference to it.
+        DisconnectSignals();
+
         if (_webView != IntPtr.Zero)
         {
             // Destroying the web view will also destroy the exportable via the
@@ -792,6 +836,13 @@ internal sealed unsafe class WpeWebViewAdapter
             WpeInterop.g_object_unref(_userContentManager);
             _userContentManager = IntPtr.Zero;
         }
+
+        _cookieManager = IntPtr.Zero;
+        if (_ownsNetworkSession && _networkSession != IntPtr.Zero)
+        {
+            WpeInterop.g_object_unref(_networkSession);
+        }
+        _networkSession = IntPtr.Zero;
 
         _backend?.Dispose();
         _backend = null;

@@ -15,11 +15,11 @@ internal abstract class InspectableCallbackBase : CallbackBase, IInspectable
 
     protected abstract Guid[] GetIids();
     
-    unsafe void IInspectable.GetIids(out ulong iidCount, out IntPtr iids)
+    unsafe void IInspectable.GetIids(out uint iidCount, out IntPtr iids)
     {
         var guids = GetIids(); 
-        iidCount = (ulong)guids.Length;
-        var ptr = (Guid*)Marshal.AllocHGlobal(sizeof(Guid) * guids.Length);
+        iidCount = (uint)guids.Length;
+        var ptr = (Guid*)Marshal.AllocCoTaskMem(sizeof(Guid) * guids.Length);
         for (var i = 0; i < guids.Length; i++)
         {
             ptr[i] = guids[i];

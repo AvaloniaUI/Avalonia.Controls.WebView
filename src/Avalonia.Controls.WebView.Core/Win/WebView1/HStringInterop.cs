@@ -20,13 +20,23 @@ internal class HStringInterop(string? s) : IDisposable
         }
     }
 
-    public static unsafe string? FromIntPtr(IntPtr pointer)
+    /// <summary>
+    /// Reads an HSTRING that the caller owns, such as one returned by a WinRT getter, and deletes it.
+    /// </summary>
+    public static unsafe string? TakeString(IntPtr pointer)
     {
         if (pointer == IntPtr.Zero)
             return null;
-        uint length;
-        var buffer = NativeWinRTMethods.WindowsGetStringRawBuffer(pointer, &length);
-        return new string(buffer, 0, (int)length);
+        try
+        {
+            uint length;
+            var buffer = NativeWinRTMethods.WindowsGetStringRawBuffer(pointer, &length);
+            return new string(buffer, 0, (int)length);
+        }
+        finally
+        {
+            NativeWinRTMethods.WindowsDeleteString(pointer);
+        }
     }
 
     private static unsafe IntPtr WindowsCreateString(string? value)

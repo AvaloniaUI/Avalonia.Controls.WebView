@@ -33,7 +33,14 @@ internal static unsafe partial class NativeWinRTMethods
         EnsureRoInitialized();
         IntPtr pUnk;
         Marshal.ThrowExceptionForHR(RoActivateInstance(s.Handle, &pUnk));
-        return ComInterfaceMarshaller<T>.ConvertToManaged(pUnk.ToPointer());
+        try
+        {
+            return ComInterfaceMarshaller<T>.ConvertToManaged(pUnk.ToPointer());
+        }
+        finally
+        {
+            ComInterfaceMarshaller<T>.Free(pUnk.ToPointer());
+        }
     }
 
     internal static TFactory? CreateActivationFactory<TFactory>(string fullName)
@@ -43,7 +50,14 @@ internal static unsafe partial class NativeWinRTMethods
         var guid = typeof(TFactory).GUID;
         IntPtr pUnk = default;
         Marshal.ThrowExceptionForHR(RoGetActivationFactory(s.Handle, &guid, &pUnk));
-        return ComInterfaceMarshaller<TFactory>.ConvertToManaged(pUnk.ToPointer());
+        try
+        {
+            return ComInterfaceMarshaller<TFactory>.ConvertToManaged(pUnk.ToPointer());
+        }
+        finally
+        {
+            ComInterfaceMarshaller<TFactory>.Free(pUnk.ToPointer());
+        }
     }
 
     internal enum RO_INIT_TYPE

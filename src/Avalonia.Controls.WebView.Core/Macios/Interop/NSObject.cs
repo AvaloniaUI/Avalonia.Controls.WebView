@@ -25,7 +25,17 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
     private IntPtr? _class;
     private unsafe ObjcSuper* _superRef;
 
-    protected NSObject(IntPtr handle, bool owns)
+    protected NSObject(IntPtr handle, bool owns) : this(handle, owns, retain: owns)
+    {
+    }
+
+    // `alloc` already returns a retained object.
+    protected NSObject(IntPtr classHandle) : this(Libobjc.intptr_objc_msgSend(classHandle, s_allocSel), owns: true, retain: false)
+    {
+        _class = classHandle;
+    }
+
+    private NSObject(IntPtr handle, bool owns, bool retain)
     {
         if (handle == IntPtr.Zero)
         {
@@ -33,19 +43,14 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
         }
 
         Handle = handle;
-        if (owns)
+        if (retain)
         {
             // This object is owned (and usually created) by C# code, and we want to keep it retained while C# reference is alive.
-            // Native object is released in Dispose method. 
+            // Native object is released in Dispose method.
             // When "owns" is false, we do not retain nor release any objects.
             Retain();
         }
         _owns = owns;
-    }
-
-    protected NSObject(IntPtr classHandle) : this(Libobjc.intptr_objc_msgSend(classHandle, s_allocSel), true)
-    {
-        _class = classHandle;
     }
 
     public IntPtr Class => _class ??= Libobjc.object_getClass(Handle);
@@ -237,10 +242,11 @@ internal abstract class NSObject : IDisposable, IEquatable<NSObject>
         Debug.WriteLine($"Disposing (finalize: {!disposing}, owns: {_owns}): {GetType()}");
 #endif
 
-        // if (_superRef != default)
-        // {
-        //     Marshal.Release(new IntPtr(_superRef));
-        // }
+        if (_superRef != default)
+        {
+            Marshal.FreeHGlobal(new IntPtr(_superRef));
+            _superRef = default;
+        }
 
         if (_owns)
         {

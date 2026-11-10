@@ -62,9 +62,6 @@ internal class WKWebView : AppleView
     public WKWebView(WKWebViewConfiguration configuration) : base(s_webViewClass)
     {
         _ = Libobjc.intptr_objc_msgSend(Handle, s_initWithFrame, new CGRect(), configuration.Handle);
-        // NSObject(IntPtr classHandle) retains on top of the +1 from `alloc`.
-        // Drop the `alloc` reference, so the wrapper holds exactly one, and the view is freed once that one is released.
-        Release();
     }
 
     public WKNavigationDelegate? NavigationDelegate
@@ -127,6 +124,7 @@ internal class WKWebView : AppleView
             using var scriptStr = NSString.Create(script);
             var block = BlockLiteral.GetBlockForFunctionPointer(s_evaluateScriptCallback, GCHandle.ToIntPtr(stateHandle));
             Libobjc.void_objc_msgSend(Handle, s_evaluateJavaScript, scriptStr.Handle, block);
+            Libobjc._Block_release(block);
             return await tcs.Task;
         }
         finally
@@ -153,6 +151,7 @@ internal class WKWebView : AppleView
                 s_createPDFWithConfiguration,
                 configuration?.Handle ?? IntPtr.Zero,
                 block);
+            Libobjc._Block_release(block);
             return await tcs.Task;
         }
         finally
@@ -191,6 +190,7 @@ internal class WKWebView : AppleView
                     GCHandle.ToIntPtr(stateHandle));
                 Libobjc.void_objc_msgSend(state.WebView, s_callAsyncJavaScript,
                     functionBodyStr.Handle, args.Handle, default, WKContentWorld.DefaultClientWorld, block);
+                Libobjc._Block_release(block);
                 _ = await state.CompletionSource.Task;
             }
             finally

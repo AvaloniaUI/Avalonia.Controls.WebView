@@ -51,6 +51,8 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
 
     private readonly IntPtr _settings;
     private IntPtr _webViewHandle;
+    private IntPtr _context;
+    private IntPtr _dataManager;
     private GtkSignal? _loadChangedSignal;
     private GtkSignal? _decidePolicySignal;
     private GtkSignal? _focusInSignal;
@@ -76,27 +78,31 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
             }
             else if (args is { BaseDataDirectory.Length: > 0, BaseCacheDirectory.Length: > 0 })
             {
-                context = webkit_web_context_new_with_website_data_manager(webkit_website_data_manager_new(
+                _dataManager = webkit_website_data_manager_new(
                     "base-data-directory", args.BaseDataDirectory,
                     "base-cache-directory", args.BaseCacheDirectory,
-                    IntPtr.Zero));
+                    IntPtr.Zero);
+                context = webkit_web_context_new_with_website_data_manager(_dataManager);
             }
             else if (args.BaseDataDirectory is { Length: > 0 })
             {
-                context = webkit_web_context_new_with_website_data_manager(webkit_website_data_manager_new(
+                _dataManager = webkit_website_data_manager_new(
                     "base-data-directory", args.BaseDataDirectory,
-                    IntPtr.Zero));
+                    IntPtr.Zero);
+                context = webkit_web_context_new_with_website_data_manager(_dataManager);
             }
             else if (args.BaseCacheDirectory is { Length: > 0 })
             {
-                context = webkit_web_context_new_with_website_data_manager(webkit_website_data_manager_new(
-                    "base-data-directory", args.BaseCacheDirectory,
-                    IntPtr.Zero));
+                _dataManager = webkit_website_data_manager_new(
+                    "base-cache-directory", args.BaseCacheDirectory,
+                    IntPtr.Zero);
+                context = webkit_web_context_new_with_website_data_manager(_dataManager);
             }
             else
             {
                 context = webkit_web_context_new();
             }
+            _context = context;
 
             if (args.DisableCache)
             {
@@ -122,6 +128,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
             WebViewHelper.BuildWebKitInvokeCSharpActionScript(),
             0, 0, IntPtr.Zero, IntPtr.Zero);
         webkit_user_content_manager_add_script(contentManager, script);
+        webkit_user_script_unref(script);
 
         g_object_ref_sink(WebViewHandle);
 
@@ -735,6 +742,18 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
         {
             gtk_widget_destroy(webView);
             g_object_unref(webView);
+        }
+
+        var context = Interlocked.Exchange(ref _context, IntPtr.Zero);
+        if (context != IntPtr.Zero)
+        {
+            g_object_unref(context);
+        }
+
+        var dataManager = Interlocked.Exchange(ref _dataManager, IntPtr.Zero);
+        if (dataManager != IntPtr.Zero)
+        {
+            g_object_unref(dataManager);
         }
     }
 

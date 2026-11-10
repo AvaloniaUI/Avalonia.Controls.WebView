@@ -453,12 +453,12 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
         Dispose(false);
     }
 
-    unsafe IntPtr IWindowsWebView2PlatformHandle.CoreWebView2 => TryGetWebView2() is { } webView ?
-        new(ComInterfaceMarshaller<ICoreWebView2>.ConvertToUnmanaged(webView)) :
+    IntPtr IWindowsWebView2PlatformHandle.CoreWebView2 => TryGetWebView2() is { } webView ?
+        WindowsUtility.GetBorrowedComPointer(webView) :
         IntPtr.Zero;
 
-    unsafe IntPtr IWindowsWebView2PlatformHandle.CoreWebView2Controller =>
-        new(ComInterfaceMarshaller<ICoreWebView2Controller>.ConvertToUnmanaged(controller));
+    IntPtr IWindowsWebView2PlatformHandle.CoreWebView2Controller =>
+        WindowsUtility.GetBorrowedComPointer(controller);
 
     internal static DetailedWebViewAdapterInfo GetWebView2Info(
         string? browserExecutableFolder,

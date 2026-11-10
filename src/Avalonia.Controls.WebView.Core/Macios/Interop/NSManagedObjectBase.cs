@@ -52,12 +52,13 @@ internal unsafe class NSManagedObjectBase : NSObject
 
     protected override void Dispose(bool disposing)
     {
-        base.Dispose(disposing);
-        if (disposing)
+        if (disposing && _managedHandle.IsAllocated)
         {
-            if (_managedHandle.IsAllocated)
-                _managedHandle.Free();
+            // The native object can outlive the wrapper, and its callbacks must not read the freed handle.
+            SetIvarValue("_managedSelf", IntPtr.Zero);
+            _managedHandle.Free();
         }
+        base.Dispose(disposing);
     }
 
 #if DEBUG

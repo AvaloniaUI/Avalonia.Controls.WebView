@@ -59,6 +59,7 @@ internal unsafe class ASWebAuthenticationSession : NSManagedObjectBase
         var completionHandlerState = GCHandle.Alloc(completionHandler);
         var block = BlockLiteral.GetBlockForFunctionPointer(s_completionHandler, GCHandle.ToIntPtr(completionHandlerState));
         _ = Libobjc.intptr_objc_msgSend(session.Handle, s_initWithURLOld, url.Handle, callbackUrlScheme.Handle, block);
+        Libobjc._Block_release(block);
         return session;
     }
 
@@ -73,6 +74,7 @@ internal unsafe class ASWebAuthenticationSession : NSManagedObjectBase
         var completionHandlerState = GCHandle.Alloc(completionHandler);
         var block = BlockLiteral.GetBlockForFunctionPointer(s_completionHandler, GCHandle.ToIntPtr(completionHandlerState));
         _ = Libobjc.intptr_objc_msgSend(session.Handle, s_initWithURL, url.Handle, callback.Handle, block);
+        Libobjc._Block_release(block);
         return session;
     }
 

@@ -109,7 +109,7 @@ internal static unsafe partial class WpePlatformInterop
     public static partial bool g_type_check_instance_is_a(IntPtr instance, IntPtr type);
 
     [LibraryImport(LibGObject)]
-    public static partial void g_signal_handler_disconnect(IntPtr instance, ulong handlerId);
+    public static partial void g_signal_handler_disconnect(IntPtr instance, nuint handlerId);
 
     [LibraryImport(LibGLib)]
     public static partial IntPtr g_bytes_get_data(IntPtr bytes, nuint* size);

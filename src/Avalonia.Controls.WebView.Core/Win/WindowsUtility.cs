@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -20,6 +21,17 @@ internal static class WindowsUtility
         // 2. Removing WS_EX_LAYERED: Prevents the window from creating its own compositing surface with default black background
         PInvoke.SetWindowLong(p, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE,
             (exStyle | (int)0x00000020L) & ~(int)0x00080000L);
+    }
+
+    /// <summary>
+    /// Returns the COM pointer behind a managed wrapper without adding a reference.
+    /// The pointer stays valid while the wrapper is alive.
+    /// </summary>
+    public static unsafe IntPtr GetBorrowedComPointer<T>(T value)
+    {
+        var ptr = ComInterfaceMarshaller<T>.ConvertToUnmanaged(value);
+        ComInterfaceMarshaller<T>.Free(ptr);
+        return (IntPtr)ptr;
     }
 
     internal static StandardCursorType MapCursor(uint systemCursorId)

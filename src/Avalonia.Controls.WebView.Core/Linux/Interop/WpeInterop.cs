@@ -243,7 +243,7 @@ internal static unsafe partial class WpeInterop
         [In] GValue[] values);
 
     [LibraryImport(LibGObject, StringMarshalling = StringMarshalling.Utf8)]
-    public static partial ulong g_signal_connect_data(
+    public static partial nuint g_signal_connect_data(
         IntPtr instance, string detailedSignal,
         IntPtr handler, IntPtr data,
         IntPtr destroyData, int connectFlags);

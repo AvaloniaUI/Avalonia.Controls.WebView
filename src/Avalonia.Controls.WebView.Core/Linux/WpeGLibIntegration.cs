@@ -25,6 +25,7 @@ internal static unsafe class WpeGLibIntegration
     private static IntPtr s_mainContext;
     private static Thread? s_pollThread;
     private static volatile bool s_running;
+    private static bool s_contextAcquired;
 
     // Shutdown signaling via eventfd — added to the poll set so the poll thread
     // wakes immediately when Stop() is called, regardless of GLib timeout.
@@ -106,6 +107,12 @@ internal static unsafe class WpeGLibIntegration
 
         if (s_mainContext != IntPtr.Zero)
         {
+            // The pending CheckAndDispatch returns early now, so it doesn't release the context.
+            if (s_contextAcquired)
+            {
+                WpeInterop.g_main_context_release(s_mainContext);
+                s_contextAcquired = false;
+            }
             WpeInterop.g_main_context_unref(s_mainContext);
             s_mainContext = IntPtr.Zero;
         }
@@ -145,6 +152,7 @@ internal static unsafe class WpeGLibIntegration
             Dispatcher.UIThread.Post(PrepareAndQuery, DispatcherPriority.Background);
             return;
         }
+        s_contextAcquired = true;
 
         int priority;
         WpeInterop.g_main_context_prepare(s_mainContext, &priority);
@@ -220,6 +228,7 @@ internal static unsafe class WpeGLibIntegration
         WpeInterop.g_main_context_check(s_mainContext, s_maxPriority, s_fds, s_nFds);
         WpeInterop.g_main_context_dispatch(s_mainContext);
         WpeInterop.g_main_context_release(s_mainContext);
+        s_contextAcquired = false;
 
         // Immediately begin the next iteration.
         PrepareAndQuery();
