@@ -94,7 +94,7 @@ internal abstract class GtkWebViewAdapter : IWebViewAdapterWithFocus, IGtkWebVie
             else if (args.BaseCacheDirectory is { Length: > 0 })
             {
                 _dataManager = webkit_website_data_manager_new(
-                    "base-data-directory", args.BaseCacheDirectory,
+                    "base-cache-directory", args.BaseCacheDirectory,
                     IntPtr.Zero);
                 context = webkit_web_context_new_with_website_data_manager(_dataManager);
             }
