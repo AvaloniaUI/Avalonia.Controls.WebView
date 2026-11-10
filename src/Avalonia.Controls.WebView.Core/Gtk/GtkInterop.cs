@@ -121,6 +121,9 @@ internal static unsafe partial class GtkInterop
     internal static partial IntPtr webkit_user_script_new(string script, int injected_frames, int injection_time, IntPtr whitelist, IntPtr blacklist);
 
     [DllImport(LibWebKit)]
+    internal static extern void webkit_user_script_unref(IntPtr userScript);
+
+    [DllImport(LibWebKit)]
     internal static extern bool webkit_web_view_can_go_back(IntPtr webView);
 
     [DllImport(LibWebKit)]
