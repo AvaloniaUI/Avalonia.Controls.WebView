@@ -695,29 +695,35 @@ internal sealed unsafe class WpeWebViewAdapter
                 var soupCookie = WpeInterop.g_list_nth_data(glist, i);
                 if (soupCookie == IntPtr.Zero) continue;
 
-                var name = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_name(soupCookie)) ?? "";
-                var value = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_value(soupCookie)) ?? "";
-                var domain = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_domain(soupCookie)) ?? "";
-                var path = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_path(soupCookie)) ?? "/";
-                var secure = WpeInterop.soup_cookie_get_secure(soupCookie);
-                var httpOnly = WpeInterop.soup_cookie_get_http_only(soupCookie);
-
-                var cookie = new Cookie(name, value, path, domain)
+                try
                 {
-                    Secure = secure,
-                    HttpOnly = httpOnly
-                };
+                    var name = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_name(soupCookie)) ?? "";
+                    var value = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_value(soupCookie)) ?? "";
+                    var domain = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_domain(soupCookie)) ?? "";
+                    var path = Marshal.PtrToStringUTF8(WpeInterop.soup_cookie_get_path(soupCookie)) ?? "/";
+                    var secure = WpeInterop.soup_cookie_get_secure(soupCookie);
+                    var httpOnly = WpeInterop.soup_cookie_get_http_only(soupCookie);
 
-                var expiresPtr = WpeInterop.soup_cookie_get_expires(soupCookie);
-                if (expiresPtr != IntPtr.Zero)
-                {
-                    var unixTime = WpeInterop.g_date_time_to_unix(expiresPtr);
-                    cookie.Expires = DateTimeOffset.FromUnixTimeSeconds(unixTime).DateTime;
+                    var cookie = new Cookie(name, value, path, domain)
+                    {
+                        Secure = secure,
+                        HttpOnly = httpOnly
+                    };
+
+                    var expiresPtr = WpeInterop.soup_cookie_get_expires(soupCookie);
+                    if (expiresPtr != IntPtr.Zero)
+                    {
+                        var unixTime = WpeInterop.g_date_time_to_unix(expiresPtr);
+                        cookie.Expires = DateTimeOffset.FromUnixTimeSeconds(unixTime).DateTime;
+                    }
+
+                    cookies.Add(cookie);
                 }
-
-                cookies.Add(cookie);
+                finally
+                {
+                    WpeInterop.soup_cookie_free(soupCookie);
+                }
             }
-            // GList of SoupCookie is freed with the cookies
             WpeInterop.g_list_free(glist);
         }
 
