@@ -213,18 +213,18 @@ internal sealed class GtkOffscreenAvaloniaWebViewAdapter : GtkOffscreenWebViewAd
             {
                 RunOnGlibThreadAsync(() =>
                 {
+                    if (disposing)
+                    {
+                        _closeSignal.Dispose();
+                        _adapter._openedMenus.Remove(this);
+                    }
+
                     if (close)
                     {
                         webkit_option_menu_close(menu);
                     }
 
                     g_object_unref(menu);
-
-                    if (disposing)
-                    {
-                        _closeSignal.Dispose();
-                        _adapter._openedMenus.Remove(this);
-                    }
                 });
             }
 
