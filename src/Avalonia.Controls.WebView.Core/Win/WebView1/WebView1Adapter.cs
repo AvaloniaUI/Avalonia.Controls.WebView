@@ -222,8 +222,8 @@ internal sealed class WebView1Adapter(IWebViewControl control, IWebViewControlSi
         };
     }
 
-    unsafe IntPtr IWindowsWebView1PlatformHandle.WebViewControl => _webViewControl is not null ?
-        new(ComInterfaceMarshaller<IWebViewControl>.ConvertToUnmanaged(_webViewControl)) :
+    IntPtr IWindowsWebView1PlatformHandle.WebViewControl => _webViewControl is not null ?
+        WindowsUtility.GetBorrowedComPointer(_webViewControl) :
         IntPtr.Zero;
 
     private void ReleaseUnmanagedResources()

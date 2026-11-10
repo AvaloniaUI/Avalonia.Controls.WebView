@@ -41,6 +41,7 @@ internal partial class WebView2CompAdapter
 
     private readonly CommitAsyncLoopHandler _commitAsyncLoopHandler;
     private readonly ICoreWebView2CompositionController _controller;
+    private readonly IContainerVisual _visual;
     private EventRegistrationToken _cursorChangedToken;
     private EventHandler? _cursorChangedHandler;
     private Action? _drawRequestedHandler;
@@ -51,12 +52,9 @@ internal partial class WebView2CompAdapter
         : base((ICoreWebView2Controller)controller)
     {
         _controller = controller;
+        _visual = visual;
         controller.SetRootVisualTarget(visual);
-
-        unsafe
-        {
-            Handle = (IntPtr)ComInterfaceMarshaller<IContainerVisual>.ConvertToUnmanaged(visual);
-        }
+        Handle = WindowsUtility.GetBorrowedComPointer(visual);
 
         // ReSharper disable once SuspiciousTypeConversion.Global
         _commitAsyncLoopHandler = new CommitAsyncLoopHandler(this, (ICompositor5)compositor);
