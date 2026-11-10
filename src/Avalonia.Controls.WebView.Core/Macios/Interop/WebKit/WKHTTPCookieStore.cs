@@ -20,6 +20,7 @@ internal class WKHTTPCookieStore(IntPtr handle, bool owns) : NSObject(handle, ow
         using var nsCookie = NSHTTPCookie.Create(cookie);
         var block = BlockLiteral.GetBlockForFunctionPointer(s_setDeleteCallback, default);
         Libobjc.void_objc_msgSend(Handle, s_setCookie, nsCookie.Handle, block);
+        Libobjc._Block_release(block);
     }
 
     public void DeleteCookie(Cookie cookie)
@@ -27,6 +28,7 @@ internal class WKHTTPCookieStore(IntPtr handle, bool owns) : NSObject(handle, ow
         using var nsCookie = NSHTTPCookie.Create(cookie);
         var block = BlockLiteral.GetBlockForFunctionPointer(s_setDeleteCallback, default);
         Libobjc.void_objc_msgSend(Handle, s_deleteCookie, nsCookie.Handle, block);
+        Libobjc._Block_release(block);
     }
 
     public async Task<IReadOnlyList<Cookie>> GetAllCookies()
@@ -37,6 +39,7 @@ internal class WKHTTPCookieStore(IntPtr handle, bool owns) : NSObject(handle, ow
         {
             var block = BlockLiteral.GetBlockForFunctionPointer(s_getAllCookiesCallback, GCHandle.ToIntPtr(stateHandle));
             Libobjc.void_objc_msgSend(Handle, s_getAllCookies, block);
+            Libobjc._Block_release(block);
             return await tcs.Task;
         }
         finally

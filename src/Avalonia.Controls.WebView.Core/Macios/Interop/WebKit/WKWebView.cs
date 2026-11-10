@@ -124,6 +124,7 @@ internal class WKWebView : AppleView
             using var scriptStr = NSString.Create(script);
             var block = BlockLiteral.GetBlockForFunctionPointer(s_evaluateScriptCallback, GCHandle.ToIntPtr(stateHandle));
             Libobjc.void_objc_msgSend(Handle, s_evaluateJavaScript, scriptStr.Handle, block);
+            Libobjc._Block_release(block);
             return await tcs.Task;
         }
         finally
@@ -150,6 +151,7 @@ internal class WKWebView : AppleView
                 s_createPDFWithConfiguration,
                 configuration?.Handle ?? IntPtr.Zero,
                 block);
+            Libobjc._Block_release(block);
             return await tcs.Task;
         }
         finally
@@ -188,6 +190,7 @@ internal class WKWebView : AppleView
                     GCHandle.ToIntPtr(stateHandle));
                 Libobjc.void_objc_msgSend(state.WebView, s_callAsyncJavaScript,
                     functionBodyStr.Handle, args.Handle, default, WKContentWorld.DefaultClientWorld, block);
+                Libobjc._Block_release(block);
                 _ = await state.CompletionSource.Task;
             }
             finally
