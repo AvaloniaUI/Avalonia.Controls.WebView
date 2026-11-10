@@ -43,7 +43,7 @@ internal sealed unsafe class WpeWebViewAdapter
     private readonly GSignalScriptMessageCallback _scriptMessageCallback;
     private readonly GSignalLoadFailedCallback _loadFailedCallback;
     private GCHandle _selfHandle;
-    private readonly List<(IntPtr Instance, ulong Id)> _signals = new();
+    private readonly List<(IntPtr Instance, nuint Id)> _signals = new();
 
     private WpeWebViewAdapter()
     {

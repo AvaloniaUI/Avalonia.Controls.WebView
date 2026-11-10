@@ -11,7 +11,7 @@ internal sealed class GtkSignal
     private static readonly unsafe IntPtr s_onDestroy = new((delegate* unmanaged[Cdecl]<IntPtr, IntPtr, void>)&OnDestroy);
 
     private readonly nint _instance;
-    private readonly ulong _signal;
+    private readonly nuint _signal;
     private readonly GCHandle _state;
 
     public GtkSignal(IntPtr instance, string signal, IntPtr callback, object state)

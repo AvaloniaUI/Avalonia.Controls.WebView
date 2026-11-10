@@ -426,10 +426,10 @@ internal static unsafe partial class GtkInterop
     internal static extern bool gtk_widget_has_focus(IntPtr widget);
 
     [LibraryImport(LibGObject, StringMarshalling = StringMarshalling.Utf8)]
-    internal static partial ulong g_signal_connect_data(nint instance, string detailed_signal, nint c_handler, nint data, nint destroy_data, GConnectFlags connect_flags);
+    internal static partial nuint g_signal_connect_data(nint instance, string detailed_signal, nint c_handler, nint data, nint destroy_data, GConnectFlags connect_flags);
 
     [DllImport(LibGObject)]
-    internal static extern void g_signal_handler_disconnect(IntPtr instance, ulong handlerId);
+    internal static extern void g_signal_handler_disconnect(IntPtr instance, nuint handlerId);
 
     [DllImport(LibWebKit)]
     internal static extern void webkit_policy_decision_ignore(IntPtr decision);

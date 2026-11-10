@@ -14,7 +14,7 @@ internal sealed unsafe class WpePlatformViewBackend : IWpeViewBackend
     private readonly PixelSize _initialSize;
     private IntPtr _view;
     private IntPtr _toplevel;
-    private ulong _bufferRenderedHandler;
+    private nuint _bufferRenderedHandler;
     private IntPtr _pendingBuffer;
     private GCHandle _selfHandle;
     private bool _pointerInside;
