@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 
 namespace Avalonia.Controls.Macios.Interop.WebKit;
 
@@ -17,7 +18,15 @@ internal class WKPDFConfiguration : NSObject
 
     public CGRect Rect
     {
-        get => Libobjc.CGRect_objc_msgSend(Handle, s_rect);
+        get
+        {
+            if (RuntimeInformation.ProcessArchitecture != Architecture.X64)
+                return Libobjc.CGRect_objc_msgSend(Handle, s_rect);
+
+            CGRect result;
+            unsafe { Libobjc.CGRect_objc_msgSend_stret(&result, Handle, s_rect); }
+            return result;
+        }
         set => Libobjc.void_objc_msgSend(Handle, s_setRect, value);
     }
 
