@@ -108,7 +108,7 @@ internal sealed class WebView1Adapter(IWebViewControl control, IWebViewControlSi
         {
             var absoluteUri = _webViewControl?.get_Source()?.get_AbsoluteUri();
             return absoluteUri.HasValue
-                   && Uri.TryCreate(HStringInterop.FromIntPtr(absoluteUri.Value), UriKind.Absolute, out var uri)
+                   && Uri.TryCreate(HStringInterop.TakeString(absoluteUri.Value), UriKind.Absolute, out var uri)
                 ? uri : WebViewHelper.EmptyPage;
         }
         set

@@ -19,7 +19,7 @@ internal partial class WebViewCallbacks(WeakReference<WebView1Adapter> weakAdapt
     {
         if (weakAdapter.TryGetTarget(out var adapter)
             && adapter.GetNavigationStarted() is { } handler
-            && Uri.TryCreate(HStringInterop.FromIntPtr(e.get_Uri().get_AbsoluteUri()), UriKind.Absolute, out var uri))
+            && Uri.TryCreate(HStringInterop.TakeString(e.get_Uri().get_AbsoluteUri()), UriKind.Absolute, out var uri))
         {
             var args = new WebViewNavigationStartingEventArgs { Request = uri };
             handler.Invoke(adapter, args);
@@ -31,7 +31,7 @@ internal partial class WebViewCallbacks(WeakReference<WebView1Adapter> weakAdapt
     {
         if (weakAdapter.TryGetTarget(out var adapter)
             && adapter.GetNavigationCompleted() is { } handler
-            && Uri.TryCreate(HStringInterop.FromIntPtr(e.get_Uri().get_AbsoluteUri()), UriKind.Absolute, out var uri))
+            && Uri.TryCreate(HStringInterop.TakeString(e.get_Uri().get_AbsoluteUri()), UriKind.Absolute, out var uri))
         {
             InitScript();
 
@@ -62,7 +62,7 @@ internal partial class WebViewCallbacks(WeakReference<WebView1Adapter> weakAdapt
             && adapter.GetWebMessageReceived() is { } handler)
         {
             var value = e.get_Value();
-            var message = HStringInterop.FromIntPtr(value);
+            var message = HStringInterop.TakeString(value);
 
             handler.Invoke(adapter, new WebMessageReceivedEventArgs { Body = message });
         }
@@ -72,7 +72,7 @@ internal partial class WebViewCallbacks(WeakReference<WebView1Adapter> weakAdapt
     {
         if (weakAdapter.TryGetTarget(out var adapter)
             && adapter.GetNewWindowRequested() is { } handler
-            && Uri.TryCreate(HStringInterop.FromIntPtr(e.get_Uri().get_AbsoluteUri()), UriKind.Absolute, out var uri))
+            && Uri.TryCreate(HStringInterop.TakeString(e.get_Uri().get_AbsoluteUri()), UriKind.Absolute, out var uri))
         {
             var args = new WebViewNewWindowRequestedEventArgs { Request = uri };
             handler.Invoke(adapter, args);
@@ -86,13 +86,13 @@ internal partial class WebViewCallbacks(WeakReference<WebView1Adapter> weakAdapt
             && adapter.GetWebResourceRequested() is { } handler)
         {
             var nativeRequest = e.GetRequest();
-            if (Uri.TryCreate(HStringInterop.FromIntPtr(nativeRequest.GetRequestUri().get_AbsoluteUri()), UriKind.Absolute, out var uri))
+            if (Uri.TryCreate(HStringInterop.TakeString(nativeRequest.GetRequestUri().get_AbsoluteUri()), UriKind.Absolute, out var uri))
             {
                 var headersWrapper = new NativeHeadersCollection(new WebView1NativeHttpRequestHeaders(nativeRequest.GetHeaders()));
                 var request = new WebViewWebResourceRequest
                 {
                     Headers = headersWrapper,
-                    Method = new HttpMethod(HStringInterop.FromIntPtr(nativeRequest.GetMethod().Method())!),
+                    Method = new HttpMethod(HStringInterop.TakeString(nativeRequest.GetMethod().Method())!),
                     Uri = uri
                 };
 
