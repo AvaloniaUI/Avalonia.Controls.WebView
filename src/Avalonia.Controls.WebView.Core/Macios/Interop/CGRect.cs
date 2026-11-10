@@ -1,4 +1,5 @@
 namespace Avalonia.Controls.Macios.Interop;
 
-internal record struct CGRect(float X, float Y, float Width, float Height);
-internal record struct CGSize(float Width, float Height);
+// CGFloat is double on 64-bit Apple platforms.
+internal record struct CGRect(double X, double Y, double Width, double Height);
+internal record struct CGSize(double Width, double Height);

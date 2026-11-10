@@ -131,6 +131,9 @@ internal static unsafe partial class Libobjc
     public static extern void void_objc_msgSend(IntPtr basePtr, IntPtr selector, int param1, IntPtr param2);
     [DllImport(libobjc, EntryPoint = "objc_msgSend")]
     public static extern CGRect CGRect_objc_msgSend(IntPtr basePtr, IntPtr selector);
+    // x86_64 only: structs over 16 bytes are returned in memory.
+    [DllImport(libobjc, EntryPoint = "objc_msgSend_stret")]
+    public static extern void CGRect_objc_msgSend_stret(CGRect* result, IntPtr basePtr, IntPtr selector);
     [DllImport(libobjc, EntryPoint = "objc_msgSend")]
     public static extern CGSize CGSize_objc_msgSend(IntPtr basePtr, IntPtr selector);
 
