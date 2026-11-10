@@ -582,19 +582,24 @@ internal sealed unsafe class WpeWebViewAdapter
 
         if (soupCookie != IntPtr.Zero)
         {
-            WpeInterop.soup_cookie_set_secure(soupCookie, cookie.Secure);
-            WpeInterop.soup_cookie_set_http_only(soupCookie, cookie.HttpOnly);
+            try
+            {
+                WpeInterop.soup_cookie_set_secure(soupCookie, cookie.Secure);
+                WpeInterop.soup_cookie_set_http_only(soupCookie, cookie.HttpOnly);
 
-            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var tcsHandle = GCHandle.Alloc(tcs);
+                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var tcsHandle = GCHandle.Alloc(tcs);
 
-            WpeInterop.webkit_cookie_manager_add_cookie(
-                _cookieManager, soupCookie, IntPtr.Zero,
-                &OnAddCookieFinished, GCHandle.ToIntPtr(tcsHandle));
+                WpeInterop.webkit_cookie_manager_add_cookie(
+                    _cookieManager, soupCookie, IntPtr.Zero,
+                    &OnAddCookieFinished, GCHandle.ToIntPtr(tcsHandle));
 
-            WaitForCompletion(tcs.Task);
-
-            // soup cookie is consumed by webkit
+                WaitForCompletion(tcs.Task);
+            }
+            finally
+            {
+                WpeInterop.soup_cookie_free(soupCookie);
+            }
         }
     }
 
