@@ -502,6 +502,8 @@ namespace Avalonia.Xpf.Controls
                 Core.WebViewAdapter.CompositorHostAdapterFactory comp => new NativeWebViewCompositorHost(comp),
 #endif
                 Core.WebViewAdapter.NativeHostAdapterFactory native => new NativeWebViewControlHost(native),
+                Core.WebViewAdapter.UnavailableAdapterFactory unavailable =>
+                    new EmptyNativeWebViewControlImpl(unavailable.DetailedInfo.UnavailableReason),
                 _ => new EmptyNativeWebViewControlImpl()
             };
 

@@ -53,6 +53,32 @@ public class HeadlessAdapterTests : HeadlessTestsBase
     }
 
     [AvaloniaFact]
+    public async Task Should_Report_Adapter_Initialization_Failure()
+    {
+        var window = new Window();
+        var webView = new NativeWebView();
+        var adapterCreated = false;
+        webView.EnvironmentRequested += (_, args) =>
+        {
+            if (args is HeadlessWebViewEnvironmentRequestedEventArgs headless)
+            {
+                headless.InitializeAsync = () => Task.FromException(new InvalidOperationException("Adapter failed."));
+            }
+        };
+        webView.AdapterCreated += (_, _) => adapterCreated = true;
+        window.Content = webView;
+        window.Show();
+
+        await WaitFor(() => (webView.AdapterInfo as DetailedWebViewAdapterInfo)?.UnavailableReason is not null);
+
+        var info = Assert.IsType<DetailedWebViewAdapterInfo>(webView.AdapterInfo);
+        Assert.Equal(WebViewAdapterType.Headless, info.Type);
+        Assert.Equal("Adapter failed.", info.UnavailableReason);
+        Assert.False(adapterCreated);
+        Assert.Null(webView.TryGetPlatformHandle());
+    }
+
+    [AvaloniaFact]
     public async Task NativeWebView_Navigation_And_Events()
     {
         var window = new Window();

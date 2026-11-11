@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.Versioning;
 using System.Threading.Tasks;
+using Avalonia.Logging;
 using Avalonia.Platform;
 
 namespace Avalonia.Controls;
@@ -24,6 +26,8 @@ internal static class WebViewAdapter
     public delegate Task<IWebViewAdapterWithOffscreenBuffer> OffscreenWebViewAdapterBuilder(Control parent);
     public record CompositorHostAdapterFactory(OffscreenWebViewAdapterBuilder InvokeAsync, WebViewAdapterInfo Info) : AdapterFactory(Info);
 
+    public record UnavailableAdapterFactory(DetailedWebViewAdapterInfo DetailedInfo) : AdapterFactory(DetailedInfo);
+
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
     public static async Task<AdapterFactory?> CreateFactory(
         Action<WebViewEnvironmentRequestedEventArgs> environmentRequested,
@@ -31,6 +35,7 @@ internal static class WebViewAdapter
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
     {
         var deferralManager = new DeferralManager();
+        DetailedWebViewAdapterInfo? unavailableInfo = null;
         if (UseHeadless)
         {
             var args = new HeadlessWebViewEnvironmentRequestedEventArgs(deferralManager);
@@ -106,17 +111,14 @@ internal static class WebViewAdapter
                     environmentRequested(args);
                     await deferralManager.WaitForDeferralsAsync();
 
-                    if (args.ExperimentalOffscreen && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
+                    var factory = await CreateWebView2Factory(args);
+                    if (factory is UnavailableAdapterFactory unavailable)
                     {
-                        var info = Win.WebView2.WebView2BaseAdapter.GetWebView2Info(args.BrowserExecutableFolder,
-                            WebViewEmbeddingScenario.OffscreenRenderer);
-                        var builder = await Win.WebView2.WebView2CompAdapter.CreateBuilder(args);
-                        return new CompositorHostAdapterFactory(builder, info);
+                        unavailableInfo ??= unavailable.DetailedInfo;
+                        continue;
                     }
 
-                    var nativeInfo = Win.WebView2.WebView2BaseAdapter.GetWebView2Info(args.BrowserExecutableFolder);
-                    var nativeBuilder = await Win.WebView2.WebView2HwndAdapter.CreateBuilder(args);
-                    return new NativeHostAdapterFactory(nativeBuilder, nativeInfo);
+                    return factory;
                 }
 
                 if (type == WebViewAdapterType.WebView1)
@@ -181,8 +183,43 @@ internal static class WebViewAdapter
         }
 #endif
 
-        return null;
+        return unavailableInfo is not null ? new UnavailableAdapterFactory(unavailableInfo) : null;
     }
+
+#if !ANDROID && !BROWSER
+    // Kept out of CreateFactory: try/catch inside that method makes the platform compatibility analyzer run out of memory.
+    [SupportedOSPlatform("windows6.1")]
+    private static async Task<AdapterFactory> CreateWebView2Factory(WindowsWebView2EnvironmentRequestedEventArgs args)
+    {
+        var offscreen = args.ExperimentalOffscreen && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763);
+        var info = Win.WebView2.WebView2BaseAdapter.GetWebView2Info(args.BrowserExecutableFolder,
+            offscreen ? WebViewEmbeddingScenario.OffscreenRenderer : WebViewEmbeddingScenario.NativeControlHost);
+
+        // An explicit environment doesn't need the runtime lookup.
+        if (args.ExplicitEnvironment == IntPtr.Zero && !info.IsInstalled)
+            return new UnavailableAdapterFactory(info);
+
+        try
+        {
+            if (offscreen && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
+            {
+                var builder = await Win.WebView2.WebView2CompAdapter.CreateBuilder(args);
+                return new CompositorHostAdapterFactory(builder, info);
+            }
+
+            var nativeBuilder = await Win.WebView2.WebView2HwndAdapter.CreateBuilder(args);
+            return new NativeHostAdapterFactory(nativeBuilder, info);
+        }
+        catch (Exception ex)
+        {
+            // The runtime is installed, but the environment couldn't be created.
+            // For example, the user data folder isn't writable.
+            Logger.TryGet(LogEventLevel.Warning, "WebView2")?.Log(null,
+                "Failed to create the WebView2 environment: {Exception}", ex);
+            return new UnavailableAdapterFactory(info with { UnavailableReason = ex.Message });
+        }
+    }
+#endif
 
     internal static IReadOnlyList<WebViewAdapterType> GetAdapterTypes(
         IReadOnlyList<WebViewAdapterType>? preferredOrder,

@@ -557,7 +557,7 @@ namespace Avalonia.Xpf.Controls
                             var factory = await Core.WebViewAdapter.CreateFactory(
                                 args => EnvironmentRequested?.Invoke(this, args),
                                 [type]);
-                            if (factory is not null)
+                            if (factory is not null and not Core.WebViewAdapter.UnavailableAdapterFactory)
                             {
                                 preferredDialog = new WindowNativeWebViewDialog(Task.FromResult<Core.WebViewAdapter.AdapterFactory?>(factory));
                                 break;

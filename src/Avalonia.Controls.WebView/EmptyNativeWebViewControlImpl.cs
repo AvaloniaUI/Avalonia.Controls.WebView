@@ -17,9 +17,9 @@ namespace Avalonia.Controls;
 namespace Avalonia.Xpf.Controls;
 #endif
 
-internal class EmptyNativeWebViewControlImpl : Control, INativeWebViewControlImpl
+internal class EmptyNativeWebViewControlImpl(string? reason = null) : Control, INativeWebViewControlImpl
 {
-    private const string Message = "NativeWebView is not supported on this platform/configuration.";
+    private readonly string _message = reason ?? "NativeWebView is not supported on this platform/configuration.";
 
     public event EventHandler<IWebViewAdapter>? AdapterCreated;
     public event EventHandler<IWebViewAdapter>? AdapterDestroyed;
@@ -37,7 +37,7 @@ internal class EmptyNativeWebViewControlImpl : Control, INativeWebViewControlImp
     {
         base.OnRender(context);
         var formattedText = new FormattedText(
-            Message,
+            _message,
             System.Globalization.CultureInfo.CurrentUICulture,
             System.Windows.FlowDirection.LeftToRight,
             new Typeface("Segoe UI"),
@@ -52,7 +52,7 @@ internal class EmptyNativeWebViewControlImpl : Control, INativeWebViewControlImp
     {
         base.Render(context);
         var formattedText = new FormattedText(
-            Message,
+            _message,
             System.Globalization.CultureInfo.CurrentUICulture,
             FlowDirection.LeftToRight,
             Typeface.Default,
