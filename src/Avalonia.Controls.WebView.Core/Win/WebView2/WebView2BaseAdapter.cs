@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Avalonia.Controls.Win.WebView2.Interop;
+using Avalonia.Logging;
 using Avalonia.Media;
 using Avalonia.Platform;
 
@@ -446,6 +447,23 @@ internal abstract partial class WebView2BaseAdapter(ICoreWebView2Controller cont
     {
         Dispose(true);
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Disposes the adapter after a failed initialization.
+    /// A cleanup error is logged, so the caller can rethrow the original error.
+    /// </summary>
+    internal void DisposeAfterFailure()
+    {
+        try
+        {
+            Dispose();
+        }
+        catch (Exception ex)
+        {
+            Logger.TryGet(LogEventLevel.Warning, "WebView2")?.Log(this,
+                "Failed to dispose the WebView2 adapter: {Exception}", ex);
+        }
     }
 
     ~WebView2BaseAdapter()

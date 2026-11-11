@@ -66,7 +66,7 @@ internal partial class WebView2HwndAdapter(IPlatformHandle handle, ICoreWebView2
                 }
                 catch
                 {
-                    webView.Dispose();
+                    webView.DisposeAfterFailure();
                     throw;
                 }
                 return webView;
