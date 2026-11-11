@@ -79,6 +79,22 @@ public class HeadlessAdapterTests : HeadlessTestsBase
     }
 
     [AvaloniaFact]
+    public async Task Should_Report_Adapter_Selection_Failure()
+    {
+        var window = new Window();
+        var webView = new NativeWebView();
+        webView.EnvironmentRequested += (_, _) => throw new InvalidOperationException("Environment failed.");
+        window.Content = webView;
+        window.Show();
+
+        await WaitFor(() => webView.AdapterInfo is not null);
+
+        var info = Assert.IsType<DetailedWebViewAdapterInfo>(webView.AdapterInfo);
+        Assert.Equal("Environment failed.", info.UnavailableReason);
+        Assert.Null(webView.TryGetPlatformHandle());
+    }
+
+    [AvaloniaFact]
     public async Task NativeWebView_Navigation_And_Events()
     {
         var window = new Window();

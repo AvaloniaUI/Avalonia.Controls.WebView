@@ -191,6 +191,15 @@ public record WebViewAdapterInfo(
         UnavailableReason: "The adapter is not supported on the current platform.",
         SupportedScenarios: WebViewEmbeddingScenario.None);
 
+    internal static DetailedWebViewAdapterInfo Failed(Exception exception) => new(
+        WebViewAdapterType.Unknown,
+        WebViewEngine.Unknown,
+        IsSupported: false,
+        IsInstalled: false,
+        Version: null,
+        UnavailableReason: exception.Message,
+        SupportedScenarios: WebViewEmbeddingScenario.None);
+
     private static DetailedWebViewAdapterInfo UnknownAdapter(WebViewAdapterType type) => new(
         type,
         WebViewEngine.Unknown,
