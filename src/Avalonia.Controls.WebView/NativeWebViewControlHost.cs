@@ -1,6 +1,7 @@
 #if AVALONIA || WPF
 using System;
 using System.Threading.Tasks;
+using Avalonia.Logging;
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
 using Core = Avalonia.Controls;
 #if WPF
@@ -49,10 +50,21 @@ namespace Avalonia.Xpf.Controls
             CompleteAdapter(adapterWrapper);
             return adapterWrapper.AdapterHandle;
 
-            // ReSharper disable once AsyncVoidMethod - let it flow to the dispatcher
             async void CompleteAdapter(WebViewAdapter.AdapterWrapper wrapper)
             {
-                var adapter = await wrapper.AdapterInitializeTask;
+                IWebViewAdapter adapter;
+                try
+                {
+                    adapter = await wrapper.AdapterInitializeTask;
+                }
+                catch (Exception ex)
+                {
+                    Logger.TryGet(LogEventLevel.Warning, "WebView")?.Log(this,
+                        "Failed to initialize the WebView adapter: {Exception}", ex);
+                    completion.TrySetException(ex);
+                    return;
+                }
+
                 if (!ReferenceEquals(_webViewReadyCompletion, completion))
                 {
                     adapter.Dispose();
