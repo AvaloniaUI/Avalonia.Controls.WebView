@@ -120,7 +120,15 @@ internal partial class WebView2CompAdapter
             var compositionVisual = s_compositor.Value.CreateContainerVisual();
 
             var webView = new WebView2CompAdapter(compositionVisual, s_compositor.Value, controller);
-            await webView.InitializeAsync(environmentArgs);
+            try
+            {
+                await webView.InitializeAsync(environmentArgs);
+            }
+            catch
+            {
+                webView.Dispose();
+                throw;
+            }
 
             return webView;
         };

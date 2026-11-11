@@ -60,7 +60,15 @@ internal partial class WebView2HwndAdapter(IPlatformHandle handle, ICoreWebView2
 
                 var controller = await handler.Result.Task;
                 var webView = new WebView2HwndAdapter(thisHandle, controller);
-                await webView.InitializeAsync(environmentArgs);
+                try
+                {
+                    await webView.InitializeAsync(environmentArgs);
+                }
+                catch
+                {
+                    webView.Dispose();
+                    throw;
+                }
                 return webView;
             }
         };
