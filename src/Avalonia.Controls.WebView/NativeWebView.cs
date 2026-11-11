@@ -523,6 +523,25 @@ namespace Avalonia.Xpf.Controls
             AddLogicalChild(visual);
             OnVisualChildrenChanged(visual, null);
 #endif
+
+            ObserveAdapterFailure(controlHostImpl);
+        }
+
+        private async void ObserveAdapterFailure(INativeWebViewControlImpl controlHostImpl)
+        {
+            try
+            {
+                await controlHostImpl.GetAdapterAsync();
+            }
+            catch (OperationCanceledException)
+            {
+                // The control was detached before the adapter was ready.
+            }
+            catch (Exception ex)
+            {
+                if (AdapterInfo is AvPlatform.DetailedWebViewAdapterInfo info)
+                    AdapterInfo = info with { UnavailableReason = ex.Message };
+            }
         }
 
         private void WithFocusOnGotFocus(object? sender, EventArgs e)
