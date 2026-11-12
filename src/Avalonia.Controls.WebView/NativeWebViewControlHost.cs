@@ -1,6 +1,7 @@
 #if AVALONIA || WPF
 using System;
 using System.Threading.Tasks;
+using Avalonia.Logging;
 using IPlatformHandle = Avalonia.Platform.IPlatformHandle;
 using Core = Avalonia.Controls;
 #if WPF
@@ -35,7 +36,7 @@ namespace Avalonia.Xpf.Controls
 
         protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
         {
-            if (_reparentingScope is not null)
+            if (_reparentingScope is { HasPendingAdapter: true })
             {
                 return _reparentingScope.ReparentRequested(parent);
             }
@@ -44,15 +45,41 @@ namespace Avalonia.Xpf.Controls
                 new TaskCompletionSource<IWebViewAdapter?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             IPlatformHandle? defaultChildHandle = null;
-            var adapterWrapper = factory.InvokeAsync(parent, p => defaultChildHandle = base.CreateNativeControlCore(p));
+            WebViewAdapter.AdapterWrapper adapterWrapper;
+            try
+            {
+                adapterWrapper = factory.InvokeAsync(parent, p => defaultChildHandle = base.CreateNativeControlCore(p));
+            }
+            catch (Exception ex)
+            {
+                Logger.TryGet(LogEventLevel.Warning, "WebView")?.Log(this,
+                    "Failed to create the WebView adapter: {Exception}", ex);
+                SetFailed(completion, ex);
+                if (defaultChildHandle is not null)
+                    base.DestroyNativeControlCore(defaultChildHandle);
+
+                return _defaultChildHandle = base.CreateNativeControlCore(parent);
+            }
+
             _defaultChildHandle = defaultChildHandle;
             CompleteAdapter(adapterWrapper);
             return adapterWrapper.AdapterHandle;
 
-            // ReSharper disable once AsyncVoidMethod - let it flow to the dispatcher
             async void CompleteAdapter(WebViewAdapter.AdapterWrapper wrapper)
             {
-                var adapter = await wrapper.AdapterInitializeTask;
+                IWebViewAdapter adapter;
+                try
+                {
+                    adapter = await wrapper.AdapterInitializeTask;
+                }
+                catch (Exception ex)
+                {
+                    Logger.TryGet(LogEventLevel.Warning, "WebView")?.Log(this,
+                        "Failed to initialize the WebView adapter: {Exception}", ex);
+                    SetFailed(completion, ex);
+                    return;
+                }
+
                 if (!ReferenceEquals(_webViewReadyCompletion, completion))
                 {
                     adapter.Dispose();
@@ -61,6 +88,12 @@ namespace Avalonia.Xpf.Controls
 
                 WebViewAdapterOnInitialized(adapter);
             }
+        }
+
+        private static void SetFailed(TaskCompletionSource<IWebViewAdapter?> completion, Exception ex)
+        {
+            completion.TrySetException(ex);
+            _ = completion.Task.Exception; // Already logged, mark as observed.
         }
 
         /// <inheritdoc />
@@ -161,6 +194,7 @@ namespace Avalonia.Xpf.Controls
         private sealed class ReparentingScope(NativeWebViewControlHost webView, bool yieldOnLayoutBeforeExiting) : IDisposable, IAsyncDisposable
         {
             private IWebViewAdapter? _pendingAdapter;
+            public bool HasPendingAdapter => _pendingAdapter is not null;
             public void Dispose()
             {
                 var task = DisposeAsync().AsTask();

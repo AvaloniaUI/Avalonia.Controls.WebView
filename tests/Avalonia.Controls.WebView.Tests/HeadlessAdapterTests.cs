@@ -53,6 +53,166 @@ public class HeadlessAdapterTests : HeadlessTestsBase
     }
 
     [AvaloniaFact]
+    public async Task Should_Report_Adapter_Initialization_Failure()
+    {
+        var window = new Window();
+        var webView = new NativeWebView();
+        var adapterCreated = false;
+        webView.EnvironmentRequested += (_, args) =>
+        {
+            if (args is HeadlessWebViewEnvironmentRequestedEventArgs headless)
+            {
+                headless.InitializeAsync = () => Task.FromException(new InvalidOperationException("Adapter failed."));
+            }
+        };
+        webView.AdapterCreated += (_, _) => adapterCreated = true;
+        window.Content = webView;
+        window.Show();
+
+        await WaitFor(() => (webView.AdapterInfo as DetailedWebViewAdapterInfo)?.UnavailableReason is not null);
+
+        var info = Assert.IsType<DetailedWebViewAdapterInfo>(webView.AdapterInfo);
+        Assert.Equal(WebViewAdapterType.Headless, info.Type);
+        Assert.Equal("Adapter failed.", info.UnavailableReason);
+        Assert.False(adapterCreated);
+        Assert.Null(webView.TryGetPlatformHandle());
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => webView.TryGetImpl()!.GetAdapterAsync());
+        Assert.Equal("Adapter failed.", error.Message);
+    }
+
+    [AvaloniaFact]
+    public async Task Should_Report_Adapter_Selection_Failure()
+    {
+        var calls = 0;
+        var window = new Window();
+        var webView = new NativeWebView();
+        webView.EnvironmentRequested += (_, _) =>
+        {
+            calls++;
+            throw new InvalidOperationException("Environment failed.");
+        };
+        window.Content = webView;
+        window.Show();
+
+        await WaitFor(() => webView.AdapterInfo is not null);
+
+        var info = Assert.IsType<DetailedWebViewAdapterInfo>(webView.AdapterInfo);
+        Assert.Equal("Environment failed.", info.UnavailableReason);
+        Assert.Null(webView.TryGetPlatformHandle());
+
+        window.Content = null;
+        window.Content = webView;
+        await DoDelay();
+
+        Assert.Equal(1, calls);
+        Assert.Same(info, webView.AdapterInfo);
+        Assert.IsType<EmptyNativeWebViewControlImpl>(Assert.Single(webView.GetVisualChildren()));
+    }
+
+    [AvaloniaFact]
+    public async Task Should_Not_Add_Host_While_Detached()
+    {
+        IDisposable? deferral = null;
+        var webView = new NativeWebView();
+        webView.EnvironmentRequested += (_, args) => deferral = args.GetDeferral();
+        var window = new Window { Content = webView };
+        window.Show();
+
+        window.Content = null;
+        deferral!.Dispose();
+        await DoDelay();
+
+        Assert.Empty(webView.GetVisualChildren());
+
+        window.Content = webView;
+        await WaitFor(() => webView.TryGetPlatformHandle() is not null);
+
+        Assert.NotNull(webView.TryGetPlatformHandle());
+    }
+
+    [AvaloniaFact]
+    public async Task Should_Not_Keep_Adapter_When_Detached_From_AdapterCreated()
+    {
+        var created = false;
+        var webView = new NativeWebView();
+        var window = new Window { Content = webView };
+        webView.AdapterCreated += (_, _) =>
+        {
+            created = true;
+            window.Content = null;
+        };
+        window.Show();
+
+        await WaitFor(() => created);
+
+        Assert.True(created);
+        Assert.Null(webView.TryGetPlatformHandle());
+    }
+
+    [AvaloniaFact]
+    public async Task Should_Create_One_Host_When_Reattached_During_Adapter_Selection()
+    {
+        IDisposable? deferral = null;
+        var calls = 0;
+        var webView = new NativeWebView();
+        webView.EnvironmentRequested += (_, args) =>
+        {
+            calls++;
+            deferral ??= args.GetDeferral();
+        };
+        var window = new Window { Content = webView };
+        window.Show();
+
+        window.Content = null;
+        window.Content = webView;
+        deferral!.Dispose();
+
+        await WaitFor(() => webView.TryGetPlatformHandle() is not null);
+
+        Assert.Equal(1, calls);
+        Assert.Single(webView.GetVisualChildren());
+    }
+
+    [AvaloniaFact]
+    public async Task Should_Report_Adapter_Failure_After_Reattach()
+    {
+        var fail = false;
+        var panel = new StackPanel();
+        var window = new Window { Content = panel };
+        var webView = new NativeWebView();
+        webView.EnvironmentRequested += (_, args) =>
+        {
+            if (args is HeadlessWebViewEnvironmentRequestedEventArgs headless)
+            {
+                headless.InitializeAsync = () => fail
+                    ? Task.FromException(new InvalidOperationException("Adapter failed."))
+                    : Task.CompletedTask;
+            }
+        };
+        panel.Children.Add(webView);
+        var adapterCreated = WaitForAdapterCreation(webView);
+        window.Show();
+        await adapterCreated;
+
+        fail = true;
+        panel.Children.Remove(webView);
+        await DoDelay();
+        panel.Children.Add(webView);
+        await WaitFor(() => (webView.AdapterInfo as DetailedWebViewAdapterInfo)?.UnavailableReason is not null);
+
+        Assert.Equal("Adapter failed.", ((DetailedWebViewAdapterInfo)webView.AdapterInfo!).UnavailableReason);
+
+        fail = false;
+        panel.Children.Remove(webView);
+        await DoDelay();
+        adapterCreated = WaitForAdapterCreation(webView);
+        panel.Children.Add(webView);
+        await adapterCreated;
+
+        Assert.Null(((DetailedWebViewAdapterInfo)webView.AdapterInfo!).UnavailableReason);
+    }
+
+    [AvaloniaFact]
     public async Task NativeWebView_Navigation_And_Events()
     {
         var window = new Window();

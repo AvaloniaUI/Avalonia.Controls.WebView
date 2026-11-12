@@ -12,6 +12,7 @@ using Avalonia.Controls.Rendering;
 using Avalonia.Controls.Win.Interop;
 using Avalonia.Controls.Win.WebView2.Interop;
 using Avalonia.Input;
+using Avalonia.Logging;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Microsoft.Win32.SafeHandles;
@@ -117,10 +118,36 @@ internal partial class WebView2CompAdapter
 
             var controller = await handler.Result.Task;
 
-            var compositionVisual = s_compositor.Value.CreateContainerVisual();
+            WebView2CompAdapter webView;
+            try
+            {
+                var compositionVisual = s_compositor.Value.CreateContainerVisual();
+                webView = new WebView2CompAdapter(compositionVisual, s_compositor.Value, controller);
+            }
+            catch
+            {
+                // The adapter doesn't own the controller yet, close it here.
+                try
+                {
+                    ((ICoreWebView2Controller)controller).Close();
+                }
+                catch (Exception ex)
+                {
+                    Logger.TryGet(LogEventLevel.Warning, "WebView2")?.Log(null,
+                        "Failed to close the WebView2 controller: {Exception}", ex);
+                }
+                throw;
+            }
 
-            var webView = new WebView2CompAdapter(compositionVisual, s_compositor.Value, controller);
-            await webView.InitializeAsync(environmentArgs);
+            try
+            {
+                await webView.InitializeAsync(environmentArgs);
+            }
+            catch
+            {
+                webView.DisposeAfterFailure();
+                throw;
+            }
 
             return webView;
         };
@@ -281,12 +308,18 @@ internal partial class WebView2CompAdapter
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing && !Disposed)
+        try
         {
-            _controller.SetRootVisualTarget(null);
+            if (disposing && !Disposed)
+            {
+                _controller.SetRootVisualTarget(null);
+            }
         }
-
-        base.Dispose(disposing);
+        finally
+        {
+            // Always close the controller, even if detaching the visual failed.
+            base.Dispose(disposing);
+        }
     }
 
     public bool KeyInput(bool press, PhysicalKey physical, string? symbol, KeyModifiers modifiers)

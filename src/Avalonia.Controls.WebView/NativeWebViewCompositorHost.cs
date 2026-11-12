@@ -90,14 +90,32 @@ internal class NativeWebViewCompositorHost(WebViewAdapter.CompositorHostAdapterF
         _customVisual.Size = new Vector(Bounds.Width, Bounds.Height);
         ElementComposition.SetElementChildVisual(this, _customVisual);
 
-        _webViewReadyCompletion = new TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var adapterTask = factory.InvokeAsync(this);
+        var completion = _webViewReadyCompletion =
+            new TaskCompletionSource<IWebViewAdapterWithOffscreenBuffer?>(TaskCreationOptions.RunContinuationsAsynchronously);
         CompleteAdapter();
 
-        // ReSharper disable once AsyncVoidMethod - let it flow to the dispatcher
         async void CompleteAdapter()
         {
-            var adapter = await adapterTask;
+            IWebViewAdapterWithOffscreenBuffer adapter;
+            try
+            {
+                adapter = await factory.InvokeAsync(this);
+            }
+            catch (Exception ex)
+            {
+                Logger.TryGet(LogEventLevel.Warning, "WebView")?.Log(this,
+                    "Failed to initialize the WebView adapter: {Exception}", ex);
+                completion.TrySetException(ex);
+                _ = completion.Task.Exception; // Already logged, mark as observed.
+                return;
+            }
+
+            if (!ReferenceEquals(_webViewReadyCompletion, completion))
+            {
+                adapter.Dispose();
+                return;
+            }
+
             WebViewAdapterOnInitialized(adapter);
         }
     }
